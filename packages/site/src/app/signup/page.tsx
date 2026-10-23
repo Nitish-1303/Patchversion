@@ -23,7 +23,7 @@ export default function SignupPage() {
           <div className="bg-warning-bg border border-warning/20 rounded-md p-4">
             <p className="text-sm text-warning">
               <strong>Configuration required.</strong> Authentication requires a registered
-              GitHub App. See the <a href="/docs/quickstart" className="underline">quickstart guide</a> for
+              GitHub App. See the <a href="/docs/getting-started" className="underline">getting started guide</a> for
               setup instructions.
             </p>
           </div>
