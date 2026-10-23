@@ -4,7 +4,7 @@ export default function ContactPage() {
       <h1 className="text-3xl font-bold mb-8">Contact</h1>
       <div className="space-y-6 text-text-secondary">
         <p>
-          Patchversion is in early development by a solo founder.
+          PatchBay is in early development by a solo founder.
         </p>
         <p>
           For questions, feedback, or design-partner inquiries, open an issue on the
