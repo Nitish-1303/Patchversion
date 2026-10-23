@@ -1,6 +1,6 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { useState } from 'react';
 
 function Logo() {
   return (
@@ -11,6 +11,7 @@ function Logo() {
 }
 
 function Header() {
+  const [menuOpen, setMenuOpen] = useState(false);
   return (
     <header className="rule-b bg-background/95 backdrop-blur-sm sticky top-0 z-50">
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -26,8 +27,7 @@ function Header() {
           <a href="/how-it-works" className="px-3 py-2 text-sm text-text-secondary hover:text-ink rounded-md transition-colors">How It Works</a>
           <NavDropdown label="Developers" items={[
             { label: 'Documentation', href: '/docs' },
-            { label: 'Quickstart', href: '/docs/quickstart' },
-            { label: 'API Reference', href: '/api-reference' },
+            { label: 'Getting Started', href: '/docs/getting-started' },
             { label: 'Changelog', href: '/changelog' },
           ]} />
           <a href="/pricing" className="px-3 py-2 text-sm text-text-secondary hover:text-ink rounded-md transition-colors">Pricing</a>
@@ -36,9 +36,64 @@ function Header() {
           <a href="/docs" className="hidden sm:inline-block px-3 py-2 text-sm text-text-secondary hover:text-ink transition-colors">Documentation</a>
           <a href="/login" className="px-3 py-2 text-sm text-text-secondary hover:text-ink transition-colors">Sign In</a>
           <a href="/signup" className="btn-primary px-3 sm:px-5">Get Started</a>
+          <button
+            className="lg:hidden p-2 text-text-secondary hover:text-ink transition-colors"
+            onClick={() => setMenuOpen(!menuOpen)}
+            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={menuOpen}
+          >
+            {menuOpen ? (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
         </div>
       </nav>
+      {menuOpen && (
+        <nav className="lg:hidden rule-t bg-background px-4 sm:px-6 py-4">
+          <MobileNavSection label="Product" close={() => setMenuOpen(false)} items={[
+            { label: 'Overview', href: '/product' },
+            { label: 'API Monitoring', href: '/product#monitoring' },
+            { label: 'Change Intelligence', href: '/product#intelligence' },
+            { label: 'Impact Analysis', href: '/product#impact' },
+            { label: 'AI Remediation', href: '/product#remediation' },
+          ]} />
+          <MobileNavSection label="Developers" close={() => setMenuOpen(false)} items={[
+            { label: 'Documentation', href: '/docs' },
+            { label: 'Getting Started', href: '/docs/getting-started' },
+            { label: 'Changelog', href: '/changelog' },
+          ]} />
+          <MobileNavSection label="More" close={() => setMenuOpen(false)} items={[
+            { label: 'Integrations', href: '/integrations' },
+            { label: 'How It Works', href: '/how-it-works' },
+            { label: 'Pricing', href: '/pricing' },
+          ]} />
+        </nav>
+      )}
     </header>
+  );
+}
+
+function MobileNavSection({ label, items, close }: { label: string; items: { label: string; href: string }[]; close: () => void }) {
+  return (
+    <div className="mb-3 last:mb-0">
+      <p className="px-3 mb-1 text-xs font-semibold uppercase tracking-wider text-text-tertiary">{label}</p>
+      {items.map(item => (
+        <a
+          key={item.href}
+          href={item.href}
+          onClick={close}
+          className="block px-3 py-2 text-sm text-text-secondary hover:text-ink hover:bg-accent-light rounded-md transition-colors"
+        >
+          {item.label}
+        </a>
+      ))}
+    </div>
   );
 }
 
@@ -92,8 +147,7 @@ function Footer() {
             <h4 className="text-sm font-semibold mb-3">Developers</h4>
             <ul className="space-y-2 text-sm text-text-secondary">
               <li><a href="/docs" className="hover:text-ink">Documentation</a></li>
-              <li><a href="/docs/quickstart" className="hover:text-ink">Quickstart</a></li>
-              <li><a href="/api-reference" className="hover:text-ink">API Reference</a></li>
+              <li><a href="/docs/getting-started" className="hover:text-ink">Getting Started</a></li>
               <li><a href="/changelog" className="hover:text-ink">Changelog</a></li>
               <li><a href="https://github.com/PatchBay-HQ" className="hover:text-ink">GitHub</a></li>
             </ul>
@@ -101,18 +155,14 @@ function Footer() {
           <div>
             <h4 className="text-sm font-semibold mb-3">Company</h4>
             <ul className="space-y-2 text-sm text-text-secondary">
-              <li><a href="/company" className="hover:text-ink">About</a></li>
-              <li><a href="/company#contact" className="hover:text-ink">Contact</a></li>
-              <li><a href="/company#blog" className="hover:text-ink">Blog</a></li>
-              <li><a href="/company#careers" className="hover:text-ink">Careers</a></li>
+              <li><a href="/about" className="hover:text-ink">About</a></li>
+              <li><a href="/contact" className="hover:text-ink">Contact</a></li>
             </ul>
           </div>
           <div>
             <h4 className="text-sm font-semibold mb-3">Legal</h4>
             <ul className="space-y-2 text-sm text-text-secondary">
-              <li><a href="/security" className="hover:text-ink">Security</a></li>
-              <li><a href="/security#privacy" className="hover:text-ink">Privacy Policy</a></li>
-              <li><a href="/security#terms" className="hover:text-ink">Terms of Service</a></li>
+              <li><a href="/docs/security" className="hover:text-ink">Security</a></li>
             </ul>
           </div>
         </div>
@@ -125,11 +175,6 @@ function Footer() {
 }
 
 export default function Chrome({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  if (pathname === '/') {
-    // Split Sunset homepage renders its own header and footer.
-    return <>{children}</>;
-  }
   return (
     <>
       <Header />
