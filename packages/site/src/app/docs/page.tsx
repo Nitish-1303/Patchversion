@@ -4,7 +4,7 @@ export default function DocsPage() {
       <div className="max-w-3xl mb-12">
         <h1 className="text-4xl font-bold mb-4">Documentation</h1>
         <p className="text-lg text-text-secondary">
-          Everything you need to set up, configure, and use Patchversion.
+          Everything you need to set up, configure, and use PatchBay.
         </p>
       </div>
 
@@ -26,7 +26,7 @@ export default function DocsPage() {
         />
         <DocCard
           title="Change Detection"
-          description="How Patchversion classifies changes as breaking, additive, or informational."
+          description="How PatchBay classifies changes as breaking, additive, or informational."
           href="/docs/change-detection"
         />
         <DocCard
@@ -46,7 +46,7 @@ export default function DocsPage() {
         />
         <DocCard
           title="Security"
-          description="How Patchversion handles your code, credentials, and data."
+          description="How PatchBay handles your code, credentials, and data."
           href="/docs/security"
         />
         <DocCard
