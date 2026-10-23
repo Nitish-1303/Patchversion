@@ -17,7 +17,7 @@ export default function GettingStartedPage() {
         <section>
           <h2 className="text-xl font-semibold mb-4">1. Install the GitHub App</h2>
           <p className="text-text-secondary mb-4">
-            The Patchversion GitHub App requests read access to your code and write access
+            The PatchBay GitHub App requests read access to your code and write access
             for creating branches and pull requests. No other permissions are requested.
           </p>
           <div className="card bg-warning-bg border-warning/20">
@@ -31,7 +31,7 @@ export default function GettingStartedPage() {
         <section>
           <h2 className="text-xl font-semibold mb-4">2. Configure monitoring</h2>
           <p className="text-text-secondary mb-4">
-            Choose which npm packages to watch. Patchversion checks the registry for new
+            Choose which npm packages to watch. PatchBay checks the registry for new
             versions and parses changelogs for breaking change indicators.
           </p>
           <div className="code-block">
@@ -45,7 +45,7 @@ patchversion watch add openai`}</pre>
         <section>
           <h2 className="text-xl font-semibold mb-4">3. Review your first change</h2>
           <p className="text-text-secondary">
-            When a breaking change is detected, Patchversion maps affected code in your
+            When a breaking change is detected, PatchBay maps affected code in your
             repository, generates a fix, validates it against your test suite, and prepares
             a pull request with the evidence. You review and merge.
           </p>
