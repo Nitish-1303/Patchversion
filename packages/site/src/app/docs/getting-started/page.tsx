@@ -49,6 +49,7 @@ patchversion watch add openai`}</pre>
             repository, generates a fix, validates it against your test suite, and prepares
             a pull request with the evidence. You review and merge.
           </p>
+          <p className="text-xs text-text-tertiary mt-2">Designed workflow. This is not live yet; the current demo uses a local fixture.</p>
         </section>
       </div>
     </div>
