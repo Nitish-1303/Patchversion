@@ -2,7 +2,7 @@ export default function OnboardingPage() {
   return (
     <div className="min-h-[60vh] flex items-center justify-center px-4">
       <div className="max-w-2xl w-full">
-        <h1 className="text-3xl font-bold mb-2">Welcome to Patchversion</h1>
+        <h1 className="text-3xl font-bold mb-2">Welcome to PatchBay</h1>
         <p className="text-text-secondary mb-12">Let&apos;s get your first repository connected.</p>
 
         <div className="space-y-6">
@@ -15,7 +15,7 @@ export default function OnboardingPage() {
           <OnboardingStep
             step={2}
             title="Connect a repository"
-            description="Install the Patchversion GitHub App on the repositories you want to monitor."
+            description="Install the PatchBay GitHub App on the repositories you want to monitor."
             status="pending"
           />
           <OnboardingStep
@@ -27,7 +27,7 @@ export default function OnboardingPage() {
           <OnboardingStep
             step={4}
             title="Configure monitoring"
-            description="Set how often Patchversion checks for new versions and live API drift."
+            description="Set how often PatchBay checks for new versions and live API drift."
             status="pending"
           />
           <OnboardingStep
