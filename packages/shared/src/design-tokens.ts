@@ -1,24 +1,32 @@
-// Design tokens: warm light editorial
-// Used by both the site and any rendered artifacts.
+// Design tokens: Patchversion original identity
+// Clean, professional, developer-focused. Linear/Stripe/Vercel-inspired clarity.
 
 export const colors = {
-  background: '#FAF7F4',      // warm off-white
-  ink: '#1C1917',             // near-black
-  accent: '#C96F4A',          // terracotta
-  accentMuted: '#E8DDD5',     // muted terracotta for backgrounds
+  background: '#FAFAF9',      // warm white
   surface: '#FFFFFF',          // card surfaces
-  border: '#D6CFC9',          // 1px rules
-  textSecondary: '#6B6560',   // secondary text
-  success: '#2D7A4F',         // green for verified
-  error: '#B33929',           // red for failures
-  warning: '#D4A017',         // amber for warnings
+  ink: '#111827',             // near-black, high contrast
+  accent: '#4F46E5',          // indigo-600
+  accentLight: '#EEF2FF',     // indigo-50 for backgrounds
+  accentMuted: '#C7D2FE',     // indigo-200
+  border: '#E5E7EB',          // gray-200, subtle borders
+  borderStrong: '#D1D5DB',    // gray-300
+  textSecondary: '#6B7280',   // gray-500
+  textTertiary: '#9CA3AF',    // gray-400
+  success: '#059669',         // emerald-600
+  successBg: '#ECFDF5',       // emerald-50
+  error: '#DC2626',           // red-600
+  errorBg: '#FEF2F2',         // red-50
+  warning: '#D97706',         // amber-600
+  warningBg: '#FFFBEB',       // amber-50
+  codeBg: '#1E1E2E',          // dark code blocks
+  codeText: '#E2E8F0',        // light code text
 } as const;
 
 export const typography = {
-  displayFont: 'Satoshi, system-ui, sans-serif',
-  bodyFont: 'Inter, system-ui, sans-serif',
-  serifFont: '"Instrument Serif", Georgia, serif',
-  brandLine: 'Your code keeps up.',
+  displayFont: 'Inter, system-ui, -apple-system, sans-serif',
+  bodyFont: 'Inter, system-ui, -apple-system, sans-serif',
+  monoFont: '"JetBrains Mono", "Fira Code", Consolas, monospace',
+  tagline: 'Your APIs change. Your code adapts.',
 } as const;
 
 export const spacing = {
@@ -29,11 +37,12 @@ export const spacing = {
   xl: '2rem',
   '2xl': '3rem',
   '3xl': '4rem',
+  '4xl': '6rem',
 } as const;
 
-export const breakpoints = {
-  sm: '640px',
-  md: '768px',
-  lg: '1024px',
-  xl: '1280px',
+export const borderRadius = {
+  sm: '0.25rem',
+  md: '0.375rem',
+  lg: '0.5rem',
+  xl: '0.75rem',
 } as const;
