@@ -9,7 +9,7 @@
     "packages/shared"
   ],
   "scripts": {
-    "build": "npm run build --workspaces",
+    "build": "npm run build -w @patchversion/shared && npm run build --workspaces",
     "test": "npm run build -w @patchversion/shared && npm run test --workspaces",
     "typecheck": "npm run build -w @patchversion/shared && npm run typecheck --workspaces",
     "lint": "npm run lint --workspaces --if-present"
