@@ -17,6 +17,11 @@ import {
 export class StateStore {
   private stateDir: string;
 
+  /** Make an arbitrary id safe for use as a file name. */
+  private fileKey(id: string): string {
+    return id.replace(/[^a-zA-Z0-9._-]/g, '_');
+  }
+
   constructor(stateDir: string) {
     this.stateDir = stateDir;
     this.ensureDir(stateDir);
@@ -39,12 +44,12 @@ export class StateStore {
   // --- Watch targets ---
 
   saveWatchTarget(target: WatchTarget): void {
-    const file = path.join(this.stateDir, 'watch-targets', `${target.packageName}.json`);
+    const file = path.join(this.stateDir, 'watch-targets', `${this.fileKey(target.packageName)}.json`);
     fs.writeFileSync(file, JSON.stringify(target, null, 2));
   }
 
   getWatchTarget(packageName: string): WatchTarget | null {
-    const file = path.join(this.stateDir, 'watch-targets', `${packageName}.json`);
+    const file = path.join(this.stateDir, 'watch-targets', `${this.fileKey(packageName)}.json`);
     if (!fs.existsSync(file)) return null;
     return JSON.parse(fs.readFileSync(file, 'utf-8'));
   }
@@ -60,13 +65,13 @@ export class StateStore {
   // --- Change records ---
 
   saveChange(change: ChangeRecord): void {
-    const file = path.join(this.stateDir, 'changes', `${change.id}.json`);
+    const file = path.join(this.stateDir, 'changes', `${this.fileKey(change.id)}.json`);
     fs.writeFileSync(file, JSON.stringify(change, null, 2));
     this.logEvent('change_detected', { changeId: change.id, packageName: change.packageName });
   }
 
   getChange(changeId: string): ChangeRecord | null {
-    const file = path.join(this.stateDir, 'changes', `${changeId}.json`);
+    const file = path.join(this.stateDir, 'changes', `${this.fileKey(changeId)}.json`);
     if (!fs.existsSync(file)) return null;
     return JSON.parse(fs.readFileSync(file, 'utf-8'));
   }
@@ -84,12 +89,12 @@ export class StateStore {
   // --- Usage maps ---
 
   saveUsageMap(map: UsageMap): void {
-    const file = path.join(this.stateDir, 'usage-maps', `${map.repoId}--${map.packageName}.json`);
+    const file = path.join(this.stateDir, 'usage-maps', `${this.fileKey(map.repoId)}--${this.fileKey(map.packageName)}.json`);
     fs.writeFileSync(file, JSON.stringify(map, null, 2));
   }
 
   getUsageMap(repoId: string, packageName: string): UsageMap | null {
-    const file = path.join(this.stateDir, 'usage-maps', `${repoId}--${packageName}.json`);
+    const file = path.join(this.stateDir, 'usage-maps', `${this.fileKey(repoId)}--${this.fileKey(packageName)}.json`);
     if (!fs.existsSync(file)) return null;
     return JSON.parse(fs.readFileSync(file, 'utf-8'));
   }
@@ -97,14 +102,14 @@ export class StateStore {
   // --- Impact analyses ---
 
   saveImpact(impact: ImpactAnalysis): void {
-    const file = path.join(this.stateDir, 'impacts', `${impact.changeId}--${impact.repoId}.json`);
+    const file = path.join(this.stateDir, 'impacts', `${this.fileKey(impact.changeId)}--${this.fileKey(impact.repoId)}.json`);
     fs.writeFileSync(file, JSON.stringify(impact, null, 2));
   }
 
   // --- Proof artifacts ---
 
   saveProof(proof: ProofArtifact): void {
-    const file = path.join(this.stateDir, 'proofs', `${proof.id}.json`);
+    const file = path.join(this.stateDir, 'proofs', `${this.fileKey(proof.id)}.json`);
     fs.writeFileSync(file, JSON.stringify(proof, null, 2));
     this.logEvent('proof_produced', {
       proofId: proof.id,
@@ -115,7 +120,7 @@ export class StateStore {
   }
 
   getProof(proofId: string): ProofArtifact | null {
-    const file = path.join(this.stateDir, 'proofs', `${proofId}.json`);
+    const file = path.join(this.stateDir, 'proofs', `${this.fileKey(proofId)}.json`);
     if (!fs.existsSync(file)) return null;
     return JSON.parse(fs.readFileSync(file, 'utf-8'));
   }
@@ -133,7 +138,7 @@ export class StateStore {
   // --- Prepared PRs ---
 
   savePR(pr: PreparedPR): void {
-    const file = path.join(this.stateDir, 'prs', `${pr.proofArtifact.id}.json`);
+    const file = path.join(this.stateDir, 'prs', `${this.fileKey(pr.proofArtifact.id)}.json`);
     fs.writeFileSync(file, JSON.stringify(pr, null, 2));
     this.logEvent('pr_prepared', { changeId: pr.change.id, proofId: pr.proofArtifact.id });
   }
