@@ -5,11 +5,7 @@ import { usePathname } from 'next/navigation';
 function Logo() {
   return (
     <a href="/" className="flex items-center gap-2.5">
-      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect width="28" height="28" rx="6" fill="#4F46E5"/>
-        <path d="M8 14h4l2-4 2 8 2-4h4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-      <span className="font-display text-lg font-semibold tracking-tight">Patchversion</span>
+      <img src="/patchbay-lockup-on-coral.svg" alt="PatchBay" className="h-5 sm:h-8 w-auto" />
     </a>
   );
 }
@@ -36,10 +32,10 @@ function Header() {
           ]} />
           <a href="/pricing" className="px-3 py-2 text-sm text-text-secondary hover:text-ink rounded-md transition-colors">Pricing</a>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1 sm:gap-3">
           <a href="/docs" className="hidden sm:inline-block px-3 py-2 text-sm text-text-secondary hover:text-ink transition-colors">Documentation</a>
           <a href="/login" className="px-3 py-2 text-sm text-text-secondary hover:text-ink transition-colors">Sign In</a>
-          <a href="/signup" className="btn-primary">Get Started</a>
+          <a href="/signup" className="btn-primary px-3 sm:px-5">Get Started</a>
         </div>
       </nav>
     </header>
@@ -121,7 +117,7 @@ function Footer() {
           </div>
         </div>
         <div className="rule-t mt-12 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-sm text-text-tertiary">&copy; 2026 Patchversion. All rights reserved.</p>
+          <p className="text-sm text-text-tertiary">&copy; 2026 PatchBay. All rights reserved.</p>
         </div>
       </div>
     </footer>
