@@ -1,0 +1,18 @@
+{
+  "id": "npm-mockpay-2.0.0-fixture",
+  "packageName": "mockpay",
+  "ecosystem": "npm",
+  "fromVersion": "1.0.0",
+  "toVersion": "2.0.0",
+  "detectedAt": "2026-10-23T00:00:00.000Z",
+  "source": "registry",
+  "sourceUrl": "https://www.npmjs.com/package/mockpay/v/2.0.0",
+  "rawNotes": "BREAKING CHANGE: The 'source' parameter in charges.create has been renamed to 'payment_method'. Update your integration to use the new parameter name. The old parameter will be ignored.",
+  "classification": {
+    "isBreaking": true,
+    "confidence": 0.95,
+    "affectedExports": ["source"],
+    "reason": "major version bump 1.0.0 -> 2.0.0; 1 breaking-change indicator(s) in release notes"
+  },
+  "severity": "breaking"
+}

@@ -1,0 +1,20 @@
+{
+  "name": "patchversion",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Self-maintaining API agent: watches third-party APIs for breaking changes, maps affected code, proves fixes in a sandbox, opens evidence-backed PRs.",
+  "workspaces": [
+    "packages/engine",
+    "packages/site",
+    "packages/shared"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "typecheck": "npm run typecheck --workspaces",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
