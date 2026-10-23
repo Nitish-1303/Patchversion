@@ -47,7 +47,7 @@ export default function OnboardingPage() {
         <div className="mt-12 card bg-warning-bg border-warning/20">
           <p className="text-sm text-warning">
             <strong>Setup required.</strong> The onboarding flow requires a configured GitHub App
-            and database. Follow the <a href="/docs/quickstart" className="underline">quickstart guide</a> to
+            and database. Follow the <a href="/docs/getting-started" className="underline">getting started guide</a> to
             set up your environment.
           </p>
         </div>

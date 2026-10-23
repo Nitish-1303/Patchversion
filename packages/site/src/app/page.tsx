@@ -1,22 +1,10 @@
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-[#FFF8F3] text-[#1A1A1A] scroll-smooth">
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 px-6 lg:px-10 py-4 flex justify-between items-center bg-[#FFF8F3] border-b border-[#F0E6DE] z-50">
-        <a href="/" className="flex items-center">
-          <img src="/patchbay-lockup-on-coral.svg" alt="PatchBay" className="h-8" />
-        </a>
-        <nav className="hidden md:flex gap-8">
-          <a href="#problem" className="text-[#6B6B6B] text-sm hover:text-[#1A1A1A] transition-colors">Problem</a>
-          <a href="#solution" className="text-[#6B6B6B] text-sm hover:text-[#1A1A1A] transition-colors">Solution</a>
-          <a href="#demo" className="text-[#6B6B6B] text-sm hover:text-[#1A1A1A] transition-colors">Demo</a>
-          <a href="#references" className="text-[#6B6B6B] text-sm hover:text-[#1A1A1A] transition-colors">References</a>
-        </nav>
-      </header>
 
       {/* Hero - Split Screen */}
       <section className="min-h-screen grid lg:grid-cols-2">
-        <div className="px-6 lg:px-16 pt-28 lg:pt-32 pb-20 flex flex-col justify-center">
+        <div className="px-6 lg:px-16 pt-16 lg:pt-20 pb-20 flex flex-col justify-center">
           <span className="inline-block bg-[#FFF0EB] text-[#E85D3D] px-3 py-1.5 text-xs font-semibold uppercase tracking-wider rounded mb-6 w-fit">
             Local Fixture Demo
           </span>
@@ -200,12 +188,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* Footer */}
-      <footer className="px-6 lg:px-16 py-10 border-t border-[#F0E6DE] flex justify-between text-[#6B6B6B] text-sm">
-        <span>© 2026 PatchBay</span>
-        <span>Local fixture demonstration</span>
-      </footer>
     </div>
   );
 }

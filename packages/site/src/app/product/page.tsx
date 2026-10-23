@@ -36,7 +36,7 @@ export default function ProductPage() {
       <section id="monitoring" className="mb-20">
         <h2 className="text-2xl font-bold mb-6">API Monitoring</h2>
         <div className="grid md:grid-cols-2 gap-8">
-          <div>
+          <div className="min-w-0">
             <p className="text-text-secondary mb-4">
               PatchBay watches the packages and APIs your code depends on. When a new version
               ships or a live API response shape changes, it produces a normalized change record
@@ -49,7 +49,7 @@ export default function ProductPage() {
               <li className="flex gap-2"><CheckIcon /> OpenAPI specification watching</li>
             </ul>
           </div>
-          <div className="card">
+          <div className="card min-w-0">
             <p className="text-xs font-medium text-text-secondary mb-3 uppercase tracking-wider">Change Record Example</p>
             <div className="code-block text-xs">
               <pre>{`{
@@ -71,7 +71,7 @@ export default function ProductPage() {
       <section id="intelligence" className="mb-20 rule-t pt-20">
         <h2 className="text-2xl font-bold mb-6">Change Intelligence</h2>
         <div className="grid md:grid-cols-2 gap-8">
-          <div>
+          <div className="min-w-0">
             <p className="text-text-secondary mb-4">
               Not every version bump breaks your code. PatchBay classifies each change as
               breaking, additive, or informational using semver analysis and release note parsing.
@@ -81,7 +81,7 @@ export default function ProductPage() {
               When confidence is low, the system says so rather than guessing.
             </p>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-3 min-w-0">
             <div className="card flex items-center gap-3">
               <span className="badge-breaking">Breaking</span>
               <div>
@@ -111,7 +111,7 @@ export default function ProductPage() {
       <section id="impact" className="mb-20 rule-t pt-20">
         <h2 className="text-2xl font-bold mb-6">Impact Analysis</h2>
         <div className="grid md:grid-cols-2 gap-8">
-          <div>
+          <div className="min-w-0">
             <p className="text-text-secondary mb-4">
               Once a breaking change is confirmed, PatchBay maps every call site in your
               repository that touches the changed package. This uses AST (Abstract Syntax Tree)
@@ -122,7 +122,7 @@ export default function ProductPage() {
               No false positives from commented-out code or string literals.
             </p>
           </div>
-          <div className="card">
+          <div className="card min-w-0">
             <p className="text-xs font-medium text-text-secondary mb-3 uppercase tracking-wider">Impact Report</p>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between py-1 rule-b">
@@ -151,7 +151,7 @@ export default function ProductPage() {
       <section id="remediation" className="mb-20 rule-t pt-20">
         <h2 className="text-2xl font-bold mb-6">AI Remediation</h2>
         <div className="grid md:grid-cols-2 gap-8">
-          <div>
+          <div className="min-w-0">
             <p className="text-text-secondary mb-4">
               For known migration patterns (field renames, signature changes), PatchBay applies
               a deterministic fix. For complex cases, it uses LLM-assisted generation with the
@@ -162,7 +162,7 @@ export default function ProductPage() {
               must pass against the new version after the fix is applied. No green tests, no PR.
             </p>
           </div>
-          <div className="card">
+          <div className="card min-w-0">
             <p className="text-xs font-medium text-text-secondary mb-3 uppercase tracking-wider">Proof Artifact</p>
             <div className="space-y-3 text-sm">
               <div className="flex justify-between">
