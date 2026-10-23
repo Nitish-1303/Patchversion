@@ -3,14 +3,22 @@ import { ChangeRecord, UsageMap, ImpactAnalysis, CallSite } from '@patchversion/
 /**
  * Intersect a detected change with a repo's usage map to find
  * exactly which call sites are affected.
+ *
+ * Sites are split into two honest buckets:
+ * - affected: intersect the specific change (renamed export, changed endpoint)
+ * - potential: use the package but match only the broad "major version" fallback;
+ *   reported as not individually verified rather than counted as covered
  */
 export function analyzeImpact(change: ChangeRecord, usageMap: UsageMap): ImpactAnalysis {
   const affected: CallSite[] = [];
+  const potential: CallSite[] = [];
   const unaffected: CallSite[] = [];
 
   for (const site of usageMap.callSites) {
-    if (isAffected(site, change)) {
+    if (isDirectlyAffected(site, change)) {
       affected.push(site);
+    } else if (isPotentiallyAffected(site, change)) {
+      potential.push(site);
     } else {
       unaffected.push(site);
     }
@@ -21,6 +29,7 @@ export function analyzeImpact(change: ChangeRecord, usageMap: UsageMap): ImpactA
     repoId: usageMap.repoId,
     affectedCallSites: affected,
     unaffectedCallSites: unaffected,
+    potentialCallSites: potential,
     coveragePercent: usageMap.callSites.length > 0
       ? (affected.length / usageMap.callSites.length) * 100
       : 0,
@@ -28,7 +37,7 @@ export function analyzeImpact(change: ChangeRecord, usageMap: UsageMap): ImpactA
   };
 }
 
-function isAffected(site: CallSite, change: ChangeRecord): boolean {
+function isDirectlyAffected(site: CallSite, change: ChangeRecord): boolean {
   // If the classifier identified affected exports, check both the
   // exported symbol AND the call expression text for matches.
   // A renamed parameter (e.g., 'source' -> 'payment_method') appears
@@ -51,11 +60,15 @@ function isAffected(site: CallSite, change: ChangeRecord): boolean {
     );
   }
 
-  // For breaking major version bumps with no specific exports identified,
-  // all call sites using the package are potentially affected
+  return false;
+}
+
+function isPotentiallyAffected(site: CallSite, change: ChangeRecord): boolean {
+  // For breaking major version bumps with no specific intersection,
+  // all other call sites using the package are potentially affected.
+  // They are reported honestly as not individually verified.
   if (change.classification.isBreaking && change.severity === 'breaking') {
     return site.packageName === change.packageName;
   }
-
   return false;
 }
