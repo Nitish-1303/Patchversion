@@ -2,9 +2,9 @@ export default function SignupPage() {
   return (
     <div className="min-h-[60vh] flex items-center justify-center px-4">
       <div className="card max-w-md w-full">
-        <h1 className="text-2xl font-bold mb-2">Get started with Patchversion</h1>
+        <h1 className="text-2xl font-bold mb-2">Get started with PatchBay</h1>
         <p className="text-sm text-text-secondary mb-8">
-          Create an account with your GitHub identity. Patchversion will request
+          Create an account with your GitHub identity. PatchBay will request
           read access to your repositories and write access for pull requests only.
         </p>
 
