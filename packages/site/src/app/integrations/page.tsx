@@ -1,8 +1,8 @@
 export default function IntegrationsPage() {
   const integrations = [
-    { name: 'GitHub', category: 'Git Platform', purpose: 'Repository access, PR creation, webhook events', status: 'available', description: 'Connect repositories for monitoring, impact analysis, and automated PR creation.' },
-    { name: 'npm Registry', category: 'API Provider', purpose: 'Package version tracking and changelog parsing', status: 'available', description: 'Monitor npm packages for new releases and breaking changes.' },
-    { name: 'OpenAPI', category: 'API Provider', purpose: 'Spec-based change detection', status: 'available', description: 'Register OpenAPI specifications as monitoring sources.' },
+    { name: 'GitHub', category: 'Git Platform', purpose: 'Repository access, PR creation, webhook events', status: 'planned', description: 'Connect repositories for monitoring, impact analysis, and automated PR creation.' },
+    { name: 'npm Registry', category: 'API Provider', purpose: 'Package version tracking and changelog parsing', status: 'planned', description: 'Monitor npm packages for new releases and breaking changes.' },
+    { name: 'OpenAPI', category: 'API Provider', purpose: 'Spec-based change detection', status: 'planned', description: 'Register OpenAPI specifications as monitoring sources.' },
     { name: 'Slack', category: 'Notifications', purpose: 'Team alerts for detected changes', status: 'planned', description: 'Send notifications when breaking changes affect your repositories.' },
     { name: 'GitLab', category: 'Git Platform', purpose: 'Repository access and merge requests', status: 'planned', description: 'Alternative to GitHub for repository monitoring.' },
     { name: 'Stripe', category: 'API Provider', purpose: 'Live API contract monitoring', status: 'planned', description: 'Monitor Stripe API endpoints for behavioral changes.' },
@@ -15,8 +15,8 @@ export default function IntegrationsPage() {
       <div className="max-w-3xl mb-12">
         <h1 className="text-4xl font-bold mb-4">Integrations</h1>
         <p className="text-lg text-text-secondary">
-          Connect PatchBay to the tools and APIs your team already uses.
-          Only integrations marked &quot;Available&quot; are functional today.
+          PatchBay is designed to connect to the tools and APIs your team already
+          uses. All integrations are planned; none are live yet.
         </p>
       </div>
 
