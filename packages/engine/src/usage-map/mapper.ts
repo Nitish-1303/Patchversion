@@ -1,11 +1,23 @@
-import { Project, SyntaxKind, CallExpression, ImportDeclaration, SourceFile } from 'ts-morph';
+import { Project, SyntaxKind, CallExpression, ImportDeclaration, SourceFile, Node } from 'ts-morph';
 import { CallSite, UsageMap } from '@patchversion/shared';
 import path from 'path';
 import fs from 'fs';
 
+/** A symbol bound to a tracked package: local name -> exported name. */
+interface ImportBinding {
+  localName: string;
+  exportedName: string;
+  statementText: string;
+}
+
 /**
  * AST-based usage mapper. Scans a repo's TypeScript/JavaScript source
  * and produces a map of every call site that touches a tracked package.
+ *
+ * Supports both module systems:
+ * - ES modules: import x from 'pkg', import { y } from 'pkg', import * as z from 'pkg'
+ * - CommonJS: const x = require('pkg'), const { y } = require('pkg'),
+ *   const y = require('pkg').y
  *
  * This is the foundation for impact analysis: when a breaking change is
  * detected, we intersect the change with the usage map to find exactly
@@ -38,11 +50,14 @@ export class UsageMapper {
     let filesWithUsage = 0;
 
     for (const sourceFile of sourceFiles) {
-      const imports = this.findPackageImports(sourceFile, packageName);
-      if (imports.length === 0) continue;
+      const bindings = [
+        ...this.findImportBindings(sourceFile, packageName),
+        ...this.findRequireBindings(sourceFile, packageName),
+      ];
+      if (bindings.length === 0) continue;
 
       filesWithUsage++;
-      const sites = this.findCallSites(sourceFile, imports, packageName, repoPath);
+      const sites = this.findCallSites(sourceFile, bindings, packageName, repoPath);
       callSites.push(...sites);
     }
 
@@ -89,92 +104,115 @@ export class UsageMapper {
     });
   }
 
-  private findPackageImports(sourceFile: SourceFile, packageName: string): ImportDeclaration[] {
-    return sourceFile.getImportDeclarations().filter(imp => {
-      const moduleSpecifier = imp.getModuleSpecifierValue();
-      // Match exact package or subpath imports (e.g., 'stripe' or 'stripe/lib/charges')
-      return moduleSpecifier === packageName ||
-             moduleSpecifier.startsWith(packageName + '/');
-    });
+  private moduleMatches(specifier: string, packageName: string): boolean {
+    return specifier === packageName || specifier.startsWith(packageName + '/');
+  }
+
+  /** ES module imports of the tracked package. */
+  private findImportBindings(sourceFile: SourceFile, packageName: string): ImportBinding[] {
+    const bindings: ImportBinding[] = [];
+
+    const imports = sourceFile.getImportDeclarations().filter((imp: ImportDeclaration) =>
+      this.moduleMatches(imp.getModuleSpecifierValue(), packageName),
+    );
+
+    for (const imp of imports) {
+      const statementText = imp.getText();
+      for (const named of imp.getNamedImports()) {
+        const name = named.getName();
+        const alias = named.getAliasNode()?.getText() ?? name;
+        bindings.push({ localName: alias, exportedName: name, statementText });
+      }
+      const defaultImport = imp.getDefaultImport();
+      if (defaultImport) {
+        bindings.push({ localName: defaultImport.getText(), exportedName: 'default', statementText });
+      }
+      const namespaceImport = imp.getNamespaceImport();
+      if (namespaceImport) {
+        bindings.push({ localName: namespaceImport.getText(), exportedName: '*', statementText });
+      }
+    }
+
+    return bindings;
+  }
+
+  /** CommonJS require() bindings of the tracked package. */
+  private findRequireBindings(sourceFile: SourceFile, packageName: string): ImportBinding[] {
+    const bindings: ImportBinding[] = [];
+
+    for (const decl of sourceFile.getVariableDeclarations()) {
+      const init = decl.getInitializer();
+      if (!Node.isCallExpression(init) && !Node.isPropertyAccessExpression(init)) continue;
+
+      // const x = require('pkg')  |  const { y } = require('pkg')
+      // const y = require('pkg').y
+      let requireCall: CallExpression | null = null;
+      let viaProperty: string | null = null;
+
+      if (Node.isCallExpression(init)) {
+        requireCall = init;
+      } else if (Node.isPropertyAccessExpression(init) && Node.isCallExpression(init.getExpression())) {
+        requireCall = init.getExpression() as CallExpression;
+        viaProperty = init.getName();
+      }
+
+      if (!requireCall || requireCall.getExpression().getText() !== 'require') continue;
+      const args = requireCall.getArguments();
+      if (args.length === 0 || !Node.isStringLiteral(args[0])) continue;
+      if (!this.moduleMatches(args[0].getLiteralValue(), packageName)) continue;
+
+      const statementText = decl.getVariableStatement()?.getText() ?? decl.getText();
+      const nameNode = decl.getNameNode();
+
+      if (viaProperty) {
+        // const y = require('pkg').y
+        bindings.push({ localName: decl.getName(), exportedName: viaProperty, statementText });
+      } else if (Node.isIdentifier(nameNode)) {
+        // const pkg = require('pkg') - whole-module binding
+        bindings.push({ localName: nameNode.getText(), exportedName: '*', statementText });
+      } else if (Node.isObjectBindingPattern(nameNode)) {
+        // const { y, z: alias } = require('pkg')
+        for (const el of nameNode.getElements()) {
+          const local = el.getName();
+          const exported = el.getPropertyNameNode()?.getText() ?? local;
+          bindings.push({ localName: local, exportedName: exported, statementText });
+        }
+      }
+    }
+
+    return bindings;
   }
 
   private findCallSites(
     sourceFile: SourceFile,
-    imports: ImportDeclaration[],
+    bindings: ImportBinding[],
     packageName: string,
     repoPath: string,
   ): CallSite[] {
     const sites: CallSite[] = [];
-    const importedSymbols = new Map<string, string>(); // local name -> exported name
 
-    // Collect all imported symbols from the tracked package
-    for (const imp of imports) {
-      const moduleSpecifier = imp.getModuleSpecifierValue();
-      const namedImports = imp.getNamedImports();
-      const defaultImport = imp.getDefaultImport();
-      const namespaceImport = imp.getNamespaceImport();
-
-      for (const named of namedImports) {
-        const name = named.getName();
-        const alias = named.getAliasNode()?.getText() ?? name;
-        importedSymbols.set(alias, name);
-      }
-
-      if (defaultImport) {
-        importedSymbols.set(defaultImport.getText(), 'default');
-      }
-
-      if (namespaceImport) {
-        importedSymbols.set(namespaceImport.getText(), '*');
-      }
-    }
-
-    // Find all call expressions that use imported symbols
     sourceFile.forEachDescendant(node => {
-      if (node.getKind() === SyntaxKind.CallExpression) {
-        const callExpr = node as CallExpression;
-        const expression = callExpr.getExpression();
-        const expressionText = expression.getText();
+      if (node.getKind() !== SyntaxKind.CallExpression) return;
 
-        // Check direct calls: importedSymbol(...)
-        for (const [localName, exportedName] of importedSymbols) {
-          if (expressionText === localName || expressionText.startsWith(localName + '.')) {
-            const pos = sourceFile.getLineAndColumnAtPos(node.getStart());
-            sites.push({
-              filePath: path.relative(repoPath, sourceFile.getFilePath()),
-              line: pos.line,
-              column: pos.column,
-              importStatement: imports[0]?.getText() ?? '',
-              callExpression: node.getText().slice(0, 200), // truncate long calls
-              packageName,
-              exportedSymbol: exportedName,
-            });
-            break;
-          }
-        }
-      }
+      const callExpr = node as CallExpression;
+      const expressionText = callExpr.getExpression().getText();
 
-      // Also check require() calls
-      if (node.getKind() === SyntaxKind.CallExpression) {
-        const callExpr = node as CallExpression;
-        const expr = callExpr.getExpression().getText();
-        if (expr === 'require') {
-          const args = callExpr.getArguments();
-          if (args.length > 0) {
-            const argText = args[0].getText().replace(/['"]/g, '');
-            if (argText === packageName || argText.startsWith(packageName + '/')) {
-              const pos = sourceFile.getLineAndColumnAtPos(node.getStart());
-              sites.push({
-                filePath: path.relative(repoPath, sourceFile.getFilePath()),
-                line: pos.line,
-                column: pos.column,
-                importStatement: `require('${argText}')`,
-                callExpression: node.getText().slice(0, 200),
-                packageName,
-                exportedSymbol: 'require',
-              });
-            }
-          }
+      // Skip the binding statements themselves (require calls, imports are not calls)
+      if (expressionText === 'require') return;
+
+      for (const binding of bindings) {
+        if (expressionText === binding.localName || expressionText.startsWith(binding.localName + '.')) {
+          const pos = sourceFile.getLineAndColumnAtPos(callExpr.getStart());
+          sites.push({
+            filePath: path.relative(repoPath, sourceFile.getFilePath()),
+            line: pos.line,
+            column: pos.column,
+            importStatement: binding.statementText.split('\n')[0].slice(0, 200),
+            callExpression: callExpr.getText().slice(0, 200), // truncate long calls
+            packageName,
+            exportedSymbol: binding.exportedName,
+          });
+          break;
         }
       }
     });
