@@ -44,16 +44,20 @@ npm test
 
 ## Reproduction
 
-To run the fixture end-to-end (detects a simulated breaking change, maps usage, attempts fix, verifies in sandbox):
+One command runs the full loop against the bundled fixture: detect a breaking
+change (mockpay 1.0.0 -> 2.0.0 renames `source` to `payment_method`), map the
+affected call sites, generate the fix, prove it red-to-green in the sandbox,
+and prepare the evidence-backed PR. Transcript, proof artifact and PR text
+land in `runs/latest/`:
 
 ```bash
-cd fixtures/sample-repo
 npm install
-npm test  # Should pass on v1
-
-# Simulate the breaking change
-# The engine will detect the field rename, generate the fix, and verify
+npm run prove
 ```
+
+The fixture installs both mockpay versions from `fixtures/sample-repo/vendor/`
+- no npm registry access needed. Its tests call the real client, so the version
+bump genuinely turns them red and only the fix turns them green again.
 
 ## Architecture
 
