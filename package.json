@@ -10,8 +10,8 @@
   ],
   "scripts": {
     "build": "npm run build --workspaces",
-    "test": "npm run test --workspaces",
-    "typecheck": "npm run typecheck --workspaces",
+    "test": "npm run build -w @patchversion/shared && npm run test --workspaces",
+    "typecheck": "npm run build -w @patchversion/shared && npm run typecheck --workspaces",
     "lint": "npm run lint --workspaces --if-present"
   },
   "engines": {
