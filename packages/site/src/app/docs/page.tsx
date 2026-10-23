@@ -4,55 +4,27 @@ export default function DocsPage() {
       <div className="max-w-3xl mb-12">
         <h1 className="text-4xl font-bold mb-4">Documentation</h1>
         <p className="text-lg text-text-secondary">
-          Everything you need to set up, configure, and use PatchBay.
+          PatchBay is in development. The homepage demo runs on a controlled local
+          fixture, and the GitHub App and CLI are not yet published. These pages
+          describe the planned setup and how the system is designed to work.
         </p>
       </div>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         <DocCard
           title="Getting Started"
-          description="Install the GitHub App, connect a repository, and configure your first API monitor."
+          description="The planned setup flow: install the GitHub App, connect a repository, and configure monitoring. Not yet available."
           href="/docs/getting-started"
         />
         <DocCard
           title="Core Concepts"
-          description="How change detection, impact analysis, and remediation work together."
+          description="How change detection, impact analysis, and remediation are designed to work together."
           href="/docs/concepts"
         />
         <DocCard
-          title="Monitoring"
-          description="Configure which packages and APIs to watch, and how often."
-          href="/docs/monitoring"
-        />
-        <DocCard
-          title="Change Detection"
-          description="How PatchBay classifies changes as breaking, additive, or informational."
-          href="/docs/change-detection"
-        />
-        <DocCard
-          title="Impact Analysis"
-          description="How AST-based code analysis finds affected call sites."
-          href="/docs/impact-analysis"
-        />
-        <DocCard
-          title="Remediation"
-          description="How fixes are generated, tested, and presented for review."
-          href="/docs/remediation"
-        />
-        <DocCard
-          title="Integrations"
-          description="Connect GitHub, Slack, and other services."
-          href="/docs/integrations"
-        />
-        <DocCard
           title="Security"
-          description="How PatchBay handles your code, credentials, and data."
+          description="How PatchBay is designed to handle your code, credentials, and data, including what is not yet implemented."
           href="/docs/security"
-        />
-        <DocCard
-          title="Troubleshooting"
-          description="Common issues and how to resolve them."
-          href="/docs/troubleshooting"
         />
       </div>
     </div>
