@@ -4,7 +4,7 @@ export default function ProductPage() {
       <div className="max-w-3xl mb-16">
         <h1 className="text-4xl font-bold mb-4">Product</h1>
         <p className="text-lg text-text-secondary">
-          Patchversion automates the maintenance pipeline between API providers and your codebase.
+          PatchBay automates the maintenance pipeline between API providers and your codebase.
           Here is what each stage does and how it works.
         </p>
       </div>
@@ -38,7 +38,7 @@ export default function ProductPage() {
         <div className="grid md:grid-cols-2 gap-8">
           <div>
             <p className="text-text-secondary mb-4">
-              Patchversion watches the packages and APIs your code depends on. When a new version
+              PatchBay watches the packages and APIs your code depends on. When a new version
               ships or a live API response shape changes, it produces a normalized change record
               with the source, version, and classification.
             </p>
@@ -73,7 +73,7 @@ export default function ProductPage() {
         <div className="grid md:grid-cols-2 gap-8">
           <div>
             <p className="text-text-secondary mb-4">
-              Not every version bump breaks your code. Patchversion classifies each change as
+              Not every version bump breaks your code. PatchBay classifies each change as
               breaking, additive, or informational using semver analysis and release note parsing.
             </p>
             <p className="text-text-secondary">
@@ -113,7 +113,7 @@ export default function ProductPage() {
         <div className="grid md:grid-cols-2 gap-8">
           <div>
             <p className="text-text-secondary mb-4">
-              Once a breaking change is confirmed, Patchversion maps every call site in your
+              Once a breaking change is confirmed, PatchBay maps every call site in your
               repository that touches the changed package. This uses AST (Abstract Syntax Tree)
               analysis, not text search, so it handles imports, aliases, and re-exports correctly.
             </p>
@@ -153,7 +153,7 @@ export default function ProductPage() {
         <div className="grid md:grid-cols-2 gap-8">
           <div>
             <p className="text-text-secondary mb-4">
-              For known migration patterns (field renames, signature changes), Patchversion applies
+              For known migration patterns (field renames, signature changes), PatchBay applies
               a deterministic fix. For complex cases, it uses LLM-assisted generation with the
               failing code, change description, and test output as context.
             </p>

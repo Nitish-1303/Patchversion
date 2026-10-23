@@ -8,7 +8,7 @@ export default function DocsSecurityPage() {
         <section>
           <h2 className="text-xl font-semibold mb-4">Repository Access</h2>
           <p className="text-text-secondary mb-4">
-            Patchversion uses a GitHub App with least-privilege permissions:
+            PatchBay uses a GitHub App with least-privilege permissions:
           </p>
           <ul className="space-y-2 text-text-secondary list-disc pl-5">
             <li><strong>Read:</strong> Repository contents, metadata</li>
@@ -20,7 +20,7 @@ export default function DocsSecurityPage() {
         <section>
           <h2 className="text-xl font-semibold mb-4">Sandbox Isolation</h2>
           <p className="text-text-secondary mb-4">
-            When validating fixes, Patchversion runs your test suite in an isolated environment:
+            When validating fixes, PatchBay runs your test suite in an isolated environment:
           </p>
           <ul className="space-y-2 text-text-secondary list-disc pl-5">
             <li>Docker container with <code className="bg-accent-light px-1 rounded">--network none</code> (no external access)</li>

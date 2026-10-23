@@ -27,7 +27,7 @@ export default function ConceptsPage() {
         <section>
           <h2 className="text-xl font-semibold mb-4">Impact Analysis</h2>
           <p className="text-text-secondary">
-            When a breaking change is detected, Patchversion intersects the change record
+            When a breaking change is detected, PatchBay intersects the change record
             with your usage map to find exactly which call sites are affected. The result
             includes both affected and unaffected call sites, so you can see the full picture.
           </p>
@@ -45,7 +45,7 @@ export default function ConceptsPage() {
         <section>
           <h2 className="text-xl font-semibold mb-4">Coverage Honesty</h2>
           <p className="text-text-secondary">
-            Patchversion never claims full coverage when it doesn&apos;t have it. Every report
+            PatchBay never claims full coverage when it doesn&apos;t have it. Every report
             and PR states: &quot;Verified N of M call sites. These K have no test path.&quot;
             A partial proof says so. Silence is preferred over a false positive.
           </p>

@@ -13,7 +13,7 @@ export default function HowItWorksPage() {
         <Stage
           number={1}
           title="Connect"
-          description="Authorize a repository and configure which APIs to monitor. Patchversion uses a GitHub App with least-privilege permissions: read access to your code, write access limited to creating branches and pull requests."
+          description="Authorize a repository and configure which APIs to monitor. PatchBay uses a GitHub App with least-privilege permissions: read access to your code, write access limited to creating branches and pull requests."
           details={[
             'Install the GitHub App on selected repositories',
             'Choose which npm packages or API endpoints to track',
@@ -23,7 +23,7 @@ export default function HowItWorksPage() {
         <Stage
           number={2}
           title="Monitor"
-          description="Patchversion polls the npm registry for new versions of tracked packages, parses changelogs, and optionally probes live API endpoints to detect behavioral drift before release notes exist."
+          description="PatchBay polls the npm registry for new versions of tracked packages, parses changelogs, and optionally probes live API endpoints to detect behavioral drift before release notes exist."
           details={[
             'Registry polling on a configurable schedule',
             'Changelog parsing with normalized change records',
@@ -43,7 +43,7 @@ export default function HowItWorksPage() {
         <Stage
           number={4}
           title="Analyze"
-          description="For confirmed breaking changes, Patchversion scans your repository using AST analysis to find every import, require, and call expression that touches the changed package."
+          description="For confirmed breaking changes, PatchBay scans your repository using AST analysis to find every import, require, and call expression that touches the changed package."
           details={[
             'ts-morph AST parsing (not regex or text search)',
             'Handles named imports, default imports, namespace imports, and require()',
@@ -53,7 +53,7 @@ export default function HowItWorksPage() {
         <Stage
           number={5}
           title="Remediate"
-          description="Patchversion generates a minimal patch. For known migration patterns (field renames), it applies a deterministic transformation. For complex cases, it uses LLM-assisted generation with the failing code and test output as context."
+          description="PatchBay generates a minimal patch. For known migration patterns (field renames), it applies a deterministic transformation. For complex cases, it uses LLM-assisted generation with the failing code and test output as context."
           details={[
             'Deterministic fixes for known patterns (fast, reliable)',
             'LLM-assisted generation for novel breaking changes',

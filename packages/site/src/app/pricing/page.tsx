@@ -4,35 +4,14 @@ export default function PricingPage() {
       <div className="text-center mb-16">
         <h1 className="text-4xl font-bold mb-4">Pricing</h1>
         <p className="text-lg text-text-secondary max-w-xl mx-auto">
-          Start free. Scale when you need more repositories and integrations.
+          Paid plans for developers and engineering teams.
         </p>
-        <p className="text-sm text-text-tertiary mt-2">Proposed pricing - not yet billing-enabled.</p>
+        <p className="text-sm text-text-tertiary mt-2">Proposed plans - product and billing are not yet available.</p>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-        {/* Free */}
-        <div className="card flex flex-col">
-          <h3 className="text-lg font-semibold mb-1">Free</h3>
-          <p className="text-sm text-text-secondary mb-6">For individual developers evaluating the product.</p>
-          <div className="mb-6">
-            <span className="text-4xl font-bold">$0</span>
-            <span className="text-text-secondary">/month</span>
-          </div>
-          <ul className="space-y-3 text-sm text-text-secondary flex-1">
-            <PricingFeature>1 repository</PricingFeature>
-            <PricingFeature>3 monitored API services</PricingFeature>
-            <PricingFeature>Hourly change detection</PricingFeature>
-            <PricingFeature>5 remediation runs/month</PricingFeature>
-            <PricingFeature>Community support</PricingFeature>
-          </ul>
-          <a href="/signup" className="btn-secondary mt-8 text-center">Get Started</a>
-        </div>
-
+      <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
         {/* Pro */}
         <div className="card flex flex-col border-accent relative">
-          <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-accent text-white text-xs font-medium px-3 py-1 rounded-full">
-            Most Popular
-          </span>
           <h3 className="text-lg font-semibold mb-1">Pro</h3>
           <p className="text-sm text-text-secondary mb-6">For developers maintaining multiple integrations.</p>
           <div className="mb-6">
@@ -47,7 +26,7 @@ export default function PricingPage() {
             <PricingFeature>PR automation with proof</PricingFeature>
             <PricingFeature>Priority support</PricingFeature>
           </ul>
-          <a href="/signup" className="btn-primary mt-8 text-center">Start Pro Trial</a>
+          <a href="/signup" className="btn-primary mt-8 text-center">Choose Pro</a>
         </div>
 
         {/* Team */}
@@ -78,11 +57,11 @@ export default function PricingPage() {
         <div className="space-y-6">
           <FaqItem
             q="Which API providers are supported?"
-            a="Patchversion monitors npm packages and public API changelogs. The first supported ecosystem is JavaScript/TypeScript packages on npm. Additional providers and spec-based monitoring are in development."
+            a="PatchBay monitors npm packages and public API changelogs. The first supported ecosystem is JavaScript/TypeScript packages on npm. Additional providers and spec-based monitoring are in development."
           />
           <FaqItem
-            q="Does Patchversion modify my code automatically?"
-            a="No. Patchversion generates a proposed fix and prepares a pull request. Your team reviews and approves before anything merges. No automatic merging."
+            q="Does PatchBay modify my code automatically?"
+            a="No. PatchBay generates a proposed fix and prepares a pull request. Your team reviews and approves before anything merges. No automatic merging."
           />
           <FaqItem
             q="Can I review every proposed patch?"
@@ -90,11 +69,11 @@ export default function PricingPage() {
           />
           <FaqItem
             q="How are repository permissions handled?"
-            a="Patchversion uses a GitHub App with least-privilege permissions: read access to code and metadata, write access limited to creating branches and pull requests. No access to secrets or deployments."
+            a="PatchBay uses a GitHub App with least-privilege permissions: read access to code and metadata, write access limited to creating branches and pull requests. No access to secrets or deployments."
           />
           <FaqItem
             q="What happens when a fix fails its tests?"
-            a="The PR is not created. Instead, Patchversion opens an issue describing the break, the affected code, and what it could not fix. No silent failures."
+            a="The PR is not created. Instead, PatchBay opens an issue describing the break, the affected code, and what it could not fix. No silent failures."
           />
           <FaqItem
             q="Can I use my own API specifications?"
