@@ -27,3 +27,19 @@ terracotta PatchBay brand.
 
 **Decision:** Original Patchversion branding: #4F46E5 (indigo-600) accent, Inter font,
 warm white (#FAFAF9) background. No PatchBay assets or branding.
+
+## 2026-10-23: Prove-the-loop milestone implemented
+
+**Context:** Audit showed the committed fixture could not run: mockpay was not
+installable, fixture tests mocked the client (so no red state was possible),
+the mapper only handled ES modules, the fix generator's diffs were malformed,
+and the PR proof numbers were inaccurate.
+
+**Decision:** Vendor mockpay 1.0.0 and 2.0.0 inside the fixture (installed via
+file: paths, no registry needed); fixture tests call the real client; the
+mapper handles CommonJS require() alongside ES imports; fixes are emitted as
+standard unified diffs via the `diff` library; the proof artifact records the
+baseline run and the files actually changed; the PR body reports accurate
+numbers and says "local process" unless the run was Docker-isolated; a single
+`npm run prove` command runs the whole loop and writes transcript, proof and
+prepared PR into runs/latest/.
