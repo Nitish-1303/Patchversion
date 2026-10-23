@@ -1,34 +1,19 @@
+// Tests run against the REAL mockpay client (vendored in ./vendor).
+// No mocks: when mockpay 2.0.0 drops the `source` parameter, these tests
+// genuinely fail - that red state is what the proof loop needs.
 const { createCharge, refundCharge } = require('./createCharge');
 
-// Mock the mockpay module
-jest.mock('mockpay', () => ({
-  charges: {
-    create: jest.fn().mockResolvedValue({ id: 'ch_123', amount: 2000, currency: 'usd', status: 'succeeded' }),
-  },
-  refunds: {
-    create: jest.fn().mockResolvedValue({ id: 're_123', amount: 2000, status: 'succeeded' }),
-  },
-}));
-
 describe('createCharge', () => {
-  test('creates a charge with correct params', async () => {
-    const mockpay = require('mockpay');
+  test('creates a charge', async () => {
     const result = await createCharge(2000, 'usd', 'tok_visa');
     expect(result.id).toBe('ch_123');
-    expect(mockpay.charges.create).toHaveBeenCalledWith({
-      amount: 2000,
-      currency: 'usd',
-      source: 'tok_visa',
-      description: 'Payment for order',
-    });
+    expect(result.status).toBe('succeeded');
   });
 
-  test('passes through the source parameter', async () => {
-    const mockpay = require('mockpay');
-    await createCharge(1000, 'eur', 'tok_amex');
-    expect(mockpay.charges.create).toHaveBeenCalledWith(
-      expect.objectContaining({ source: 'tok_amex' })
-    );
+  test('passes the payment source through', async () => {
+    const result = await createCharge(1000, 'eur', 'tok_amex');
+    expect(result.amount).toBe(1000);
+    expect(result.currency).toBe('eur');
   });
 });
 

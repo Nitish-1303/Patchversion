@@ -13,6 +13,12 @@ export interface ChangeRecord {
   rawNotes: string;
   classification: ChangeClassification;
   severity: 'breaking' | 'feature' | 'fix' | 'deprecation' | 'unknown';
+  /**
+   * Offline fallback: maps a version to an installable package location
+   * (path relative to the tested repo's root, e.g. a vendored directory).
+   * When present, the sandbox installs from that path instead of a registry.
+   */
+  offlineVersions?: Record<string, string>;
 }
 
 export interface ChangeClassification {
@@ -50,6 +56,12 @@ export interface ImpactAnalysis {
   repoId: string;
   affectedCallSites: CallSite[];
   unaffectedCallSites: CallSite[];
+  /**
+   * Sites that use the package but do not intersect the specific change.
+   * Flagged only by the broad breaking-change fallback; listed in PRs as
+   * not individually verified.
+   */
+  potentialCallSites?: CallSite[];
   coveragePercent: number;
   analyzedAt: string;
 }
@@ -59,9 +71,13 @@ export interface ProofArtifact {
   id: string;
   changeId: string;
   repoId: string;
+  /** Test result on the original version, before any bump. */
+  baselineResult: TestResult;
   redResult: TestResult;
   greenResult: TestResult;
   fixDiff: string;
+  /** Files the applied fix actually changed. */
+  fixedFiles: string[];
   coverageVerified: number; // N of M call sites verified
   coverageTotal: number;    // M total call sites
   unverifiable: UnverifiableSite[];

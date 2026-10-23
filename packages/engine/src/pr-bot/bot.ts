@@ -111,7 +111,16 @@ export class PRBot {
   private buildBody(change: ChangeRecord, impact: ImpactAnalysis, proof: ProofArtifact): string {
     const coverageLine = proof.coverageVerified === proof.coverageTotal
       ? `Verified against all ${proof.coverageTotal} affected call sites.`
-      : `Verified against ${proof.coverageVerified} of ${proof.coverageTotal} call sites. ${proof.unverifiable.length} could not be verified (see below).`;
+      : `Verified against ${proof.coverageVerified} of ${proof.coverageTotal} affected call sites. ${proof.unverifiable.length} could not be verified (see below).`;
+
+    // Count only the call sites the applied fix actually changed
+    const fixedSites = impact.affectedCallSites.filter(site =>
+      proof.fixedFiles.includes(site.filePath),
+    );
+
+    const sandboxLine = proof.sandboxType === 'docker-isolated'
+      ? `This fix was verified in an isolated Docker sandbox BEFORE this PR was opened.`
+      : `This fix was verified in a local process (no isolation) BEFORE this PR was opened.`;
 
     const sections: string[] = [
       `## What changed`,
@@ -124,21 +133,22 @@ export class PRBot {
       ``,
       `## What this PR does`,
       ``,
-      `Updates ${impact.affectedCallSites.length} call site${impact.affectedCallSites.length !== 1 ? 's' : ''} to work with ${change.packageName}@${change.toVersion}.`,
+      `Updates ${fixedSites.length} call site${fixedSites.length !== 1 ? 's' : ''} to work with ${change.packageName}@${change.toVersion}.`,
       ``,
-      `### Affected files`,
+      `### Changed files`,
       ``,
-      ...this.groupByFile(impact.affectedCallSites).map(([file, sites]) =>
-        `- \`${file}\` (${sites.length} change${sites.length !== 1 ? 's' : ''})`
-      ),
+      ...proof.fixedFiles.map(file => {
+        const count = fixedSites.filter(site => site.filePath === file).length;
+        return `- \`${file}\` (${count} call site${count !== 1 ? 's' : ''} updated)`;
+      }),
       ``,
       `## Proof`,
       ``,
-      `This fix was verified in an isolated sandbox BEFORE this PR was opened.`,
+      sandboxLine,
       ``,
       `| Step | Result |`,
       `|------|--------|`,
-      `| Tests on ${change.fromVersion} (baseline) | ${proof.redResult.passed}/${proof.redResult.total} passed |`,
+      `| Tests on ${change.fromVersion} (baseline) | ${proof.baselineResult.passed}/${proof.baselineResult.total} passed |`,
       `| Tests on ${change.toVersion} (before fix) | ${proof.redResult.passed}/${proof.redResult.total} passed, ${proof.redResult.failed} failed |`,
       `| Tests on ${change.toVersion} (after fix) | ${proof.greenResult.passed}/${proof.greenResult.total} passed, ${proof.greenResult.failed} failed |`,
       ``,

@@ -11,8 +11,14 @@
   "classification": {
     "isBreaking": true,
     "confidence": 0.95,
-    "affectedExports": ["source"],
+    "affectedExports": [
+      "source"
+    ],
     "reason": "major version bump 1.0.0 -> 2.0.0; 1 breaking-change indicator(s) in release notes"
   },
-  "severity": "breaking"
+  "severity": "breaking",
+  "offlineVersions": {
+    "1.0.0": "vendor/mockpay-1.0.0",
+    "2.0.0": "vendor/mockpay-2.0.0"
+  }
 }

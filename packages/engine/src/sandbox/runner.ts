@@ -1,4 +1,5 @@
 import { execSync, spawn, ChildProcess } from 'child_process';
+import { parsePatch, applyPatch } from 'diff';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
@@ -45,14 +46,14 @@ export class SandboxRunner {
       const baselineResult = await this.runTests(workDir, 'baseline');
 
       // Step 2: Apply the version bump
-      this.applyVersionBump(workDir, change.packageName, change.toVersion);
+      this.applyVersionBump(workDir, change);
 
       // Step 3: Run tests against the new version (expect failures = red)
       const redResult = await this.runTests(workDir, 'red');
 
       if (redResult.exitCode === 0) {
         // No failures - the change doesn't actually break this repo's usage
-        return this.createNoBreakProof(change, impact, baselineResult, redResult, workDir);
+        return this.createNoBreakProof(change, impact, baselineResult, redResult);
       }
 
       // Step 4: Apply the fix
@@ -68,16 +69,35 @@ export class SandboxRunner {
       }
 
       // Step 6: Build the proof artifact
-      const unverifiable = this.identifyUnverifiable(impact, redResult);
+      const fixedFiles = this.filesChangedByDiff(fixDiff);
+      const verified = impact.affectedCallSites.filter(
+        site => fixedFiles.includes(site.filePath),
+      );
+      const unverifiable: UnverifiableSite[] = [
+        // Affected sites the fix did not touch: not verified
+        ...impact.affectedCallSites
+          .filter(site => !fixedFiles.includes(site.filePath))
+          .map(site => ({
+            callSite: site,
+            reason: 'Affected by the change but the generated fix did not modify this file',
+          })),
+        // Sites matched only by the broad breaking-change fallback
+        ...(impact.potentialCallSites ?? []).map(site => ({
+          callSite: site,
+          reason: 'Uses the changed package but does not intersect this change; not individually verified',
+        })),
+      ];
 
       return {
         id: crypto.randomUUID(),
         changeId: change.id,
         repoId: impact.repoId,
+        baselineResult,
         redResult,
         greenResult,
         fixDiff,
-        coverageVerified: impact.affectedCallSites.length - unverifiable.length,
+        fixedFiles,
+        coverageVerified: verified.length,
         coverageTotal: impact.affectedCallSites.length,
         unverifiable,
         producedAt: new Date().toISOString(),
@@ -174,14 +194,23 @@ export class SandboxRunner {
   }
 
   private parseTestOutput(output: string): { passed: number; failed: number; total: number } {
-    // Parse Jest output
-    const jestMatch = output.match(/Tests:\s+(\d+)\s+passed(?:,\s+(\d+)\s+failed)?(?:,\s+(\d+)\s+total)?/);
-    if (jestMatch) {
-      return {
-        passed: parseInt(jestMatch[1], 10),
-        failed: parseInt(jestMatch[2] ?? '0', 10),
-        total: parseInt(jestMatch[3] ?? jestMatch[1], 10),
-      };
+    // Parse Jest's summary line. Jest prints failures first when present:
+    //   "Tests:       1 failed, 1 passed, 2 total"
+    //   "Tests:       2 passed, 2 total"
+    const summaryLine = output.split('\n').find(line => /Tests:/.test(line));
+    if (summaryLine) {
+      const passed = summaryLine.match(/(\d+)\s+passed/);
+      const failed = summaryLine.match(/(\d+)\s+failed/);
+      const total = summaryLine.match(/(\d+)\s+total/);
+      if (passed || failed || total) {
+        return {
+          passed: passed ? parseInt(passed[1], 10) : 0,
+          failed: failed ? parseInt(failed[1], 10) : 0,
+          total: total
+            ? parseInt(total[1], 10)
+            : (passed ? parseInt(passed[1], 10) : 0) + (failed ? parseInt(failed[1], 10) : 0),
+        };
+      }
     }
 
     // Parse generic pass/fail patterns
@@ -196,56 +225,63 @@ export class SandboxRunner {
     return { passed: 0, failed: 0, total: 0 };
   }
 
-  private applyVersionBump(workDir: string, packageName: string, toVersion: string): void {
+  private applyVersionBump(workDir: string, change: ChangeRecord): void {
     const pkgPath = path.join(workDir, 'package.json');
     const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
 
-    if (pkg.dependencies?.[packageName]) {
-      pkg.dependencies[packageName] = toVersion;
+    // Offline fallback: install the target version from a vendored path
+    // (relative to the tested repo's root) instead of a registry.
+    const offlinePath = change.offlineVersions?.[change.toVersion];
+    const spec = offlinePath ? `file:${offlinePath}` : change.toVersion;
+
+    if (pkg.dependencies?.[change.packageName]) {
+      pkg.dependencies[change.packageName] = spec;
     }
-    if (pkg.devDependencies?.[packageName]) {
-      pkg.devDependencies[packageName] = toVersion;
+    if (pkg.devDependencies?.[change.packageName]) {
+      pkg.devDependencies[change.packageName] = spec;
     }
 
     fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
 
     // Reinstall
     try {
-      execSync('npm install --prefer-offline 2>&1', { cwd: workDir, timeout: 60_000 });
+      execSync('npm install --prefer-offline --no-audit --no-fund 2>&1', { cwd: workDir, timeout: 60_000 });
     } catch {
       // Install failures are expected if the new version has issues
     }
   }
 
   private applyFix(workDir: string, fixDiff: string): void {
-    // Apply a unified diff to the working directory
-    const patchFile = path.join(workDir, '.patchversion-fix.patch');
-    fs.writeFileSync(patchFile, fixDiff);
+    // Apply a unified diff to the working directory using the diff library.
+    // In-process application works identically in local and docker modes
+    // (the work directory is what gets mounted into the container).
+    const patches = parsePatch(fixDiff);
+    if (patches.length === 0) {
+      throw new Error('Failed to apply fix: no file patches found in diff');
+    }
 
-    try {
-      execSync(`patch -p1 < ${patchFile}`, { cwd: workDir, timeout: 10_000 });
-    } catch {
-      // Try git apply as fallback
-      try {
-        execSync(`git apply ${patchFile}`, { cwd: workDir, timeout: 10_000 });
-      } catch (err) {
-        throw new Error(`Failed to apply fix: ${err}`);
+    for (const patch of patches) {
+      const relPath = (patch.newFileName ?? patch.oldFileName ?? '')
+        .replace(/^a\//, '')
+        .replace(/^b\//, '');
+      const fullPath = path.join(workDir, relPath);
+      if (!fs.existsSync(fullPath)) {
+        throw new Error(`Failed to apply fix: file not found: ${relPath}`);
       }
-    } finally {
-      fs.unlinkSync(patchFile);
+      const original = fs.readFileSync(fullPath, 'utf-8');
+      const patched = applyPatch(original, patch);
+      if (patched === false) {
+        throw new Error(`Failed to apply fix: patch does not apply cleanly to ${relPath}`);
+      }
+      fs.writeFileSync(fullPath, patched);
     }
   }
 
-  private identifyUnverifiable(impact: ImpactAnalysis, redResult: TestResult): UnverifiableSite[] {
-    // Call sites that didn't produce test failures can't be verified
-    // by the test suite. They may still be broken (no test coverage).
-    if (redResult.failed === 0) {
-      return impact.affectedCallSites.map((site: CallSite) => ({
-        callSite: site,
-        reason: 'No test failure produced; call site may lack test coverage',
-      }));
-    }
-    return [];
+  /** List the files a unified diff modifies (b/ paths). */
+  private filesChangedByDiff(fixDiff: string): string[] {
+    return parsePatch(fixDiff)
+      .map(p => (p.newFileName ?? '').replace(/^b\//, ''))
+      .filter(f => f.length > 0 && f !== '/dev/null');
   }
 
   private createNoBreakProof(
@@ -253,15 +289,16 @@ export class SandboxRunner {
     impact: ImpactAnalysis,
     baseline: TestResult,
     red: TestResult,
-    workDir: string,
   ): ProofArtifact {
     return {
       id: crypto.randomUUID(),
       changeId: change.id,
       repoId: impact.repoId,
+      baselineResult: baseline,
       redResult: red,
       greenResult: red, // same as red - no fix needed
       fixDiff: '',
+      fixedFiles: [],
       coverageVerified: impact.affectedCallSites.length,
       coverageTotal: impact.affectedCallSites.length,
       unverifiable: [],

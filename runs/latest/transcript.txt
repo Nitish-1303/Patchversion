@@ -1,0 +1,29 @@
+Patchversion proof run - 2026-10-23T11:02:49.484Z
+Fixture repo: fixtures/sample-repo
+
+Change: mockpay 1.0.0 -> 2.0.0
+Notes: BREAKING CHANGE: The 'source' parameter in charges.create has been renamed to 'payment_method'. Update your integration to use the new parameter name. The old parameter will be ignored.
+
+--- USAGE MAP ---
+Files scanned: 6, files using mockpay: 1
+  src/createCharge.js:4  mockpay.charges.create({
+  src/createCharge.js:14  mockpay.refunds.create({
+
+--- IMPACT ---
+Affected call sites: src/createCharge.js:4
+Potential (broad match, not individually verified): src/createCharge.js:14
+
+--- RED-TO-GREEN PROOF ---
+Baseline (1.0.0):  exit 0 - 3 passed, 0 failed, 3 total
+Bumped (2.0.0):      exit 1 - 1 passed, 2 failed, 3 total
+After fix (2.0.0):   exit 0 - 3 passed, 0 failed, 3 total
+Sandbox: local-process (local process, no isolation)
+Coverage: verified 1 of 1 affected call sites
+Files changed by fix: src/createCharge.js
+Duration: 3.3s
+
+--- PREPARED PR ---
+Title: [Patchversion] Fix: mockpay 1.0.0 -> 2.0.0 (1 call site)
+Branch: patchversion/mockpay-2.0.0
+
+PROOF VALID. Outputs written to ../../runs/latest/

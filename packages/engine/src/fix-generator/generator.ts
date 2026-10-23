@@ -1,4 +1,5 @@
 import { ChangeRecord, ImpactAnalysis, CallSite } from '@patchversion/shared';
+import { createTwoFilesPatch } from 'diff';
 import fs from 'fs';
 import path from 'path';
 
@@ -6,12 +7,13 @@ import path from 'path';
  * Fix generator: produces a minimal patch for affected call sites.
  *
  * Two modes:
+ * - Deterministic (free, fast, reliable for known patterns): hand-coded
+ *   transformations for common breaking changes like field renames.
  * - LLM-assisted (when an API key is available): sends the failing code,
- *   the change description, and the test failures to the model and asks
- *   for a minimal diff.
- * - Deterministic: for known migration patterns (e.g., field renames),
- *   applies a mechanical transformation.
+ *   the change description, and the test failures to the model.
  *
+ * The fix is emitted as a standard unified diff (via the `diff` library),
+ * so it applies cleanly with patch(1), git apply, and Diff.applyPatch.
  * The fix is only accepted if the sandbox proves it green.
  */
 export class FixGenerator {
@@ -51,20 +53,51 @@ export class FixGenerator {
     change: ChangeRecord,
     impact: ImpactAnalysis,
   ): string | null {
-    const notes = change.rawNotes.toLowerCase();
+    const notes = change.rawNotes;
 
-    // Pattern: field rename (e.g., 'source' -> 'payment_method' in Stripe)
-    const renameMatch = notes.match(/renamed?\s+[`'"]?(\w+)[`'"]?\s+to\s+[`'"]?(\w+)[`'"]?/i);
-    if (renameMatch) {
-      const [, oldName, newName] = renameMatch;
-      return this.generateRenameFix(repoPath, impact.affectedCallSites, oldName, newName);
+    // Pattern: field rename, in the phrasings release notes actually use:
+    //   "renamed source to payment_method"
+    //   "renamed from source to payment_method"
+    //   "the 'source' parameter ... has been renamed to 'payment_method'"
+    //   "source was renamed to payment_method"
+    const rename = this.extractRename(notes);
+    if (rename) {
+      return this.generateRenameFix(repoPath, impact.affectedCallSites, rename.oldName, rename.newName);
     }
 
     // Pattern: parameter removed (wrap in conditional or remove usage)
-    const removedMatch = notes.match(/removed?\s+[`'"]?(\w+)[`'"]?/i);
-    if (removedMatch) {
+    if (/removed?\s+[`'"]?\w+[`'"]?/i.test(notes)) {
       // Can't auto-fix removals without understanding intent
       return null;
+    }
+
+    return null;
+  }
+
+  /** Extract a rename (old -> new) from common release-note phrasings. */
+  private extractRename(notes: string): { oldName: string; newName: string } | null {
+    // Direct: "renamed X to Y" / "renamed from X to Y" (quoted or bare)
+    const direct = notes.match(/renamed?\s+(?:from\s+)?[`'"]?(\w+)[`'"]?\s+to\s+[`'"]?(\w+)[`'"]?/i);
+    if (direct && !/^to$/i.test(direct[1])) {
+      return { oldName: direct[1], newName: direct[2] };
+    }
+
+    // Passive: "X has been renamed to Y" / "X was renamed to Y", including
+    // "the 'X' parameter ... has been renamed to 'Y'".
+    const passive = notes.match(/(?:has been|was)\s+renamed\s+to\s+[`'"]?(\w+)[`'"]?/i);
+    if (passive && passive.index !== undefined) {
+      const newName = passive[1];
+      // The old name is the closest quoted word before the rename phrase.
+      const window = notes.slice(Math.max(0, passive.index - 120), passive.index);
+      const quoted = [...window.matchAll(/[`'"](\w+)[`'"]/g)];
+      if (quoted.length > 0) {
+        return { oldName: quoted[quoted.length - 1][1], newName };
+      }
+      // Fallback: bare word immediately before "has been renamed".
+      const bare = window.match(/(\w+)\s*$/);
+      if (bare) {
+        return { oldName: bare[1], newName };
+      }
     }
 
     return null;
@@ -86,7 +119,7 @@ export class FixGenerator {
       byFile.set(site.filePath, existing);
     }
 
-    for (const [filePath, fileSites] of byFile) {
+    for (const [filePath] of byFile) {
       const fullPath = path.join(repoPath, filePath);
       if (!fs.existsSync(fullPath)) continue;
 
@@ -94,11 +127,12 @@ export class FixGenerator {
       const fixed = this.applyRename(content, oldName, newName);
 
       if (fixed !== content) {
-        diffs.push(this.createUnifiedDiff(filePath, content, fixed));
+        // Standard unified diff with context, parseable by patch/git apply
+        diffs.push(createTwoFilesPatch(`a/${filePath}`, `b/${filePath}`, content, fixed));
       }
     }
 
-    return diffs.length > 0 ? diffs.join('\n') : null;
+    return diffs.length > 0 ? diffs.join('') : null;
   }
 
   private applyRename(content: string, oldName: string, newName: string): string {
@@ -179,46 +213,5 @@ export class FixGenerator {
       `Generate a minimal unified diff that fixes these call sites for the new version.`,
       `Only change what is necessary. Do not refactor.`,
     ].join('\n');
-  }
-
-  private createUnifiedDiff(filePath: string, original: string, fixed: string): string {
-    const originalLines = original.split('\n');
-    const fixedLines = fixed.split('\n');
-
-    const diff: string[] = [
-      `--- a/${filePath}`,
-      `+++ b/${filePath}`,
-    ];
-
-    // Simple line-by-line diff (not optimal, but correct for small changes)
-    let i = 0, j = 0;
-    while (i < originalLines.length || j < fixedLines.length) {
-      if (i < originalLines.length && j < fixedLines.length && originalLines[i] === fixedLines[j]) {
-        i++;
-        j++;
-      } else {
-        // Find the extent of the change
-        const startI = i, startJ = j;
-        while (i < originalLines.length && (j >= fixedLines.length || originalLines[i] !== fixedLines[j])) {
-          i++;
-        }
-        while (j < fixedLines.length && (startI >= originalLines.length || fixedLines[j] !== originalLines[startI])) {
-          j++;
-        }
-
-        const removedCount = i - startI;
-        const addedCount = j - startJ;
-        diff.push(`@@ -${startI + 1},${removedCount} +${startJ + 1},${addedCount} @@`);
-
-        for (let k = startI; k < i; k++) {
-          diff.push(`-${originalLines[k]}`);
-        }
-        for (let k = startJ; k < j; k++) {
-          diff.push(`+${fixedLines[k]}`);
-        }
-      }
-    }
-
-    return diff.join('\n');
   }
 }

@@ -49,6 +49,28 @@ describe('StateStore', () => {
     expect(change!.packageName).toBe('stripe');
   });
 
+  it('handles repo ids and package names with slashes', () => {
+    store.saveUsageMap({
+      repoId: 'acme/payments',
+      packageName: '@scope/pkg',
+      mappedAt: '2026-10-23T00:00:00Z',
+      callSites: [],
+      totalFiles: 1,
+      filesWithUsage: 0,
+    });
+    const map = store.getUsageMap('acme/payments', '@scope/pkg');
+    expect(map).not.toBeNull();
+    expect(map!.repoId).toBe('acme/payments');
+
+    store.saveWatchTarget({
+      packageName: '@scope/pkg',
+      ecosystem: 'npm',
+      lastCheckedAt: null,
+      lastKnownVersion: '1.0.0',
+    });
+    expect(store.getWatchTarget('@scope/pkg')).not.toBeNull();
+  });
+
   it('computes failure rate', () => {
     const rate = store.getFailureRate();
     expect(rate.totalProofs).toBe(0);

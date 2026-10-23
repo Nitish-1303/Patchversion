@@ -15,11 +15,12 @@
 
 ## Evaluation Fixtures
 
-### Fixture 1: Field rename (implemented)
-- Package: mockpay v1 -> v2
+### Fixture 1: Field rename (passing end to end, 2026-10-23)
+- Package: mockpay v1 -> v2 (both vendored under fixtures/sample-repo/vendor/)
 - Change: `source` renamed to `payment_method`
-- Expected: detect, map 2 call sites, generate rename fix, verify green
-- Status: fixture created, not yet end-to-end tested
+- Result: detect, map 2 call sites (1 affected, 1 potential), generate rename
+  fix, red-to-green verified (3/3 -> 1/3 with 2 failed -> 3/3), prepared PR
+  with honest coverage. Run: `npm run prove`, transcript in runs/latest/
 
 ### Fixture 2: Non-breaking feature addition
 - Package: mockpay v1 -> v1.1
