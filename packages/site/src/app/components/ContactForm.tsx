@@ -1,5 +1,8 @@
 'use client';
 
+import { Check } from 'lucide-react';
+
+
 import { useState } from 'react';
 
 const ACCESS_KEY = '7f23b9a4-f5ae-4268-b7a2-aaa88bea3e5b';
@@ -47,11 +50,9 @@ export default function ContactForm() {
 
   if (status === 'success') {
     return (
-      <div className="card text-center py-14 px-8">
+      <div className="card text-center py-14 px-8" role="status">
         <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-success-bg">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M20 6 9 17l-5-5" />
-          </svg>
+          <Check size={20} strokeWidth={2} aria-hidden="true" />
         </div>
         <h2 className="font-display text-2xl font-bold text-ink mb-3">Message sent</h2>
         <p className="text-text-secondary max-w-md mx-auto">
@@ -74,6 +75,7 @@ export default function ContactForm() {
 
   return (
     <form onSubmit={handleSubmit} className="card space-y-5">
+      <noscript><p role="status" className="text-sm text-error">JavaScript is required to send this form. Enable it before submitting.</p></noscript>
       <div>
         <label htmlFor="contact-name" className="mb-1.5 block text-sm font-medium text-ink">
           Name

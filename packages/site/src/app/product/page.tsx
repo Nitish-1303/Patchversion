@@ -1,3 +1,4 @@
+import { ArrowRight, Check } from 'lucide-react';
 export default function ProductPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
@@ -22,9 +23,7 @@ export default function ProductPage() {
                   <span className="text-sm font-medium whitespace-nowrap">{step}</span>
                 </div>
                 {i < 5 && (
-                  <svg className="w-4 h-4 text-text-tertiary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
+                  <ArrowRight size={20} strokeWidth={2} aria-hidden="true" className="w-4 h-4 text-text-tertiary flex-shrink-0" />
                 )}
               </div>
             ))}
@@ -205,8 +204,6 @@ function PlannedChip() {
 
 function CheckIcon() {
   return (
-    <svg className="w-4 h-4 text-success flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-    </svg>
+    <Check size={20} strokeWidth={2} aria-hidden="true" className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
   );
 }

@@ -16,6 +16,10 @@
   .lenis.lenis-stopped {
     overflow: hidden;
   }
+  /* Anchored sections clear the fixed ~69px nav (matches Lenis anchor offset -88). */
+  section[id] {
+    scroll-margin-top: 88px;
+  }
   body {
     @apply bg-background text-ink font-body antialiased;
   }
@@ -106,3 +110,11 @@
     transition: none !important;
   }
 }
+
+/* Grid children must shrink before code wraps or scrolls on narrow screens. */
+.grid > * { min-width: 0; }
+
+:focus-visible { outline: 2px solid #2E335B; outline-offset: 4px; }
+button, a { -webkit-tap-highlight-color: transparent; }
+button:active, .pill-primary:active, .pill-secondary:active { transform: translateY(1px); }
+@media (prefers-reduced-motion: reduce) { button:active, a:active { transform: none; } }

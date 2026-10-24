@@ -29,6 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${manrope.variable} ${inter.variable}`}>
       <body>
+        <noscript><style>{`.reveal { opacity: 1 !important; transform: none !important; }`}</style></noscript>
         <SmoothScroll>
           <Chrome>{children}</Chrome>
         </SmoothScroll>

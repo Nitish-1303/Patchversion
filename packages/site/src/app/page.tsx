@@ -1,6 +1,9 @@
+import { ArrowRight, Check, X, FolderGit2, FileDiff, FlaskConical, GitPullRequest, Store, Bot, FileJson, PackageOpen, Search, ShieldCheck } from 'lucide-react';
 import Reveal from './components/Reveal';
 import StageTabs from './components/StageTabs';
 import FAQ from './components/FAQ';
+import MigrationDemo from './components/MigrationDemo';
+import BrandLogo from './components/BrandLogo';
 
 /* ---------------------------------- mocks ---------------------------------- */
 
@@ -22,10 +25,10 @@ function DashboardMock() {
 
       {/* stage stepper */}
       <div className="flex flex-wrap items-center gap-x-2 gap-y-2 px-6 lg:px-8 pt-6 text-[12px] font-semibold uppercase tracking-[0.12em]">
-        {['Watch', 'Detect', 'Map', 'Patch', 'Prove', 'PR'].map((s, i) => (
+        {['Detect', 'Analyze', 'Patch', 'Test', 'Verify', 'Review'].map((s, i) => (
           <span key={s} className="flex items-center gap-2">
-            <span className={`rounded-full px-3 py-1 ${s === 'Prove' ? 'bg-navy text-white' : 'bg-accent-light text-navy/70'}`}>{s}</span>
-            {i < 5 && <span className="text-rule-strong">&rarr;</span>}
+            <span className={`rounded-full px-3 py-1 ${s === 'Verify' ? 'bg-navy text-white' : 'bg-accent-light text-navy/70'}`}>{s}</span>
+            {i < 5 && <ArrowRight size={13} strokeWidth={2} className="text-rule-strong" aria-hidden="true" />}
           </span>
         ))}
       </div>
@@ -68,9 +71,9 @@ function DashboardMock() {
           <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-tertiary mb-2">Pull request</p>
           <p className="font-display font-semibold text-ink leading-snug mb-3">fix(stripe): migrate Checkout Sessions</p>
           <ul className="space-y-2 text-[13px] text-text-secondary flex-1">
-            <li className="flex gap-2"><span className="text-success">&#10003;</span>Full diff, 2 files</li>
-            <li className="flex gap-2"><span className="text-success">&#10003;</span>Before/after test output</li>
-            <li className="flex gap-2"><span className="text-success">&#10003;</span>Affected call sites</li>
+            <li className="flex gap-2 items-start"><Check size={15} strokeWidth={2} className="text-success shrink-0 mt-0.5" aria-hidden="true" />Full diff, 2 files</li>
+            <li className="flex gap-2 items-start"><Check size={15} strokeWidth={2} className="text-success shrink-0 mt-0.5" aria-hidden="true" />Before/after test output</li>
+            <li className="flex gap-2 items-start"><Check size={15} strokeWidth={2} className="text-success shrink-0 mt-0.5" aria-hidden="true" />Affected call sites</li>
           </ul>
           <p className="mt-4 text-[12px] text-text-tertiary">PR delivery in development</p>
         </div>
@@ -91,12 +94,73 @@ function TerminalMock() {
       <div className="p-6 font-mono text-[13px] leading-7 overflow-x-auto">
         <div className="text-white/40">$ npm run prove</div>
         <div className="text-white/70">reproducing break on stripe-node 23.0.1&hellip;</div>
-        <div className="text-[#FF8A8A]">&#10007; creates checkout session &middot; payment_method_types unknown</div>
-        <div className="text-[#FF8A8A]">&#10007; retries failed session</div>
-        <div className="text-[#FF8A8A]">&#10007; preserves line items</div>
+        <div className="text-[#FF8A8A]"><X size={14} strokeWidth={2} className="inline" aria-hidden="true" /> creates checkout session &middot; payment_method_types unknown</div>
+        <div className="text-[#FF8A8A]"><X size={14} strokeWidth={2} className="inline" aria-hidden="true" /> retries failed session</div>
+        <div className="text-[#FF8A8A]"><X size={14} strokeWidth={2} className="inline" aria-hidden="true" /> preserves line items</div>
         <div className="mt-3 text-white/70">applying patch&hellip; rerunning suite&hellip;</div>
-        <div className="text-[#7EE2A0]">&#10003; 47/47 tests passing</div>
+        <div className="text-[#7EE2A0]"><Check size={14} strokeWidth={2} className="inline" aria-hidden="true" /> 47/47 tests passing</div>
         <div className="text-white/40">exit code 0</div>
+      </div>
+    </div>
+  );
+}
+
+function ImpactMapMock() {
+  return (
+    <div className="rounded-3xl bg-white border border-rule shadow-card p-6">
+      <p className="font-mono text-xs uppercase tracking-widest text-text-tertiary mb-4">Repository impact map</p>
+      <div className="font-mono text-[13px] leading-8">
+        <p className="text-text-tertiary">src/</p>
+        <p className="pl-4 text-text-tertiary">app/</p>
+        <p className="pl-8 text-text-secondary">page.tsx</p>
+        <p className="pl-4 text-text-secondary">checkout/</p>
+        <p className="pl-8 rounded-lg bg-error-bg text-error px-2 -mx-2 flex justify-between"><span>createSession.ts</span><span className="text-xs self-center font-semibold">affected :14</span></p>
+        <p className="pl-8 rounded-lg bg-error-bg text-error px-2 -mx-2 flex justify-between"><span>retrySession.ts</span><span className="text-xs self-center font-semibold">affected :41</span></p>
+        <p className="pl-4 text-text-tertiary">webhooks/</p>
+        <p className="pl-8 text-text-secondary">handler.ts <span className="text-success text-xs font-semibold">clean</span></p>
+      </div>
+      <p className="mt-4 pt-4 border-t border-rule text-sm text-text-secondary">Illustrative call-site map. Paths and line numbers are examples.</p>
+    </div>
+  );
+}
+
+function DiffMock() {
+  return (
+    <div className="rounded-3xl bg-white border border-rule shadow-card overflow-hidden">
+      <div className="flex flex-wrap gap-2 items-center justify-between px-6 py-4 border-b border-rule">
+        <p className="font-mono text-[13px] text-text-secondary">src/checkout/createSession.ts</p>
+        <span className="badge bg-accent-light text-navy">minimal diff</span>
+      </div>
+      <div className="bg-code-bg p-5 font-mono text-[12.5px] leading-6 overflow-x-auto">
+        <p className="text-code-text/50">  12  const session =</p>
+        <p className="text-[#F08585] bg-[#F08585]/10 -mx-5 px-5">- 13  await stripe.checkout.sessions.create({'{'}</p>
+        <p className="text-[#F08585] bg-[#F08585]/10 -mx-5 px-5">- 14&nbsp;&nbsp;payment_method_types: [&apos;card&apos;],</p>
+        <p className="text-[#8ADCB0] bg-[#8ADCB0]/10 -mx-5 px-5">+ 13  await stripe.checkout.sessions.create({'{'}</p>
+        <p className="text-[#8ADCB0] bg-[#8ADCB0]/10 -mx-5 px-5">+ 14&nbsp;&nbsp;mode: &apos;payment&apos;,</p>
+        <p className="text-code-text/50">  15&nbsp;&nbsp;line_items, success_url,</p>
+        <p className="text-code-text/50">  16  {'}'});</p>
+      </div>
+      <p className="px-6 py-4 text-sm text-text-secondary border-t border-rule">Only the broken lines change. Nothing else in the file is touched.</p>
+    </div>
+  );
+}
+
+function TestRunMock() {
+  return (
+    <div className="rounded-3xl bg-navy-deep overflow-hidden shadow-soft">
+      <div className="flex items-center gap-2 px-5 py-3.5 bg-white/5">
+        <span className="w-2.5 h-2.5 rounded-full bg-[#FF5F56]" />
+        <span className="w-2.5 h-2.5 rounded-full bg-[#FFBD2E]" />
+        <span className="w-2.5 h-2.5 rounded-full bg-[#27CA40]" />
+        <span className="ml-2 text-[12px] font-mono text-white/40">illustrative test output</span>
+      </div>
+      <div className="p-6 font-mono text-[13px] leading-7 overflow-x-auto">
+        <div className="text-white/40">$ npm test</div>
+        <div className="text-white/70">running 47 tests against patched code&hellip;</div>
+        <div className="text-white/50">checkout/createSession.test.ts &middot; 21 tests</div>
+        <div className="text-white/50">checkout/retrySession.test.ts &middot; 14 tests</div>
+        <div className="text-white/50">webhooks/handler.test.ts &middot; 12 tests</div>
+        <div className="mt-2 text-[#7EE2A0]"><Check size={14} strokeWidth={2} className="inline" aria-hidden="true" /> 47/47 passing &middot; finished in 9.1s</div>
       </div>
     </div>
   );
@@ -130,21 +194,25 @@ function EvidenceMock() {
 /* ---------------------------------- page ---------------------------------- */
 
 const STAGES = [
-  { name: 'Watch', desc: 'Provider changelogs, deprecation notices and version diffs, tracked on a schedule.', status: 'In development' },
-  { name: 'Detect', desc: 'Decide whether a change actually breaks an API shape your code uses.', status: 'Proven locally' },
-  { name: 'Map', desc: 'An index of every call site that touches the changed surface, down to the line.', status: 'Proven locally' },
+  { name: 'Detect', desc: 'A provider ships a change that breaks an API shape your code uses. Continuous watching is in development; detection itself is proven.', status: 'Proven locally' },
+  { name: 'Analyze', desc: 'An index of every call site that touches the changed surface, down to the line.', status: 'Proven locally' },
   { name: 'Patch', desc: 'A minimal diff that changes only what the break requires.', status: 'Proven locally' },
-  { name: 'Prove', desc: 'Your own test suite, rerun against the patch. Green, or no PR.', status: 'Proven locally' },
-  { name: 'PR', desc: 'A review-ready pull request with the evidence attached.', status: 'In development' },
+  { name: 'Test', desc: 'Your own test suite runs against the patch - the same command you would run.', status: 'Proven locally' },
+  { name: 'Verify', desc: 'Before and after outputs compared. Green, or no PR.', status: 'Proven locally' },
+  { name: 'Review', desc: 'A review-ready pull request with the evidence attached.', status: 'In development' },
 ];
 
-const SOURCES = [
-  { name: 'Stripe', note: 'Versioned API with published upgrade guides. Migration verified locally.' },
-  { name: 'Shopify', note: 'Quarterly API releases with forced version upgrades for apps.' },
-  { name: 'Twilio', note: 'Deprecation notices and helper-library majors.' },
-  { name: 'OpenAI', note: 'Model deprecations and SDK breaking changes.' },
-  { name: 'npm packages', note: 'Semver majors with breaking changelogs.' },
-  { name: 'OpenAPI specs', note: 'Spec diffs that flag removed fields and changed types.' },
+type SourceEntry =
+  | { kind: 'brand'; brand: 'stripe' | 'twilio' | 'npm'; name: string; note: string }
+  | { kind: 'icon'; icon: 'store' | 'bot' | 'openapi'; name: string; note: string };
+
+const SOURCES: SourceEntry[] = [
+  { kind: 'brand', brand: 'stripe', name: 'Stripe', note: 'Versioned API with published upgrade guides. Migration verified locally.' },
+  { kind: 'icon', icon: 'store', name: 'Shopify', note: 'Quarterly API releases with forced version upgrades for apps.' },
+  { kind: 'brand', brand: 'twilio', name: 'Twilio', note: 'Deprecation notices and helper-library majors.' },
+  { kind: 'icon', icon: 'bot', name: 'OpenAI', note: 'Model deprecations and SDK breaking changes.' },
+  { kind: 'brand', brand: 'npm', name: 'npm packages', note: 'Semver majors with breaking changelogs.' },
+  { kind: 'icon', icon: 'openapi', name: 'OpenAPI specs', note: 'Spec diffs that flag removed fields and changed types.' },
 ];
 
 export default function HomePage() {
@@ -215,7 +283,7 @@ export default function HomePage() {
               <div className="card h-full !p-8">
                 <h3 className="font-display font-semibold text-lg mb-3">Version bumps don&rsquo;t prove anything</h3>
                 <p className="text-[15px] leading-7 text-text-secondary">
-                  Dependabot and Renovate open update PRs, but they never run your code. Whether the upgrade breaks your checkout is yours to find out.
+                  An update PR can trigger your CI, but the version bump alone is not proof that the migration works. A reviewer still needs the diff and test evidence.
                 </p>
               </div>
             </Reveal>
@@ -228,6 +296,30 @@ export default function HomePage() {
               </div>
             </Reveal>
           </div>
+
+          {/* Manual vs PatchBay */}
+          <Reveal delay={150} className="mt-16">
+            <div className="rounded-4xl border border-rule bg-white overflow-hidden">
+              <div className="grid md:grid-cols-[1.1fr_1fr_1fr] text-sm">
+                <div className="px-7 py-5 border-b border-rule font-display font-semibold text-ink">The same upgrade</div>
+                <div className="px-7 py-5 border-b border-rule font-display font-semibold text-text-secondary">The manual way</div>
+                <div className="px-7 py-5 border-b border-rule font-display font-semibold text-navy bg-accent-light/50">The PatchBay way</div>
+                {[
+                  ['Understand what broke', 'Read the changelog and the migration guide, line by line.', 'The breaking change is detected and explained.'],
+                  ['Find affected code', 'Grep the repo and hope the search terms catch every call site.', 'Every call site is located and listed.'],
+                  ['Update the implementation', 'Rewrite each call by hand, file by file.', 'A migration patch is proposed for review.'],
+                  ['Prove it works', 'Run the tests, debug the failures, rerun until green.', 'Your own test suite reruns before and after, outputs attached.'],
+                  ['Prepare the review', 'Write up the PR and summarize what changed and why it is safe.', 'The PR arrives with the diff and the verification evidence.'],
+                ].map(([step, manual, pb]) => (
+                  <div key={step} className="contents">
+                    <div className="px-7 py-4 border-b border-rule font-medium text-ink">{step}</div>
+                    <div className="px-7 py-4 border-b border-rule text-text-secondary">{manual}</div>
+                    <div className="px-7 py-4 border-b border-rule text-navy bg-accent-light/50">{pb}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Reveal>
         </div>
       </section>
 
@@ -245,7 +337,7 @@ export default function HomePage() {
               <Reveal key={stage.name} delay={i * 60} className="h-full">
                 <div className="h-full rounded-2xl border border-rule bg-background p-8 transition-shadow duration-200 hover:shadow-card">
                   <div className="flex items-center justify-between mb-5">
-                    <span className="font-display text-[13px] font-bold text-white bg-navy rounded-full w-8 h-8 flex items-center justify-center">{i + 1}</span>
+                    <span className="flex items-center gap-2"><span className="font-mono text-xs text-text-tertiary">0{i + 1}</span>{[PackageOpen, FolderGit2, FileDiff, FlaskConical, Check, GitPullRequest].map((Icon, index) => index === i ? <Icon key={index} size={20} strokeWidth={2} className="text-navy" aria-hidden="true" /> : null)}</span>
                     <span className={`badge ${stage.status === 'Proven locally' ? 'bg-success-bg text-success' : 'bg-accent-light text-text-secondary'}`}>
                       {stage.status}
                     </span>
@@ -259,9 +351,71 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* --------------------- SCROLL-DRIVEN MIGRATION DEMO --------------------- */}
+      <section className="gutter py-28 lg:py-36 bg-white border-y border-rule">
+        <MigrationDemo />
+      </section>
+
       {/* -------------------------- ALTERNATING ROWS -------------------------- */}
       <section className="gutter py-28 lg:py-36">
         <div className="max-w-content mx-auto space-y-28 lg:space-y-36">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+            <Reveal>
+              <p className="eyebrow mb-4">Impact analysis</p>
+              <h2 className="font-display font-semibold text-[clamp(1.9rem,3.5vw,2.75rem)] leading-[1.15] tracking-[-0.01em] mb-6">
+                Every affected call site, down to the line
+              </h2>
+              <p className="text-base leading-8 text-text-secondary mb-6">
+                When a dependency breaks an API shape, PatchBay indexes your repository and lists each call site that touches it - file, line, and the change it needs. No grep-and-hope.
+              </p>
+              <p className="text-base leading-8 text-text-secondary">
+                The layout below illustrates a two-file impact map. Paths and line numbers are examples, not a transcript of the verified run.
+              </p>
+            </Reveal>
+            <Reveal delay={120}>
+              <ImpactMapMock />
+              <p className="mt-3 text-center text-[13px] text-text-tertiary">Illustrative impact map; example paths and line numbers.</p>
+            </Reveal>
+          </div>
+
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+            <Reveal className="lg:order-2">
+              <p className="eyebrow mb-4">Patch generation</p>
+              <h2 className="font-display font-semibold text-[clamp(1.9rem,3.5vw,2.75rem)] leading-[1.15] tracking-[-0.01em] mb-6">
+                The smallest diff that fixes the break
+              </h2>
+              <p className="text-base leading-8 text-text-secondary mb-6">
+                Patches are scoped to the affected call sites and nothing else. A reviewer should be able to read the whole fix in one sitting - because there is nothing in it except the fix.
+              </p>
+              <p className="text-base leading-8 text-text-secondary">
+                A proposed patch is a proposal, not a verdict. It only becomes a recommendation after your tests pass against it.
+              </p>
+            </Reveal>
+            <Reveal delay={120} className="lg:order-1">
+              <DiffMock />
+              <p className="mt-3 text-center text-[13px] text-text-tertiary">Illustrative migration diff; not the raw verified-run artifact.</p>
+            </Reveal>
+          </div>
+
+          <div className="grid lg:grid-cols-5 gap-12 lg:gap-16 items-center">
+            <Reveal className="lg:col-span-2">
+              <p className="eyebrow mb-4">Test execution</p>
+              <h2 className="font-display font-semibold text-[clamp(1.9rem,3.5vw,2.75rem)] leading-[1.15] tracking-[-0.01em] mb-6">
+                Your suite is the judge
+              </h2>
+              <p className="text-base leading-8 text-text-secondary mb-6">
+                PatchBay runs the repository&rsquo;s own test command - the same one your CI runs. No simulated harness, no substitute checks, no partial credit.
+              </p>
+              <p className="text-base leading-8 text-text-secondary">
+                The raw output is kept and attached to the result, so a reviewer can rerun the exact same command.
+              </p>
+            </Reveal>
+            <Reveal delay={120} className="lg:col-span-3">
+              <TestRunMock />
+              <p className="mt-3 text-center text-[13px] text-text-tertiary">Illustrative test display. Counts use the verified 47/47 result; file breakdown and timing are examples.</p>
+            </Reveal>
+          </div>
+
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
             <Reveal>
               <p className="eyebrow mb-4">Verification first</p>
@@ -302,6 +456,90 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ------------------------ FAILURE VISIBILITY ------------------------ */}
+      <section className="py-28 lg:py-36 bg-navy-deep">
+        <div className="gutter max-w-content mx-auto grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+          <Reveal>
+            <p className="eyebrow mb-4 !text-white/50">Failure visibility</p>
+            <h2 className="font-display font-semibold text-white text-[clamp(1.9rem,3.5vw,2.75rem)] leading-[1.15] tracking-[-0.01em] mb-6">
+              Failed runs get shown, not hidden
+            </h2>
+            <p className="text-base leading-8 text-white/75 mb-6">
+              When a patch does not fix the break - or the suite cannot run at all - the result is labelled failed or inconclusive, with the full output attached. An inconclusive run is never rounded up to a pass.
+            </p>
+            <p className="text-base leading-8 text-white/75">
+              That is the whole point of proof before the PR: the failures are exactly where you can see them.
+            </p>
+          </Reveal>
+          <Reveal delay={120}>
+            <div className="rounded-3xl bg-white/5 border border-white/10 p-6 lg:p-8">
+              <div className="flex items-center justify-between mb-5">
+                <p className="font-mono text-[13px] text-white/60">migration result &middot; illustrative</p>
+                <span className="badge bg-[#F08585]/15 text-[#F08585]">inconclusive</span>
+              </div>
+              <div className="space-y-3 font-mono text-[13px]">
+                <div className="flex items-center justify-between rounded-xl bg-white/5 border border-white/10 px-4 py-3">
+                  <span className="text-white/70">patch applied</span>
+                  <span className="text-white/80">yes</span>
+                </div>
+                <div className="flex items-center justify-between rounded-xl bg-white/5 border border-white/10 px-4 py-3">
+                  <span className="text-white/70">test suite</span>
+                  <span className="text-[#F08585]">could not complete - setup error</span>
+                </div>
+                <div className="flex items-center justify-between rounded-xl bg-white/5 border border-white/10 px-4 py-3">
+                  <span className="text-white/70">presented as</span>
+                  <span className="text-white/80">not verified - no PR prepared</span>
+                </div>
+              </div>
+              <p className="mt-5 text-[13px] leading-6 text-white/50">
+                Illustrative example of the failure path: the run stops, the evidence says why, and nothing is dressed up as ready.
+              </p>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ------------------------ SECURITY / RELIABILITY ------------------------ */}
+      <section id="security" className="gutter py-28 lg:py-36 bg-white border-y border-rule">
+        <div className="max-w-content mx-auto grid lg:grid-cols-2 gap-12 lg:gap-20">
+          <Reveal>
+            <p className="eyebrow mb-4">Security &amp; reliability</p>
+            <h2 className="font-display font-semibold text-[clamp(1.9rem,4vw,3rem)] leading-[1.15] tracking-[-0.01em] mb-6">
+              Every state means exactly what it says.
+            </h2>
+            <p className="text-base leading-8 text-text-secondary mb-8">
+              PatchBay never blurs the line between a suggestion and a proof. Each result carries one of these states, and the wording never upgrades a result it cannot stand behind.
+            </p>
+            <div className="rounded-2xl border border-rule bg-background p-6">
+              <p className="font-display font-semibold text-ink mb-3">What PatchBay will not claim</p>
+              <ul className="space-y-2.5 text-[15px] leading-6 text-text-secondary">
+                <li className="flex gap-2.5 items-start"><X size={16} strokeWidth={2} className="text-error shrink-0 mt-1" aria-hidden="true" /> No claim that a patch is correct without your tests passing.</li>
+                <li className="flex gap-2.5 items-start"><X size={16} strokeWidth={2} className="text-error shrink-0 mt-1" aria-hidden="true" /> No automatic merging - review stays with your team.</li>
+                <li className="flex gap-2.5 items-start"><X size={16} strokeWidth={2} className="text-error shrink-0 mt-1" aria-hidden="true" /> No sandboxed-execution claims: hosted isolated runs are still in security review, so they are not offered.</li>
+              </ul>
+            </div>
+          </Reveal>
+          <Reveal delay={120}>
+            <ol className="relative border-l-2 border-rule-strong ml-3 space-y-8 py-2">
+              {[
+                ['Patch proposed', 'A migration diff exists. Nothing about it is proven yet.', 'bg-accent-light text-navy'],
+                ['Tests ran', 'Your suite executed against the patch. Output exists either way.', 'bg-accent-light text-navy'],
+                ['Tests passed', 'The suite is green after the patch, with before and after output attached.', 'bg-success-bg text-success'],
+                ['Failed', 'The suite ran and failed. The patch is not presented as ready.', 'bg-error-bg text-error'],
+                ['Inconclusive', 'The suite could not complete. No pass is claimed; the available output explains why.', 'bg-warning-bg text-warning'],
+                ['Ready for human review', 'Diff plus evidence packaged for a reviewer. The decision is yours.', 'bg-navy text-white'],
+              ].map(([title, body, cls]) => (
+                <li key={title} className="relative pl-8">
+                  <span className={`absolute -left-[13px] top-0.5 badge ${cls} !px-2 !py-1`}><span className="block w-1.5 h-1.5 rounded-full bg-current" aria-hidden="true" /></span>
+                  <p className="font-display font-semibold text-ink">{title}</p>
+                  <p className="mt-1 text-[15px] leading-7 text-text-secondary">{body}</p>
+                </li>
+              ))}
+            </ol>
+          </Reveal>
+        </div>
+      </section>
+
       {/* --------------------------- SOURCES STRIP --------------------------- */}
       <section className="py-28 lg:py-36 bg-white border-y border-rule overflow-hidden">
         <div className="gutter max-w-content mx-auto">
@@ -310,12 +548,26 @@ export default function HomePage() {
             <h2 className="font-display font-semibold text-[clamp(1.9rem,4vw,3rem)] leading-[1.15] tracking-[-0.01em]">
               Built around the providers your stack actually depends on
             </h2>
+            <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3 text-text-secondary">
+              <span className="text-sm">Verified today on</span>
+              <span className="flex items-center gap-2"><BrandLogo name="typescript" size={20} /><span className="text-sm font-medium">TypeScript</span></span>
+              <span className="flex items-center gap-2"><BrandLogo name="nodedotjs" size={20} /><span className="text-sm font-medium">Node.js</span></span>
+              <span className="text-sm text-text-tertiary">- more ecosystems planned</span>
+            </div>
           </Reveal>
         </div>
         <Reveal delay={120}>
           <div className="mt-14 flex gap-5 overflow-x-auto no-scrollbar gutter pb-2 snap-x">
             {SOURCES.map(s => (
               <div key={s.name} className="snap-start shrink-0 w-[280px] rounded-2xl border border-rule bg-background p-7">
+                <div className="mb-4 flex h-8 items-center text-navy">
+                  {s.kind === 'brand' && s.brand === 'stripe' && <BrandLogo name="stripe" size={28} />}
+                  {s.kind === 'brand' && s.brand === 'twilio' && <BrandLogo name="twilio" size={28} />}
+                  {s.kind === 'brand' && s.brand === 'npm' && <BrandLogo name="npm" size={28} />}
+                  {s.kind === 'icon' && s.icon === 'store' && <Store size={24} strokeWidth={2} aria-hidden="true" />}
+                  {s.kind === 'icon' && s.icon === 'bot' && <Bot size={24} strokeWidth={2} aria-hidden="true" />}
+                  {s.kind === 'icon' && s.icon === 'openapi' && <FileJson size={24} strokeWidth={2} aria-hidden="true" />}
+                </div>
                 <h3 className="font-display font-semibold text-lg mb-2">{s.name}</h3>
                 <p className="text-sm leading-6 text-text-secondary">{s.note}</p>
               </div>
@@ -342,6 +594,50 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ----------------------- DEV WORKFLOW INTEGRATION ----------------------- */}
+      <section className="gutter py-28 lg:py-36">
+        <div className="max-w-content mx-auto">
+          <Reveal className="text-center max-w-2xl mx-auto mb-16">
+            <p className="eyebrow mb-4">Where it lands</p>
+            <h2 className="font-display font-semibold text-[clamp(1.9rem,4vw,3rem)] leading-[1.15] tracking-[-0.01em]">
+              Built for the review flow your team already lives in
+            </h2>
+            <p className="mt-5 text-[15px] leading-7 text-text-secondary">
+              Planned GitHub delivery packages a normal pull request: the diff, the evidence, the affected call sites. No new dashboard to learn, no review process to change.
+            </p>
+          </Reveal>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { icon: FolderGit2, t: 'Repos', d: 'The proof loop runs locally against the repositories you point it at.', st: 'Runs locally' },
+              { icon: FileDiff, t: 'Diffs', d: 'Minimal, reviewable patches scoped to the affected call sites.', st: 'Runs locally' },
+              { icon: FlaskConical, t: 'Tests', d: 'Your own suite, rerun before and after, output attached.', st: 'Runs locally' },
+              { icon: GitPullRequest, t: 'Pull requests', d: 'Delivery as GitHub PRs is in development - no install button until it is real.', st: 'In development' },
+            ].map(({ icon: Icon, t, d, st }, i) => (
+              <Reveal key={t} delay={i * 60} className="h-full">
+                <div className="card h-full !p-7 flex flex-col">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-light text-navy">
+                      <Icon size={20} strokeWidth={2} aria-hidden="true" />
+                    </span>
+                    <span className={`badge ${st === 'Runs locally' ? 'bg-success-bg text-success' : 'bg-accent-light text-text-secondary'}`}>{st}</span>
+                  </div>
+                  <h3 className="font-display font-semibold text-lg mb-2">{t}</h3>
+                  <p className="text-sm leading-6 text-text-secondary">{d}</p>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+          <Reveal delay={100}>
+            <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3 text-center">
+              <BrandLogo name="github" size={22} />
+              <p className="text-[15px] text-text-secondary">
+                GitHub-centered by design: the repository, the diff and the pull request stay where your team already reviews code.
+              </p>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
       {/* -------------------------------- FAQ -------------------------------- */}
       <section id="faq" className="gutter py-28 lg:py-36 bg-white border-y border-rule">
         <div className="max-w-content mx-auto grid lg:grid-cols-[1fr_1.6fr] gap-12 lg:gap-20">
@@ -364,7 +660,7 @@ export default function HomePage() {
       <section className="gutter pb-28 lg:pb-36">
         <Reveal className="max-w-content mx-auto">
           <div className="rounded-4xl bg-navy-deep px-8 py-16 lg:px-20 lg:py-24 grid lg:grid-cols-2 gap-10 items-center overflow-hidden relative">
-            <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-pale/10 blur-3xl pointer-events-none" />
+            <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full hidden pointer-events-none" />
             <h2 className="relative font-display font-medium text-white text-[clamp(1.9rem,4vw,3rem)] leading-[1.15] tracking-[-0.01em]">
               Stop chasing breaking changes.
             </h2>

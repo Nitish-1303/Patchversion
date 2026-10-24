@@ -5,8 +5,8 @@ import Lenis from 'lenis';
 
 export default function SmoothScroll({ children }: { children: React.ReactNode }) {
   useEffect(() => {
-    // Respect reduced-motion: leave native scrolling untouched.
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (preference.matches) return;
 
     const lenis = new Lenis({
       autoRaf: true,

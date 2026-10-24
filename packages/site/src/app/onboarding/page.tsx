@@ -1,3 +1,4 @@
+import { ArrowRight } from 'lucide-react';
 export default function OnboardingPage() {
   return (
     <div className="min-h-[60vh] flex items-center justify-center px-4">
@@ -70,9 +71,7 @@ function OnboardingStep({ step, title, description, status }: {
         'bg-rule text-text-tertiary'
       }`}>
         {status === 'done' ? (
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
+          <ArrowRight size={20} strokeWidth={2} aria-hidden="true" className="w-4 h-4" />
         ) : step}
       </div>
       <div>

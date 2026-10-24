@@ -1,3 +1,4 @@
+import { Check } from 'lucide-react';
 export default function HowItWorksPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
@@ -160,9 +161,7 @@ function Stage({ number, title, description, details, status }: {
         <ul className="space-y-2">
           {details.map(d => (
             <li key={d} className="flex gap-2 text-sm text-text-secondary">
-              <svg className="w-4 h-4 text-accent flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
+              <Check size={20} strokeWidth={2} aria-hidden="true" className="w-4 h-4 text-accent flex-shrink-0 mt-0.5" />
               {d}
             </li>
           ))}

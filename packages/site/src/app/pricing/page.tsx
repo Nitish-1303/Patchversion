@@ -1,3 +1,4 @@
+import { Check, ChevronDown } from 'lucide-react';
 export default function PricingPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
@@ -106,9 +107,7 @@ function PricingFeature({ children, planned }: { children: React.ReactNode; plan
       {planned ? (
         <span className="badge bg-accent-light text-text-tertiary flex-shrink-0 mt-0.5">Planned</span>
       ) : (
-        <svg className="w-4 h-4 text-success flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-        </svg>
+        <Check size={20} strokeWidth={2} aria-hidden="true" className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
       )}
       {children}
     </li>
@@ -120,9 +119,7 @@ function FaqItem({ q, a }: { q: string; a: string }) {
     <details className="card group">
       <summary className="cursor-pointer font-medium list-none flex items-center justify-between">
         {q}
-        <svg className="w-4 h-4 text-text-tertiary group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
+        <ChevronDown size={20} strokeWidth={2} aria-hidden="true" className="w-4 h-4 text-text-tertiary group-open:rotate-180 transition-transform" />
       </summary>
       <p className="mt-3 text-sm text-text-secondary">{a}</p>
     </details>

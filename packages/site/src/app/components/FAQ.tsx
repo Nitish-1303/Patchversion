@@ -1,6 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { Plus } from 'lucide-react';
+import { EASE, DURATION } from './motion';
 
 const ITEMS = [
   {
@@ -39,8 +42,10 @@ const ITEMS = [
 
 export default function FAQ() {
   const [open, setOpen] = useState<number | null>(0);
+  const reduce = useReducedMotion();
   return (
     <div className="divide-y divide-rule border-y border-rule">
+      <noscript>{ITEMS.map(item => <details key={item.q} className="py-4"><summary>{item.q}</summary><p className="py-3 leading-7">{item.a}</p></details>)}</noscript>
       {ITEMS.map((item, i) => {
         const isOpen = open === i;
         return (
@@ -55,25 +60,30 @@ export default function FAQ() {
               <span className="font-display text-lg font-semibold text-ink group-hover:text-navy transition-colors">
                 {item.q}
               </span>
-              <span
+              <motion.span
                 aria-hidden="true"
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-rule-strong text-navy transition-transform duration-200 ${isOpen ? 'rotate-45' : ''}`}
+                animate={{ rotate: isOpen ? 45 : 0 }}
+                transition={{ duration: reduce ? 0 : DURATION.fast, ease: EASE }}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-rule-strong text-navy"
               >
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                  <path d="M7 1v12M1 7h12" />
-                </svg>
-              </span>
+                <Plus size={14} strokeWidth={2} aria-hidden="true" />
+              </motion.span>
             </button>
-            <div
-              id={`faq-panel-${i}`}
-              role="region"
-              className="grid transition-all duration-300 ease-out"
-              style={{ gridTemplateRows: isOpen ? '1fr' : '0fr' }}
-            >
-              <div className="overflow-hidden">
-                <p className="pb-7 pr-12 text-[15px] leading-7 text-text-secondary max-w-3xl">{item.a}</p>
-              </div>
-            </div>
+            <AnimatePresence initial={false}>
+              {isOpen && (
+                <motion.div
+                  id={`faq-panel-${i}`}
+                  role="region"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: reduce ? 0 : DURATION.base, ease: EASE }}
+                  className="overflow-hidden"
+                >
+                  <p className="pb-7 pr-12 text-[15px] leading-7 text-text-secondary max-w-3xl">{item.a}</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         );
       })}

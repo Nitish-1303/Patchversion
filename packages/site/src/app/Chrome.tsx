@@ -1,6 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { Menu, X } from 'lucide-react';
+import { EASE, DURATION, STAGGER } from './components/motion';
 import { usePathname } from 'next/navigation';
 
 function Logo({ dark }: { dark: boolean }) {
@@ -24,16 +27,21 @@ const NAV_LINKS = [
 
 function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const reduceMotion = useReducedMotion();
   const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
   const isHome = pathname === '/';
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 24);
+    const onScroll = () => {
+      const hero = document.querySelector('main > div > section');
+      const boundary = isHome && hero ? hero.getBoundingClientRect().bottom : 0;
+      setScrolled(isHome ? boundary <= 70 : true);
+    };
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
-  }, []);
+  }, [isHome]);
 
   // On the homepage the nav floats over the hero image until scrolled.
   const floating = isHome && !scrolled && !menuOpen;
@@ -67,7 +75,7 @@ function Header() {
           <div className="flex items-center gap-2 sm:gap-3">
             <a
               href="/contact"
-              className={`pill-primary !px-5 !py-2.5 ${
+              className={`pill-primary whitespace-nowrap !px-4 !py-2.5 ${
                 floating ? '!bg-white !text-navy hover:!bg-pale' : ''
               }`}
             >
@@ -82,31 +90,45 @@ function Header() {
               aria-expanded={menuOpen}
             >
               {menuOpen ? (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <X size={20} strokeWidth={2} aria-hidden="true" />
               ) : (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
+                <Menu size={20} strokeWidth={2} aria-hidden="true" />
               )}
             </button>
           </div>
         </nav>
-        {menuOpen && (
-          <nav className="lg:hidden bg-background border-t border-rule gutter py-4">
-            {[...NAV_LINKS, { label: 'Contact us', href: '/contact' }].map(link => (
-              <a
-                key={link.href}
-                href={link.href}
-                onClick={() => setMenuOpen(false)}
-                className="block px-3 py-2.5 text-[15px] text-text-secondary hover:text-ink hover:bg-accent-light rounded-lg transition-colors"
-              >
-                {link.label}
-              </a>
-            ))}
-          </nav>
-        )}
+        <AnimatePresence>
+          {menuOpen && (
+            <motion.nav
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: reduceMotion ? 0 : DURATION.base, ease: EASE }}
+              className="lg:hidden bg-background border-t border-rule gutter py-4"
+            >
+              {[...NAV_LINKS, { label: 'Contact us', href: '/contact' }].map((link, i) => (
+                <motion.div
+                  key={link.href}
+                  initial={{ opacity: 0, x: -12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{
+                    duration: reduceMotion ? 0 : DURATION.base,
+                    ease: EASE,
+                    delay: reduceMotion ? 0 : i * STAGGER,
+                  }}
+                >
+                  <a
+                    href={link.href}
+                    onClick={() => setMenuOpen(false)}
+                    className="block px-3 py-2.5 text-[15px] text-text-secondary hover:text-ink hover:bg-accent-light rounded-lg transition-colors"
+                  >
+                    {link.label}
+                  </a>
+                </motion.div>
+              ))}
+            </motion.nav>
+          )}
+        </AnimatePresence>
       </header>
       {/* Spacer keeps non-homepage content clear of the fixed nav; the homepage hero slides under it */}
       {!isHome && <div className="h-[69px]" />}
@@ -174,7 +196,7 @@ export default function Chrome({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Header />
-      <main>{children}</main>
+      <noscript><nav aria-label="Navigation without JavaScript" className="gutter pt-20 pb-4 flex flex-wrap gap-4">{NAV_LINKS.map(link => <a key={link.href} href={link.href}>{link.label}</a>)}</nav></noscript><main>{children}</main>
       <Footer />
     </>
   );
