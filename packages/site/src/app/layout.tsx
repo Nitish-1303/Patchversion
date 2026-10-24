@@ -4,6 +4,7 @@ import './globals.css';
 import Chrome from './Chrome';
 import SmoothScroll from './components/SmoothScroll';
 import { Analytics } from '@vercel/analytics/next';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const manrope = Manrope({
   subsets: ['latin'],
@@ -35,6 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Chrome>{children}</Chrome>
         </SmoothScroll>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
