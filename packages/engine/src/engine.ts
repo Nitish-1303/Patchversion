@@ -7,7 +7,9 @@ import { analyzeImpact } from './break-detector/impact-analyzer';
 import { SandboxRunner } from './sandbox/runner';
 import { FixGenerator } from './fix-generator/generator';
 import { PRBot } from './pr-bot/bot';
-import { ChangeRecord, WatchTarget, ProofArtifact, PreparedPR } from '@patchversion/shared';
+import fs from 'fs';
+import path from 'path';
+import { ChangeRecord, WatchTarget, PreparedPR, ProveResult } from '@patchversion/shared';
 
 /**
  * Patchversion Engine: the core orchestrator.
@@ -26,6 +28,7 @@ export class PatchversionEngine {
   private sandbox: SandboxRunner;
   private fixGen: FixGenerator;
   private prBot: PRBot;
+  private lastProveResult: ProveResult | null = null;
 
   constructor(configOverrides?: Partial<EngineConfig>) {
     this.config = loadConfig(configOverrides);
@@ -63,6 +66,19 @@ export class PatchversionEngine {
    * Returns a PreparedPR if the fix is verified, null otherwise.
    */
   async processChange(change: ChangeRecord, repoPath: string, repoId: string): Promise<PreparedPR | null> {
+    // Fail-closed admission gate: with no verified isolated sandbox, only
+    // the bundled trusted fixture trees may execute. Anything else - in
+    // particular customer repositories - is blocked and logged.
+    if (!this.isRepoExecutionAllowed(repoPath)) {
+      this.store.logEvent('execution_blocked', {
+        changeId: change.id,
+        repoId,
+        repoPath,
+        reason: 'unisolated local execution refused: repo is not a trusted fixture',
+      });
+      return null;
+    }
+
     // Step 1: Map usage of the changed package in this repo
     const usageMap = this.mapper.mapPackageUsage(repoPath, change.packageName, repoId);
     this.store.saveUsageMap(usageMap);
@@ -96,21 +112,60 @@ export class PatchversionEngine {
 
     // Step 4: Sandbox proof
     const startMs = Date.now();
-    const proof = await this.sandbox.proveLoop(repoPath, change, impact, fixDiff);
+    const result = await this.sandbox.proveLoop(repoPath, change, impact, fixDiff);
     const durationMs = Date.now() - startMs;
+    this.lastProveResult = result;
 
-    if (!proof) {
-      // Fix did not verify - refuse to produce a PR
-      this.store.logEvent('proof_failed', { changeId: change.id, repoId });
+    if (result.outcome === 'no-break' && result.proof) {
+      // Suite stayed green on the new version with no fix. Record the
+      // evidence for the public dataset, but open nothing.
+      result.proof.durationMs = durationMs;
+      this.store.saveProof(result.proof);
+      this.store.logEvent('no_break_confirmed', { changeId: change.id, repoId });
       return null;
     }
 
-    proof.durationMs = durationMs;
-    this.store.saveProof(proof);
+    if (result.outcome !== 'fixed' || !result.proof) {
+      // unfixable / inconclusive: refuse to produce a PR
+      this.store.logEvent(
+        result.outcome === 'unfixable' ? 'proof_failed' : 'proof_inconclusive',
+        { changeId: change.id, repoId, reason: result.reason },
+      );
+      return null;
+    }
+
+    result.proof.durationMs = durationMs;
+    this.store.saveProof(result.proof);
 
     // Step 5: Prepare PR
-    const pr = this.prBot.preparePR(change, impact, proof);
+    const pr = this.prBot.preparePR(change, impact, result.proof);
     return pr;
+  }
+
+  /** Whether this repo may execute under the current sandbox policy. */
+  private isRepoExecutionAllowed(repoPath: string): boolean {
+    if (!this.config.requireIsolation) return true;
+    if (this.config.sandboxMode !== 'local') return true; // non-local modes carry their own gates
+    let realRepo: string;
+    try {
+      realRepo = fs.realpathSync(repoPath);
+    } catch {
+      return false;
+    }
+    return this.config.trustedFixtureDirs.some(dir => {
+      let realDir: string;
+      try {
+        realDir = fs.realpathSync(dir);
+      } catch {
+        return false;
+      }
+      return realRepo === realDir || realRepo.startsWith(realDir + path.sep);
+    });
+  }
+
+  /** Outcome of the most recent proveLoop, for callers (e.g. prove.ts). */
+  getLastProveResult(): ProveResult | null {
+    return this.lastProveResult;
   }
 
   /**

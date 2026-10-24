@@ -1,6 +1,8 @@
 import https from 'https';
 import http from 'http';
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 import { EndpointBaseline, ProbeDrift, ChangeRecord } from '@patchversion/shared';
 import { StateStore } from '../state/store';
 
@@ -86,9 +88,10 @@ export class ContractProber {
 
     // Store the baseline
     const key = crypto.createHash('sha256').update(endpoint + method).digest('hex').slice(0, 16);
-    const dir = `${this.store['stateDir']}/baselines`;
-    require('fs').writeFileSync(
-      `${dir}/${key}.json`,
+    const dir = this.store.getBaselinesDir();
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, `${key}.json`),
       JSON.stringify(baseline, null, 2),
     );
 
@@ -135,7 +138,10 @@ export class ContractProber {
       const client = url.startsWith('https') ? https : http;
       const req = client.request(url, { method, headers, timeout: 30_000 }, (res) => {
         let data = '';
-        res.on('data', chunk => { data += chunk; });
+        res.on('data', chunk => {
+          // Cap response size - a runaway endpoint must not exhaust memory
+          if (data.length < 5 * 1024 * 1024) data += chunk;
+        });
         res.on('end', () => {
           try {
             resolve({ statusCode: res.statusCode ?? 0, body: JSON.parse(data) });
@@ -224,8 +230,11 @@ export class ContractProber {
   private driftToChange(baseline: EndpointBaseline, drifts: ProbeDrift[]): ChangeRecord {
     const driftSummary = drifts.map(d => `${d.field}: ${d.expectedType} -> ${d.actualType}`).join('; ');
 
+    const isBreaking = drifts.some(d => d.actualType === 'missing' || d.field === '_statusCode');
     return {
-      id: `probe-${crypto.createHash('sha256').update(baseline.endpoint).digest('hex').slice(0, 12)}-${Date.now()}`,
+      // Deterministic id: the same drift at the same endpoint re-detected
+      // later overwrites the same record instead of duplicating it.
+      id: `probe-${crypto.createHash('sha256').update(baseline.endpoint + driftSummary).digest('hex').slice(0, 16)}`,
       packageName: baseline.endpoint,
       ecosystem: 'remote-api',
       fromVersion: 'baseline',
@@ -235,21 +244,26 @@ export class ContractProber {
       sourceUrl: baseline.endpoint,
       rawNotes: `Live probe drift detected: ${driftSummary}`,
       classification: {
-        isBreaking: drifts.some(d => d.actualType === 'missing' || d.field === '_statusCode'),
+        isBreaking,
         confidence: 0.9, // Live drift is high-confidence
         affectedEndpoints: [baseline.endpoint],
         reason: `${drifts.length} field(s) drifted from baseline`,
       },
-      severity: 'breaking',
+      severity: isBreaking ? 'breaking' : 'unknown',
     };
   }
 
   private loadBaselines(): EndpointBaseline[] {
-    const dir = `${this.store['stateDir']}/baselines`;
-    const fs = require('fs');
+    const dir = this.store.getBaselinesDir();
     if (!fs.existsSync(dir)) return [];
-    return fs.readdirSync(dir)
-      .filter((f: string) => f.endsWith('.json'))
-      .map((f: string) => JSON.parse(fs.readFileSync(`${dir}/${f}`, 'utf-8')));
+    const baselines: EndpointBaseline[] = [];
+    for (const f of fs.readdirSync(dir).filter((f: string) => f.endsWith('.json'))) {
+      try {
+        baselines.push(JSON.parse(fs.readFileSync(path.join(dir, f), 'utf-8')));
+      } catch {
+        this.store.logEvent('state_corrupt', { file: f });
+      }
+    }
+    return baselines;
   }
 }

@@ -12,7 +12,7 @@ const ITEMS = [
   },
   {
     q: 'Which ecosystems are supported today?',
-    a: 'TypeScript and Node.js SDK migrations. The proof loop is verified on a real stripe-node migration (21.0.1 to 23.0.1), where 3 failing tests went to 47 of 47 passing. Support for further ecosystems is planned.',
+    a: 'TypeScript and Node.js SDK migrations. The proof loop is verified end to end against the bundled fixture (mockpay 1.0.0 to 2.0.0): 2 failing tests went to 3 of 3 passing, with the proof artifact published in the repository. Runs against live providers are the next milestone.',
   },
   {
     q: 'How does verification work?',

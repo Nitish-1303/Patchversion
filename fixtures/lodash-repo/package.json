@@ -1,0 +1,16 @@
+{
+  "name": "acme-membership",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sample membership service using lodash (real npm package, real registry install)",
+  "main": "src/membership.js",
+  "scripts": {
+    "test": "jest --forceExit"
+  },
+  "dependencies": {
+    "lodash": "3.10.1"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}

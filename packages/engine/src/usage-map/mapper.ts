@@ -46,29 +46,38 @@ export class UsageMapper {
    */
   mapPackageUsage(repoPath: string, packageName: string, repoId: string): UsageMap {
     const sourceFiles = this.loadSourceFiles(repoPath);
-    const callSites: CallSite[] = [];
-    let filesWithUsage = 0;
+    try {
+      const callSites: CallSite[] = [];
+      let filesWithUsage = 0;
 
-    for (const sourceFile of sourceFiles) {
-      const bindings = [
-        ...this.findImportBindings(sourceFile, packageName),
-        ...this.findRequireBindings(sourceFile, packageName),
-      ];
-      if (bindings.length === 0) continue;
+      for (const sourceFile of sourceFiles) {
+        const bindings = [
+          ...this.findImportBindings(sourceFile, packageName),
+          ...this.findRequireBindings(sourceFile, packageName),
+        ];
+        if (bindings.length === 0) continue;
 
-      filesWithUsage++;
-      const sites = this.findCallSites(sourceFile, bindings, packageName, repoPath);
-      callSites.push(...sites);
+        filesWithUsage++;
+        const sites = this.findCallSites(sourceFile, bindings, packageName, repoPath);
+        callSites.push(...sites);
+      }
+
+      return {
+        repoId,
+        packageName,
+        mappedAt: new Date().toISOString(),
+        callSites,
+        totalFiles: sourceFiles.length,
+        filesWithUsage,
+      };
+    } finally {
+      // Repository isolation: forget every parsed file so a later map of a
+      // DIFFERENT repository in this same process can never see this repo's
+      // files - the shared ts-morph Project must not accumulate state.
+      for (const sourceFile of sourceFiles) {
+        sourceFile.forget();
+      }
     }
-
-    return {
-      repoId,
-      packageName,
-      mappedAt: new Date().toISOString(),
-      callSites,
-      totalFiles: sourceFiles.length,
-      filesWithUsage,
-    };
   }
 
   /**

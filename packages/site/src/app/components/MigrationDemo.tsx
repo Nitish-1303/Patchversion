@@ -188,7 +188,7 @@ export default function MigrationDemo() {
           Watch one migration end to end.
         </h2>
         <p className="mt-5 text-[15px] leading-7 text-text-secondary">
-          A walkthrough with a fictional package and simulated data - the product flow is shown illustratively. The verified Stripe run above is the real execution.
+          A walkthrough with a fictional package and simulated data - the product flow is shown illustratively. The verified fixture run above is the real execution.
         </p>
       </div>
 

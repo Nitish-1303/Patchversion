@@ -8,20 +8,20 @@ const TABS = [
     label: 'Detect',
     title: 'The break, caught at the source.',
     body: 'PatchBay reads provider changelogs, deprecation notices and version diffs, then decides whether the change actually breaks an API shape your code relies on.',
-    status: 'Detection rules verified on a real Stripe migration. Live changelog watching in development.',
+    status: 'Detection runs on the bundled breaking-change fixture. Live changelog watching in development.',
     panel: (
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-[13px] font-semibold text-white/90">stripe-node 21.0.1 &rarr; 23.0.1</span>
+          <span className="text-[13px] font-semibold text-white/90">mockpay 1.0.0 &rarr; 2.0.0</span>
           <span className="badge-breaking">breaking</span>
         </div>
         <div className="rounded-xl bg-white/5 border border-white/10 p-4">
           <p className="text-sm text-white/80 leading-6">
-            <span className="font-mono text-[13px] text-white">payment_method_types</span> is removed from
-            Checkout Sessions. Sessions now default to the payment methods enabled on the account.
+            <span className="font-mono text-[13px] text-white">source</span> is renamed to
+            <span className="font-mono text-[13px] text-white"> payment_method</span> in charges.create. The old parameter is ignored.
           </p>
         </div>
-        <p className="text-[13px] text-white/50 font-mono">source: Stripe upgrade guide &middot; parsed 3 field removals</p>
+        <p className="text-[13px] text-white/50 font-mono">source: recorded changelog entry &middot; 1 parameter rename</p>
       </div>
     ),
   },
@@ -30,15 +30,15 @@ const TABS = [
     label: 'Map',
     title: 'Every affected call site, found.',
     body: "An index of your repo\u2019s API usage pinpoints exactly which files and lines touch the changed surface - not a guess, a list.",
-    status: 'Call-site mapping verified locally against a real payments repo.',
+    status: 'Call-site mapping verified locally against the bundled sample repo.',
     panel: (
       <div className="space-y-3">
-        <p className="text-[13px] font-semibold text-white/90">2 call sites use the removed field</p>
+        <p className="text-[13px] font-semibold text-white/90">2 call sites use the changed package</p>
         <div className="rounded-xl bg-white/5 border border-white/10 p-4 font-mono text-[13px] leading-7">
-          <div className="flex justify-between"><span className="text-white/85">src/checkout/createSession.ts</span><span className="text-white/40">:14</span></div>
-          <div className="flex justify-between"><span className="text-white/85">src/checkout/retrySession.ts</span><span className="text-white/40">:41</span></div>
+          <div className="flex justify-between"><span className="text-white/85">src/createCharge.js</span><span className="text-white/40">:4</span></div>
+          <div className="flex justify-between"><span className="text-white/85">src/createCharge.js</span><span className="text-white/40">:14</span></div>
         </div>
-        <p className="text-[13px] text-white/50 font-mono">impact: checkout creation fails on upgrade</p>
+        <p className="text-[13px] text-white/50 font-mono">impact: :4 fails on upgrade; :14 unaffected</p>
       </div>
     ),
   },
@@ -47,14 +47,13 @@ const TABS = [
     label: 'Patch',
     title: 'A minimal fix, not a rewrite.',
     body: 'The patch changes only what the break requires. The full diff ships in the pull request, so review takes minutes, not archaeology.',
-    status: 'Patch generation verified locally, red to green.',
+    status: 'Patch generation verified locally on the fixture, red to green.',
     panel: (
       <div className="rounded-xl bg-white/5 border border-white/10 p-4 font-mono text-[13px] leading-7 overflow-x-auto">
-        <div className="text-white/40">{'// src/checkout/createSession.ts'}</div>
-        <div className="text-[#FF8A8A]">-  payment_method_types: [&apos;card&apos;],</div>
-        <div className="text-[#7EE2A0]">+  mode: &apos;payment&apos;,</div>
-        <div className="text-white/60">&nbsp;&nbsp;line_items: [...],</div>
-        <div className="text-white/60">&nbsp;&nbsp;success_url: successUrl,</div>
+        <div className="text-white/40">{'// src/createCharge.js'}</div>
+        <div className="text-[#FF8A8A]">-  source: source,</div>
+        <div className="text-[#7EE2A0]">+  payment_method: source,</div>
+        <div className="text-white/60">&nbsp;&nbsp;description: &apos;Payment for order&apos;</div>
       </div>
     ),
   },
@@ -63,12 +62,12 @@ const TABS = [
     label: 'Prove',
     title: 'Green tests, or no pull request.',
     body: 'Before anything reaches you, PatchBay reruns your own test suite against the patched code. A fix that cannot turn the suite green is reported as a diagnosis, never opened as a PR.',
-    status: 'Verified locally: 47/47 tests passing after the Stripe migration patch.',
+    status: 'Verified locally on the fixture: 2 failing to 3/3 passing after the patch (runs/latest/proof.json).',
     panel: (
       <div className="rounded-xl bg-white/5 border border-white/10 p-4 font-mono text-[13px] leading-7 overflow-x-auto">
         <div className="text-white/40">$ npm run prove</div>
-        <div className="text-[#FF8A8A]">before: 3 failing &middot; checkout.session payment_method_types</div>
-        <div className="text-[#7EE2A0]">after:&nbsp;&nbsp;47/47 passing</div>
+        <div className="text-[#FF8A8A]">before: 2 failing &middot; missing parameter payment_method</div>
+        <div className="text-[#7EE2A0]">after:&nbsp;&nbsp;3/3 passing</div>
         <div className="text-white/60">exit code 0 &middot; evidence attached to PR</div>
       </div>
     ),

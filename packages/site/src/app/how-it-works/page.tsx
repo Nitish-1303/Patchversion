@@ -48,7 +48,7 @@ export default function HowItWorksPage() {
           number={4}
           title="Analyze"
           status="proven"
-          description="For confirmed breaking changes, PatchBay scans the repository using AST analysis to find every import, require, and call expression that touches the changed package. Verified locally on a real payments repository."
+          description="For confirmed breaking changes, PatchBay scans the repository using AST analysis to find every import, require, and call expression that touches the changed package. Verified locally on the bundled sample repository."
           details={[
             'ts-morph AST parsing (not regex or text search)',
             'Handles named imports, default imports, namespace imports, and require()',
@@ -59,7 +59,7 @@ export default function HowItWorksPage() {
           number={5}
           title="Remediate"
           status="proven"
-          description="PatchBay generates a minimal patch. For known migration patterns (field removals, renames) it applies a deterministic transformation - verified locally on a real stripe-node migration. LLM-assisted generation for novel breaking changes is planned, not built."
+          description="PatchBay generates a minimal patch. For known migration patterns (field removals, renames) it applies a deterministic transformation - verified locally on the bundled mockpay migration fixture. LLM-assisted generation for novel breaking changes is planned, not built."
           details={[
             'Deterministic fixes for known patterns (fast, reliable)',
             'LLM-assisted generation for novel breaking changes (planned)',
@@ -70,7 +70,7 @@ export default function HowItWorksPage() {
           number={6}
           title="Verify"
           status="proven"
-          description="The fix runs against the repo&apos;s own test suite in a local child process: tests on the old version (baseline), the new version (expect failures), and the new version with the fix (expect green). Verified locally: 3 failing tests turned into 47/47 passing on a real Stripe migration. A hardened isolated environment for running other people&apos;s code is designed but not yet qualified - it failed an internal security review, so customer repositories stay blocked until it passes."
+          description="The fix runs against the repo&apos;s own test suite in a local child process: tests on the old version (baseline), the new version (expect failures), and the new version with the fix (expect green). Verified locally on the bundled fixture: 2 failing tests turned into 3/3 passing (mockpay 1.0.0 to 2.0.0, proof artifact in runs/latest/proof.json). A hardened isolated environment for running other people&apos;s code is designed but not yet qualified - it failed an internal security review, so customer repositories stay blocked until it passes."
           details={[
             'Local child-process execution (runs today)',
             'Hardened isolation (network-disabled container, resource limits) - in qualification, not passed',

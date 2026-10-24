@@ -11,7 +11,7 @@
 ## Week 2: MVP Implementation
 - [ ] Choose one provider + one language based on evidence
 - [ ] Implement detection -> mapping -> remediation for chosen wedge
-- [ ] Reproducible end-to-end test with fixture
+- [x] Reproducible end-to-end test with fixture (mockpay + REAL lodash 3.10.1 -> 4.17.21, 2026-10-24)
 - [ ] Core site pages deployed
 
 ## Week 3: Validation

@@ -13,10 +13,10 @@
     "test": "npm run build -w @patchversion/shared && npm run test --workspaces",
     "typecheck": "npm run build -w @patchversion/shared && npm run typecheck --workspaces",
     "lint": "npm run lint --workspaces --if-present",
-    "prove": "npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run prove -w @patchversion/engine"
+    "prove": "npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run prove -w @patchversion/engine",
+    "prove:real": "npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run prove:real -w @patchversion/engine"
   },
   "engines": {
     "node": ">=18.0.0"
   }
 }
-

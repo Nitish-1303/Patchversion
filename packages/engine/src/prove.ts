@@ -1,24 +1,32 @@
 import path from 'path';
 import fs from 'fs';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import { PatchversionEngine } from './engine';
 import { ChangeRecord } from '@patchversion/shared';
+import { writeArtifacts } from './proof-output';
 
 /**
- * prove: run the full pipeline against the repo's own fixture.
+ * prove: run the full pipeline against a repository we control.
  *
  *   detect -> map -> impact -> fix -> red-to-green sandbox -> prepared PR
  *
- * Writes a human-readable transcript, the proof artifact and the prepared
- * PR text into runs/latest/ at the repo root. Exits nonzero if the loop
- * does not produce a verified fix - silence or a crash is a failure here,
- * because this fixture exists to prove the loop works.
+ * Usage:
+ *   node dist/prove.js [fixtureDir] [changeRecordPath] [outDir] [repoId]
+ *
+ * Defaults run the bundled mockpay fixture and write transcript, proof
+ * artifact and prepared PR text into runs/latest/ at the repo root.
+ * Previous artifacts in the output directory are archived, never
+ * silently overwritten. Exits nonzero unless the loop produces a
+ * verified fix - silence or a crash is a failure here, because this
+ * command exists to prove the loop works.
  */
 
 const repoRoot = path.resolve(__dirname, '..', '..', '..');
-const fixtureRepo = path.join(repoRoot, 'fixtures', 'sample-repo');
-const changePath = path.join(repoRoot, 'fixtures', 'breaking-change', 'change-record.json');
-const outDir = path.join(repoRoot, 'runs', 'latest');
+
+const fixtureRepo = path.resolve(repoRoot, process.argv[2] ?? path.join('fixtures', 'sample-repo'));
+const changePath = path.resolve(repoRoot, process.argv[3] ?? path.join('fixtures', 'breaking-change', 'change-record.json'));
+const outDir = path.resolve(repoRoot, process.argv[4] ?? path.join('runs', 'latest'));
+const repoId = process.argv[5] ?? 'acme/payments';
 const stateDir = path.join(repoRoot, '.patchversion-state');
 
 const lines: string[] = [];
@@ -31,16 +39,22 @@ async function main(): Promise<void> {
   const startedAt = new Date();
   log(`Patchversion proof run - ${startedAt.toISOString()}`);
   log(`Fixture repo: ${path.relative(repoRoot, fixtureRepo)}`);
+  log(`Change record: ${path.relative(repoRoot, changePath)}`);
   log('');
 
-  // Ensure the fixture's dependencies are installed (vendored, no registry needed)
-  if (!fs.existsSync(path.join(fixtureRepo, 'node_modules', 'mockpay'))) {
+  // Ensure the fixture's dependencies are installed
+  const pkg = JSON.parse(fs.readFileSync(path.join(fixtureRepo, 'package.json'), 'utf-8'));
+  const firstDep = Object.keys(pkg.dependencies ?? {})[0];
+  if (!firstDep || !fs.existsSync(path.join(fixtureRepo, 'node_modules', firstDep))) {
     log('Installing fixture dependencies...');
-    execSync('npm install --no-audit --no-fund', { cwd: fixtureRepo, stdio: 'pipe', timeout: 120_000 });
+    execFileSync('npm', ['install', '--no-audit', '--no-fund'], {
+      cwd: fixtureRepo, stdio: 'pipe', timeout: 300_000,
+    });
   }
 
   const change: ChangeRecord = JSON.parse(fs.readFileSync(changePath, 'utf-8'));
   log(`Change: ${change.packageName} ${change.fromVersion} -> ${change.toVersion}`);
+  log(`Source: ${change.source} - ${change.sourceUrl}`);
   log(`Notes: ${change.rawNotes}`);
   log('');
 
@@ -50,10 +64,14 @@ async function main(): Promise<void> {
     sandboxTimeoutMs: 120_000,
   });
 
-  const pr = await engine.processChange(change, fixtureRepo, 'acme/payments');
+  const pr = await engine.processChange(change, fixtureRepo, repoId);
+  const proveResult = engine.getLastProveResult();
 
   if (!pr) {
-    log('RESULT: no verified fix produced. The loop failed or stayed silent.');
+    const outcome = proveResult?.outcome ?? 'no-usage-or-no-impact';
+    const reason = proveResult?.reason ?? 'no affected call sites, or execution blocked by policy';
+    log(`RESULT: ${outcome} - ${reason}`);
+    log('No verified fix produced. The loop stayed silent or refused.');
     writeOutputs(null);
     process.exit(1);
   }
@@ -61,7 +79,7 @@ async function main(): Promise<void> {
   const proof = pr.proofArtifact;
   log('--- USAGE MAP ---');
   const store = engine.getStore();
-  const usageMap = store.getUsageMap('acme/payments', change.packageName);
+  const usageMap = store.getUsageMap(repoId, change.packageName);
   if (usageMap) {
     log(`Files scanned: ${usageMap.totalFiles}, files using ${change.packageName}: ${usageMap.filesWithUsage}`);
     for (const site of usageMap.callSites) {
@@ -77,8 +95,8 @@ async function main(): Promise<void> {
   log(`Baseline (${change.fromVersion}):  exit ${proof.baselineResult.exitCode} - ${proof.baselineResult.passed} passed, ${proof.baselineResult.failed} failed, ${proof.baselineResult.total} total`);
   log(`Bumped (${change.toVersion}):      exit ${proof.redResult.exitCode} - ${proof.redResult.passed} passed, ${proof.redResult.failed} failed, ${proof.redResult.total} total`);
   log(`After fix (${change.toVersion}):   exit ${proof.greenResult.exitCode} - ${proof.greenResult.passed} passed, ${proof.greenResult.failed} failed, ${proof.greenResult.total} total`);
-  log(`Sandbox: ${proof.sandboxType} (local process, no isolation)`);
-  log(`Coverage: verified ${proof.coverageVerified} of ${proof.coverageTotal} affected call sites`);
+  log(`Sandbox: ${proof.sandboxType} (local process, NO isolation)`);
+  log(`Coverage: fix updated ${proof.coverageVerified} of ${proof.coverageTotal} affected call sites`);
   log(`Files changed by fix: ${proof.fixedFiles.join(', ') || 'none'}`);
   log(`Duration: ${(proof.durationMs / 1000).toFixed(1)}s`);
   log('');
@@ -104,15 +122,14 @@ async function main(): Promise<void> {
 }
 
 function writeOutputs(pr: import('@patchversion/shared').PreparedPR | null): void {
-  fs.mkdirSync(outDir, { recursive: true });
-  fs.writeFileSync(path.join(outDir, 'transcript.txt'), lines.join('\n') + '\n');
+  const files: Record<string, string> = {
+    'transcript.txt': lines.join('\n') + '\n',
+  };
   if (pr) {
-    fs.writeFileSync(path.join(outDir, 'proof.json'), JSON.stringify(pr.proofArtifact, null, 2));
-    fs.writeFileSync(
-      path.join(outDir, 'prepared-pr.md'),
-      [`# ${pr.title}`, '', `Branch: \`${pr.branch}\``, '', pr.body, ''].join('\n'),
-    );
+    files['proof.json'] = JSON.stringify(pr.proofArtifact, null, 2);
+    files['prepared-pr.md'] = [`# ${pr.title}`, '', `Branch: \`${pr.branch}\``, '', pr.body, ''].join('\n');
   }
+  writeArtifacts(outDir, files);
 }
 
 main().catch(err => {

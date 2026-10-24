@@ -124,7 +124,7 @@ export default function CompetitorsPage() {
         <div className="space-y-3 text-sm text-text-secondary">
           <p>
             PatchBay is in early development. The proof loop (detect, map, patch, verify) runs locally and is verified
-            on a real stripe-node migration. It has not run against a customer repository,
+            on the bundled mockpay fixture (runs/latest/proof.json). It has not run against a customer repository,
             and watching plus PR delivery are not built yet.
           </p>
           <p>

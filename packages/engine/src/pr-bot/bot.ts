@@ -110,8 +110,8 @@ export class PRBot {
 
   private buildBody(change: ChangeRecord, impact: ImpactAnalysis, proof: ProofArtifact): string {
     const coverageLine = proof.coverageVerified === proof.coverageTotal
-      ? `Verified against all ${proof.coverageTotal} affected call sites.`
-      : `Verified against ${proof.coverageVerified} of ${proof.coverageTotal} affected call sites. ${proof.unverifiable.length} could not be verified (see below).`;
+      ? `The fix updated all ${proof.coverageTotal} affected call sites, and the full test suite is green after the fix.`
+      : `The fix updated ${proof.coverageVerified} of ${proof.coverageTotal} affected call sites. ${proof.unverifiable.length} could not be verified (see below).`;
 
     // Count only the call sites the applied fix actually changed
     const fixedSites = impact.affectedCallSites.filter(site =>
@@ -190,13 +190,4 @@ export class PRBot {
     return `patchversion/${safeName}-${change.toVersion}`;
   }
 
-  private groupByFile(sites: CallSite[]): [string, CallSite[]][] {
-    const map = new Map<string, CallSite[]>();
-    for (const site of sites) {
-      const existing = map.get(site.filePath) ?? [];
-      existing.push(site);
-      map.set(site.filePath, existing);
-    }
-    return Array.from(map.entries());
-  }
 }

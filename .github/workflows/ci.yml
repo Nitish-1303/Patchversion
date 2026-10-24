@@ -1,5 +1,9 @@
 name: CI
 
+# NOTE (2026-10-24): this workflow is LOCALLY IMPLEMENTED but NOT remotely
+# verified - no CI run has occurred yet. Remove this note after the first
+# observed green run on GitHub Actions.
+
 on:
   push:
     branches: [main]
@@ -29,9 +33,21 @@ jobs:
       - run: npm ci
       - run: npm test
 
+  prove:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      # Offline fixture proof - deterministic, no registry access needed
+      - run: npm run prove
+
   build:
     runs-on: ubuntu-latest
-    needs: [typecheck, test]
+    needs: [typecheck, test, prove]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

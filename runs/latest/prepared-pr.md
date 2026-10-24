@@ -28,7 +28,7 @@ This fix was verified in a local process (no isolation) BEFORE this PR was opene
 | Tests on 2.0.0 (before fix) | 1/3 passed, 2 failed |
 | Tests on 2.0.0 (after fix) | 3/3 passed, 0 failed |
 
-Verified against all 1 affected call sites.
+The fix updated all 1 affected call sites, and the full test suite is green after the fix.
 
 ### Not verified
 
@@ -40,7 +40,7 @@ The following call sites could not be verified by the test suite:
 
 - Change classification confidence: 95%
 - Sandbox type: local-process
-- Proof generated: 2026-10-23T11:02:52.716Z
+- Proof generated: 2026-10-24T09:30:56.257Z
 
 ---
 *Opened by Patchversion. Every claim above is backed by a sandbox execution record.*

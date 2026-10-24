@@ -1,94 +1,211 @@
-import { execSync, spawn, ChildProcess } from 'child_process';
+import { spawn, ChildProcess, execFileSync } from 'child_process';
 import { parsePatch, applyPatch } from 'diff';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
-import { ProofArtifact, TestResult, CallSite, UnverifiableSite, ImpactAnalysis, ChangeRecord } from '@patchversion/shared';
+import { ProofArtifact, TestResult, UnverifiableSite, ImpactAnalysis, ChangeRecord, ProveResult } from '@patchversion/shared';
 import { EngineConfig } from '../config';
+
+/** Environment passed to repo code under test: the minimum npm needs.
+ *  Deliberately does NOT inherit process.env - secrets must not leak
+ *  into code from a repository being tested. */
+function minimalEnv(): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = {
+    PATH: process.env.PATH,
+    HOME: process.env.HOME,
+    TMPDIR: process.env.TMPDIR,
+    LANG: process.env.LANG ?? 'C.UTF-8',
+    CI: 'true',
+    NODE_ENV: 'test',
+  };
+  if (process.env.npm_config_cache) env.npm_config_cache = process.env.npm_config_cache;
+  return env;
+}
+
+/**
+ * Names never copied into a sandbox work directory. The tested repo's
+ * code runs with read access to its own tree, so secret-bearing files
+ * must not come along. Matches the site's security documentation.
+ */
+export function isExcludedFromSandboxCopy(name: string): boolean {
+  return (
+    name === '.git' ||
+    name === '.patchversion-state' ||
+    name === '.env' ||
+    name.startsWith('.env.') ||
+    /\.(pem|key|p12|pfx)$/i.test(name) ||
+    /^credentials(\.|$)/i.test(name) ||
+    name === 'id_rsa' ||
+    name === 'id_ed25519'
+  );
+}
+
+/** Max bytes of child output held in memory before truncation. */
+const MAX_OUTPUT_BYTES = 1024 * 1024;
+/** Grace between SIGTERM and SIGKILL when a run exceeds its deadline. */
+const KILL_GRACE_MS = 5_000;
 
 /**
  * Sandbox runner: executes the red-to-green proof loop.
  *
  * The loop:
- * 1. Run the repo's test suite against the OLD version (expect green/baseline).
- * 2. Apply the version bump (upgrade the dependency).
- * 3. Run the test suite again (expect red if the change is breaking).
- * 4. If red: apply a candidate fix.
- * 5. Run the test suite again (expect green if the fix works).
- * 6. If green: produce a ProofArtifact with the diff and test results.
- * 7. If still red after budget: refuse to produce a PR.
+ * 1. Run the repo's test suite against the OLD version (must be green -
+ *    a failing baseline makes every later result inconclusive).
+ * 2. Apply the version bump (install must succeed - a failed install is
+ *    inconclusive, never mistaken for a red suite).
+ * 3. Run the test suite again (red means the change really breaks usage).
+ * 4. If red: apply a candidate fix (malformed/unsafe patch = inconclusive).
+ * 5. Run the test suite again (green means the fix works).
+ * 6. A ProofArtifact is produced only for a verified fix ('fixed') or a
+ *    confirmed no-break. Everything else is refused with an honest outcome.
  *
- * Two sandbox modes:
- * - docker: runs in a Docker container with --network none (isolated)
- * - local: runs in a child process on the host (fallback)
+ * Execution modes:
+ * - local: child process on this host. NO ISOLATION: repo code runs with
+ *   this user's privileges (on a minimal environment). The engine only
+ *   allows this for trusted fixture repositories.
+ * - docker: BLOCKED. Docker isolation is unverified; selecting it throws.
  */
 export class SandboxRunner {
   private config: EngineConfig;
 
   constructor(config: EngineConfig) {
+    if (config.sandboxMode === 'docker') {
+      throw new Error(
+        'Docker sandbox mode is UNVERIFIED and blocked. ' +
+        'Use local mode (no isolation, trusted fixtures only).',
+      );
+    }
     this.config = config;
   }
 
   /**
    * Run the full red-to-green proof loop for a change against a repo.
-   * Returns a ProofArtifact if the fix is verified, null if unverifiable.
+   * Never throws for pipeline failures; cleanup failure blocks success.
    */
   async proveLoop(
     repoPath: string,
     change: ChangeRecord,
     impact: ImpactAnalysis,
     fixDiff: string,
-  ): Promise<ProofArtifact | null> {
+  ): Promise<ProveResult> {
     const workDir = this.createWorkDir(repoPath);
-
+    let result: ProveResult;
     try {
-      // Step 1: Baseline - run tests on the old version
-      const baselineResult = await this.runTests(workDir, 'baseline');
+      result = await this.runSteps(workDir, repoPath, change, impact, fixDiff);
+    } catch (err) {
+      result = {
+        outcome: 'inconclusive',
+        proof: null,
+        reason: `Unexpected sandbox error: ${err instanceof Error ? err.message : String(err)}`,
+      };
+    }
+    return this.finish(workDir, result);
+  }
 
-      // Step 2: Apply the version bump
-      this.applyVersionBump(workDir, change);
-
-      // Step 3: Run tests against the new version (expect failures = red)
-      const redResult = await this.runTests(workDir, 'red');
-
-      if (redResult.exitCode === 0) {
-        // No failures - the change doesn't actually break this repo's usage
-        return this.createNoBreakProof(change, impact, baselineResult, redResult);
-      }
-
-      // Step 4: Apply the fix
-      this.applyFix(workDir, fixDiff);
-
-      // Step 5: Run tests again (expect green)
-      const greenResult = await this.runTests(workDir, 'green');
-
-      if (greenResult.exitCode !== 0) {
-        // Fix did not work - refuse to produce a PR
-        this.logRefusal(change, redResult, greenResult);
-        return null;
-      }
-
-      // Step 6: Build the proof artifact
-      const fixedFiles = this.filesChangedByDiff(fixDiff);
-      const verified = impact.affectedCallSites.filter(
-        site => fixedFiles.includes(site.filePath),
-      );
-      const unverifiable: UnverifiableSite[] = [
-        // Affected sites the fix did not touch: not verified
-        ...impact.affectedCallSites
-          .filter(site => !fixedFiles.includes(site.filePath))
-          .map(site => ({
-            callSite: site,
-            reason: 'Affected by the change but the generated fix did not modify this file',
-          })),
-        // Sites matched only by the broad breaking-change fallback
-        ...(impact.potentialCallSites ?? []).map(site => ({
-          callSite: site,
-          reason: 'Uses the changed package but does not intersect this change; not individually verified',
-        })),
-      ];
-
+  private async runSteps(
+    workDir: string,
+    repoPath: string,
+    change: ChangeRecord,
+    impact: ImpactAnalysis,
+    fixDiff: string,
+  ): Promise<ProveResult> {
+    // Step 1: Baseline - run tests on the old version
+    const baselineResult = await this.runTests(workDir);
+    if (baselineResult.exitCode !== 0) {
       return {
+        outcome: 'inconclusive',
+        proof: null,
+        reason: `Baseline test run failed on ${change.fromVersion} (exit ${baselineResult.exitCode}); cannot prove anything against an already-red suite`,
+      };
+    }
+    if (baselineResult.total === 0) {
+      return {
+        outcome: 'inconclusive',
+        proof: null,
+        reason: 'Baseline run reported zero tests; no usable tests to prove against',
+      };
+    }
+
+    // Step 2: Apply the version bump. A failed bump is inconclusive,
+    // never mistaken for a red suite.
+    try {
+      this.applyVersionBump(workDir, change);
+    } catch (err) {
+      return {
+        outcome: 'inconclusive',
+        proof: null,
+        reason: `Version bump failed: ${err instanceof Error ? err.message : String(err)}`,
+      };
+    }
+
+    // Step 3: Run tests against the new version (expect failures = red)
+    const redResult = await this.runTests(workDir);
+
+    if (redResult.exitCode === 0) {
+      if (redResult.total === 0) {
+        return {
+          outcome: 'inconclusive',
+          proof: null,
+          reason: 'Post-bump run reported zero tests; cannot establish that nothing broke',
+        };
+      }
+      // No failures - the change doesn't break this repo's tested usage.
+      return {
+        outcome: 'no-break',
+        proof: this.createNoBreakProof(change, impact, baselineResult, redResult),
+      };
+    }
+
+    // Step 4: Apply the fix. A malformed or unsafe patch is inconclusive.
+    try {
+      this.applyFix(workDir, fixDiff);
+    } catch (err) {
+      return {
+        outcome: 'inconclusive',
+        proof: null,
+        reason: `Fix could not be applied: ${err instanceof Error ? err.message : String(err)}`,
+      };
+    }
+
+    // Step 5: Run tests again (expect green)
+    const greenResult = await this.runTests(workDir);
+
+    if (greenResult.exitCode !== 0) {
+      return {
+        outcome: 'unfixable',
+        proof: null,
+        reason: `Fix did not verify: suite still red after applying it (${greenResult.failed} failed of ${greenResult.total})`,
+      };
+    }
+    if (greenResult.total === 0) {
+      return {
+        outcome: 'inconclusive',
+        proof: null,
+        reason: 'Post-fix run reported zero tests; a green run without tests is not a proof',
+      };
+    }
+
+    // Step 6: Verified fix - build the proof artifact
+    const fixedFiles = this.filesChangedByDiff(fixDiff);
+    const verified = impact.affectedCallSites.filter(
+      site => fixedFiles.includes(site.filePath),
+    );
+    const unverifiable: UnverifiableSite[] = [
+      ...impact.affectedCallSites
+        .filter(site => !fixedFiles.includes(site.filePath))
+        .map(site => ({
+          callSite: site,
+          reason: 'Affected by the change but the generated fix did not modify this file',
+        })),
+      ...(impact.potentialCallSites ?? []).map(site => ({
+        callSite: site,
+        reason: 'Uses the changed package but does not intersect this change; not individually verified',
+      })),
+    ];
+
+    return {
+      outcome: 'fixed',
+      proof: {
         id: crypto.randomUUID(),
         changeId: change.id,
         repoId: impact.repoId,
@@ -101,25 +218,38 @@ export class SandboxRunner {
         coverageTotal: impact.affectedCallSites.length,
         unverifiable,
         producedAt: new Date().toISOString(),
-        sandboxType: this.config.sandboxMode === 'docker' ? 'docker-isolated' : 'local-process',
+        sandboxType: 'local-process',
         durationMs: 0, // populated by caller
-      };
-    } finally {
-      // Cleanup work directory
-      this.cleanupWorkDir(workDir);
+      },
+    };
+  }
+
+  /**
+   * Cleanup gate: a failed cleanup blocks a success outcome. Leftover
+   * work directories are an integrity risk (stale trees, disk fill), so a
+   * cleanup error turns 'fixed'/'no-break' into 'inconclusive'.
+   */
+  private finish(workDir: string, result: ProveResult): ProveResult {
+    try {
+      this.cleanupWorkDirChecked(workDir);
+      return result;
+    } catch (err) {
+      const reason = `Sandbox cleanup failed for ${workDir}: ${err instanceof Error ? err.message : String(err)}`;
+      if (result.outcome === 'fixed' || result.outcome === 'no-break') {
+        return { outcome: 'inconclusive', proof: null, reason };
+      }
+      return { ...result, reason: `${result.reason ?? result.outcome}; ${reason}` };
     }
   }
 
   /**
-   * Run the repo's test suite in the sandbox.
+   * Run the repo's test suite. The runner is test-framework agnostic:
+   * the exit code is the pass/fail signal; output parsing is best-effort
+   * reporting only.
    */
-  private async runTests(workDir: string, phase: string): Promise<TestResult> {
-    const testCommand = this.detectTestCommand(workDir);
-
-    if (this.config.sandboxMode === 'docker') {
-      return this.runTestsDocker(workDir, testCommand);
-    }
-    return this.runTestsLocal(workDir, testCommand);
+  private async runTests(workDir: string): Promise<TestResult> {
+    const command = this.detectTestCommand(workDir);
+    return this.runTestsLocal(workDir, command);
   }
 
   private detectTestCommand(workDir: string): string {
@@ -128,69 +258,67 @@ export class SandboxRunner {
       const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
       if (pkg.scripts?.test) return 'npm test';
     }
-    return 'npm test'; // default
+    return 'npm test'; // npm exits nonzero when no test script exists
   }
 
   private async runTestsLocal(workDir: string, command: string): Promise<TestResult> {
     return new Promise((resolve) => {
       let output = '';
-      const timeout = setTimeout(() => {
-        proc.kill('SIGTERM');
-        resolve({ passed: 0, failed: 0, total: 0, output: output + '\n[TIMEOUT]', exitCode: 124 });
-      }, this.config.sandboxTimeoutMs);
+      let settled = false;
+      let timedOut = false;
+
+      const append = (data: Buffer) => {
+        if (output.length < MAX_OUTPUT_BYTES) {
+          output += data.toString();
+        }
+      };
+
+      const done = (result: TestResult) => {
+        if (!settled) {
+          settled = true;
+          clearTimeout(timer);
+          resolve(result);
+        }
+      };
 
       const proc: ChildProcess = spawn('sh', ['-c', command], {
         cwd: workDir,
-        env: { ...process.env, CI: 'true', NODE_ENV: 'test' },
-        stdio: ['pipe', 'pipe', 'pipe'],
+        env: minimalEnv(),
+        stdio: ['ignore', 'pipe', 'pipe'],
+        // Own process group so the timeout kills the whole tree
+        // (sh -> npm -> test runner), not just the shell.
+        detached: true,
       });
 
-      proc.stdout?.on('data', (data: Buffer) => { output += data.toString(); });
-      proc.stderr?.on('data', (data: Buffer) => { output += data.toString(); });
+      const timer = setTimeout(() => {
+        timedOut = true;
+        try {
+          if (proc.pid) process.kill(-proc.pid, 'SIGTERM');
+        } catch { /* already gone */ }
+        const killer = setTimeout(() => {
+          try {
+            if (proc.pid) process.kill(-proc.pid, 'SIGKILL');
+          } catch { /* already gone */ }
+        }, KILL_GRACE_MS);
+        killer.unref();
+      }, this.config.sandboxTimeoutMs);
+
+      proc.stdout?.on('data', append);
+      proc.stderr?.on('data', append);
 
       proc.on('close', (code) => {
-        clearTimeout(timeout);
         const parsed = this.parseTestOutput(output);
-        resolve({
+        done({
           ...parsed,
-          output: output.slice(-5000), // keep last 5KB
-          exitCode: code ?? 1,
+          output: (timedOut ? output + '\n[TIMEOUT]' : output).slice(-5000),
+          exitCode: timedOut ? 124 : (code ?? 1),
         });
       });
 
       proc.on('error', (err) => {
-        clearTimeout(timeout);
-        resolve({ passed: 0, failed: 0, total: 0, output: String(err), exitCode: 1 });
+        done({ passed: 0, failed: 0, total: 0, output: String(err), exitCode: 1 });
       });
     });
-  }
-
-  private async runTestsDocker(workDir: string, command: string): Promise<TestResult> {
-    // Docker mode: run in isolated container with no network
-    const dockerCmd = [
-      'docker', 'run', '--rm',
-      '--network', 'none',
-      '--memory', '512m',
-      '--cpus', '1',
-      '-v', `${workDir}:/app`,
-      '-w', '/app',
-      'node:20-slim',
-      'sh', '-c', `npm install --prefer-offline 2>/dev/null; ${command}`,
-    ].join(' ');
-
-    try {
-      const output = execSync(dockerCmd, {
-        timeout: this.config.sandboxTimeoutMs,
-        maxBuffer: 10 * 1024 * 1024,
-        encoding: 'utf-8',
-      });
-      const parsed = this.parseTestOutput(output);
-      return { ...parsed, output: output.slice(-5000), exitCode: 0 };
-    } catch (err: any) {
-      const output = err.stdout?.toString() ?? String(err);
-      const parsed = this.parseTestOutput(output);
-      return { ...parsed, output: output.slice(-5000), exitCode: err.status ?? 1 };
-    }
   }
 
   private parseTestOutput(output: string): { passed: number; failed: number; total: number } {
@@ -213,15 +341,6 @@ export class SandboxRunner {
       }
     }
 
-    // Parse generic pass/fail patterns
-    const passMatch = output.match(/(\d+)\s+pass/i);
-    const failMatch = output.match(/(\d+)\s+fail/i);
-    if (passMatch || failMatch) {
-      const passed = passMatch ? parseInt(passMatch[1], 10) : 0;
-      const failed = failMatch ? parseInt(failMatch[1], 10) : 0;
-      return { passed, failed, total: passed + failed };
-    }
-
     return { passed: 0, failed: 0, total: 0 };
   }
 
@@ -234,46 +353,68 @@ export class SandboxRunner {
     const offlinePath = change.offlineVersions?.[change.toVersion];
     const spec = offlinePath ? `file:${offlinePath}` : change.toVersion;
 
+    let touched = false;
     if (pkg.dependencies?.[change.packageName]) {
       pkg.dependencies[change.packageName] = spec;
+      touched = true;
     }
     if (pkg.devDependencies?.[change.packageName]) {
       pkg.devDependencies[change.packageName] = spec;
+      touched = true;
+    }
+    if (!touched) {
+      throw new Error(`${change.packageName} is not a dependency of the tested repo; nothing to bump`);
     }
 
     fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
 
-    // Reinstall
+    // Reinstall. A failure here means the red/green runs would prove
+    // nothing, so it aborts the loop instead of being swallowed.
     try {
-      execSync('npm install --prefer-offline --no-audit --no-fund 2>&1', { cwd: workDir, timeout: 60_000 });
-    } catch {
-      // Install failures are expected if the new version has issues
+      execFileSync('npm', ['install', '--prefer-offline', '--no-audit', '--no-fund'], {
+        cwd: workDir,
+        timeout: 120_000,
+        stdio: 'pipe',
+        env: minimalEnv(),
+      });
+    } catch (err: any) {
+      const tail = (err?.stderr?.toString() ?? err?.stdout?.toString() ?? String(err)).slice(-500);
+      throw new Error(`npm install after bump to ${change.toVersion} failed: ${tail}`);
     }
   }
 
   private applyFix(workDir: string, fixDiff: string): void {
     // Apply a unified diff to the working directory using the diff library.
-    // In-process application works identically in local and docker modes
-    // (the work directory is what gets mounted into the container).
+    // Every target path is checked for containment inside the working
+    // directory - a crafted diff must not write outside it.
+    const realWorkDir = fs.realpathSync(workDir);
     const patches = parsePatch(fixDiff);
     if (patches.length === 0) {
-      throw new Error('Failed to apply fix: no file patches found in diff');
+      throw new Error('no file patches found in diff');
     }
 
     for (const patch of patches) {
       const relPath = (patch.newFileName ?? patch.oldFileName ?? '')
         .replace(/^a\//, '')
         .replace(/^b\//, '');
-      const fullPath = path.join(workDir, relPath);
-      if (!fs.existsSync(fullPath)) {
-        throw new Error(`Failed to apply fix: file not found: ${relPath}`);
+      const fullPath = path.resolve(workDir, relPath);
+      if (!fullPath.startsWith(realWorkDir + path.sep)) {
+        throw new Error(`patch path escapes the working directory: ${relPath}`);
       }
-      const original = fs.readFileSync(fullPath, 'utf-8');
+      if (!fs.existsSync(fullPath)) {
+        throw new Error(`file not found: ${relPath}`);
+      }
+      // Symlink defense: the resolved target must also live inside.
+      const realTarget = fs.realpathSync(fullPath);
+      if (!realTarget.startsWith(realWorkDir + path.sep)) {
+        throw new Error(`patch target resolves outside the working directory: ${relPath}`);
+      }
+      const original = fs.readFileSync(realTarget, 'utf-8');
       const patched = applyPatch(original, patch);
       if (patched === false) {
-        throw new Error(`Failed to apply fix: patch does not apply cleanly to ${relPath}`);
+        throw new Error(`patch does not apply cleanly to ${relPath}`);
       }
-      fs.writeFileSync(fullPath, patched);
+      fs.writeFileSync(realTarget, patched);
     }
   }
 
@@ -281,7 +422,9 @@ export class SandboxRunner {
   private filesChangedByDiff(fixDiff: string): string[] {
     return parsePatch(fixDiff)
       .map(p => (p.newFileName ?? '').replace(/^b\//, ''))
-      .filter(f => f.length > 0 && f !== '/dev/null');
+      .filter(f => f !== '/dev/null')
+      .map(f => f.replace(/^b\//, ''))
+      .filter(f => f.length > 0);
   }
 
   private createNoBreakProof(
@@ -290,6 +433,19 @@ export class SandboxRunner {
     baseline: TestResult,
     red: TestResult,
   ): ProofArtifact {
+    // Honest coverage: the suite stayed green on the new version without
+    // any change, but that does not establish that each affected call
+    // site is exercised by a test. Nothing is counted as verified.
+    const unverifiable: UnverifiableSite[] = [
+      ...impact.affectedCallSites.map(site => ({
+        callSite: site,
+        reason: 'Suite stayed green on the new version without changes; per-site test coverage is not established',
+      })),
+      ...(impact.potentialCallSites ?? []).map(site => ({
+        callSite: site,
+        reason: 'Uses the changed package but does not intersect this change; not individually verified',
+      })),
+    ];
     return {
       id: crypto.randomUUID(),
       changeId: change.id,
@@ -299,35 +455,46 @@ export class SandboxRunner {
       greenResult: red, // same as red - no fix needed
       fixDiff: '',
       fixedFiles: [],
-      coverageVerified: impact.affectedCallSites.length,
+      coverageVerified: 0,
       coverageTotal: impact.affectedCallSites.length,
-      unverifiable: [],
+      unverifiable,
       producedAt: new Date().toISOString(),
-      sandboxType: this.config.sandboxMode === 'docker' ? 'docker-isolated' : 'local-process',
+      sandboxType: 'local-process',
       durationMs: 0,
     };
   }
 
-  private logRefusal(change: ChangeRecord, red: TestResult, green: TestResult): void {
-    // Log that we refused to produce a PR because the fix didn't verify
-    console.warn(`[sandbox] REFUSED PR for ${change.packageName}@${change.toVersion}: fix did not verify green`);
-  }
-
   private createWorkDir(repoPath: string): string {
+    const realRepo = fs.realpathSync(repoPath);
+    if (!fs.statSync(realRepo).isDirectory()) {
+      throw new Error(`repo path is not a directory: ${repoPath}`);
+    }
     const workDir = path.join(this.config.stateDir, 'sandbox-work', crypto.randomUUID());
     fs.mkdirSync(workDir, { recursive: true });
 
-    // Copy repo to work directory
-    execSync(`cp -r ${repoPath}/. ${workDir}/`, { timeout: 30_000 });
+    // Copy the repo without a shell (no string interpolation), skipping
+    // VCS and state directories. node_modules is copied on purpose: the
+    // fixtures' vendored dependencies must run without registry access.
+    fs.cpSync(realRepo, workDir, {
+      recursive: true,
+      filter: (src) => !isExcludedFromSandboxCopy(path.basename(src)),
+    });
 
     return workDir;
   }
 
-  private cleanupWorkDir(workDir: string): void {
-    try {
-      fs.rmSync(workDir, { recursive: true, force: true });
-    } catch {
-      // Best-effort cleanup
+  private cleanupWorkDirChecked(workDir: string): void {
+    // Checked cleanup: failures throw so finish() can block the outcome.
+    // Path-based recursive deletion is a known residual weakness (see
+    // docs/security-threat-model.md): it must only ever target the UUID
+    // directory this runner created under its own state dir.
+    const parent = path.join(this.config.stateDir, 'sandbox-work');
+    if (!path.resolve(workDir).startsWith(path.resolve(parent) + path.sep)) {
+      throw new Error(`refusing to clean a directory outside the sandbox root: ${workDir}`);
+    }
+    fs.rmSync(workDir, { recursive: true, force: false });
+    if (fs.existsSync(workDir)) {
+      throw new Error(`work directory still exists after cleanup: ${workDir}`);
     }
   }
 }

@@ -148,3 +148,24 @@ export interface MilestoneStatus {
   notes: string;
 }
 
+
+/**
+ * Outcome of one sandbox proof attempt.
+ *
+ * - fixed: the fix turned the suite green on the new version; proof attached.
+ * - no-break: the suite stayed green on the new version without any fix;
+ *   proof attached for the record, but no fix PR should be opened.
+ * - unfixable: the change is real (suite went red) but the fix did not
+ *   verify; refuse any success claim or PR.
+ * - inconclusive: nothing can be claimed - baseline failing, no usable
+ *   tests, version bump/install failed, or the patch could not be applied.
+ */
+export type ProveOutcome = 'fixed' | 'no-break' | 'unfixable' | 'inconclusive';
+
+/** Result of the sandbox red-to-green loop. Null proof means no artifact. */
+export interface ProveResult {
+  outcome: ProveOutcome;
+  proof: ProofArtifact | null;
+  /** Human-readable reason, set for unfixable and inconclusive outcomes. */
+  reason?: string;
+}

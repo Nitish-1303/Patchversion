@@ -59,15 +59,15 @@ export default function ProductPage() {
             <p className="text-xs font-medium text-text-secondary mb-3 uppercase tracking-wider">Change Record Example</p>
             <div className="code-block text-xs">
               <pre>{`{
-  "package": "stripe-node",
-  "from": "21.0.1",
-  "to": "23.0.1",
-  "source": "upgrade-guide",
+  "package": "mockpay",
+  "from": "1.0.0",
+  "to": "2.0.0",
+  "source": "changelog",
   "severity": "breaking",
-  "evidence": "payment_method_types removed from Checkout Sessions"
+  "evidence": "'source' parameter renamed to 'payment_method' in charges.create"
 }`}</pre>
             </div>
-            <p className="text-xs text-text-tertiary mt-3">Recorded change from the verified local Stripe migration run.</p>
+            <p className="text-xs text-text-tertiary mt-3">Recorded change from the verified fixture run (runs/latest/proof.json).</p>
           </div>
         </div>
       </section>
@@ -138,19 +138,19 @@ export default function ProductPage() {
             <p className="text-xs font-medium text-text-secondary mb-3 uppercase tracking-wider">Impact Report</p>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between py-1 rule-b">
-                <span className="font-mono text-xs">src/checkout/createSession.ts:14</span>
+                <span className="font-mono text-xs">src/createCharge.js:4</span>
                 <span className="badge-breaking text-xs">affected</span>
               </div>
               <div className="flex justify-between py-1 rule-b">
-                <span className="font-mono text-xs">src/checkout/retrySession.ts:41</span>
-                <span className="badge-breaking text-xs">affected</span>
-              </div>
-              <div className="flex justify-between py-1">
-                <span className="font-mono text-xs">src/webhook.ts:8</span>
+                <span className="font-mono text-xs">src/createCharge.js:14</span>
                 <span className="badge-success text-xs">not affected</span>
               </div>
+              <div className="flex justify-between py-1">
+                <span className="font-mono text-xs">coverage</span>
+                <span className="badge-success text-xs">1 of 1 verified</span>
+              </div>
             </div>
-            <p className="text-xs text-text-tertiary mt-3">Condensed from the verified local Stripe migration run.</p>
+            <p className="text-xs text-text-tertiary mt-3">From the verified fixture run (runs/latest/proof.json).</p>
           </div>
         </div>
       </section>
@@ -165,8 +165,8 @@ export default function ProductPage() {
           <div className="min-w-0">
             <p className="text-text-secondary mb-4">
               For known migration patterns (field removals, renames, signature changes), PatchBay applies
-              a deterministic fix - the same class of fix that migrated a real repo off
-              stripe-node&apos;s removed <span className="font-mono text-sm">payment_method_types</span> field.
+              a deterministic fix - the same class of fix that migrated the bundled sample repo off
+              mockpay 2.0.0&apos;s renamed <span className="font-mono text-sm">source</span> parameter.
             </p>
             <p className="text-text-secondary mb-4">
               The fix is only accepted if the repo&apos;s own test suite passes against the new
@@ -179,18 +179,18 @@ export default function ProductPage() {
             <div className="space-y-3 text-sm">
               <div className="flex justify-between">
                 <span>Tests before fix</span>
-                <span className="text-error font-medium">3 failing</span>
+                <span className="text-error font-medium">2 failing</span>
               </div>
               <div className="flex justify-between">
                 <span>Tests after fix</span>
-                <span className="text-success font-medium">47/47 passed</span>
+                <span className="text-success font-medium">3/3 passed</span>
               </div>
               <div className="rule-t pt-3 flex justify-between font-medium">
                 <span>Call sites</span>
-                <span>2 of 2 patched</span>
+                <span>1 of 1 patched</span>
               </div>
             </div>
-            <p className="text-xs text-text-tertiary mt-3">From the verified local Stripe migration run (npm run prove, exit 0).</p>
+            <p className="text-xs text-text-tertiary mt-3">From the verified fixture run (npm run prove, exit 0; runs/latest/proof.json).</p>
           </div>
         </div>
       </section>

@@ -18,9 +18,9 @@ function DashboardMock() {
           <span className="w-3 h-3 rounded-full bg-[#27CA40]" />
         </div>
         <span className="text-[13px] font-medium text-text-secondary">
-          PatchBay run &middot; stripe-node 21.0.1 &rarr; 23.0.1
+          PatchBay proof run &middot; mockpay 1.0.0 &rarr; 2.0.0
         </span>
-        <span className="ml-auto badge-success">verified</span>
+        <span className="ml-auto badge-success">verified fixture run</span>
       </div>
 
       {/* stage stepper */}
@@ -38,14 +38,14 @@ function DashboardMock() {
         <div className="lg:col-span-2 rounded-2xl border border-rule bg-background p-5">
           <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-error mb-2">Break detected</p>
           <p className="font-display font-semibold text-ink leading-snug mb-2">
-            Stripe removes <span className="font-mono text-[14px]">payment_method_types</span> from Checkout Sessions
+            mockpay 2.0.0 renames <span className="font-mono text-[14px]">source</span> to <span className="font-mono text-[14px]">payment_method</span>
           </p>
           <p className="text-sm text-text-secondary leading-6">
-            Sessions created with an explicit method list fail after the upgrade.
+            Calls still passing the old parameter throw after the upgrade: Missing required parameter: payment_method.
           </p>
           <div className="mt-4 pt-4 border-t border-rule space-y-2 font-mono text-[12px] text-text-secondary">
-            <div className="flex justify-between"><span>src/checkout/createSession.ts</span><span className="text-error">:14</span></div>
-            <div className="flex justify-between"><span>src/checkout/retrySession.ts</span><span className="text-error">:41</span></div>
+            <div className="flex justify-between"><span>src/createCharge.js</span><span className="text-error">:4</span></div>
+            <div className="flex justify-between"><span>src/createCharge.js</span><span className="text-text-tertiary">:14 not affected</span></div>
           </div>
         </div>
 
@@ -56,11 +56,11 @@ function DashboardMock() {
           <div className="space-y-3 font-mono text-[13px]">
             <div className="flex items-center justify-between rounded-xl bg-white/5 border border-white/10 px-4 py-3">
               <span className="text-white/70">before patch</span>
-              <span className="text-[#FF8A8A]">3 failing</span>
+              <span className="text-[#FF8A8A]">2 failing</span>
             </div>
             <div className="flex items-center justify-between rounded-xl bg-white/5 border border-white/10 px-4 py-3">
               <span className="text-white/70">after patch</span>
-              <span className="text-[#7EE2A0]">47 / 47 passing</span>
+              <span className="text-[#7EE2A0]">3 / 3 passing</span>
             </div>
             <p className="text-white/40 text-[12px]">npm run prove &middot; exit code 0</p>
           </div>
@@ -69,11 +69,11 @@ function DashboardMock() {
         {/* PR card */}
         <div className="lg:col-span-1 rounded-2xl border border-rule bg-background p-5 flex flex-col">
           <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-text-tertiary mb-2">Pull request</p>
-          <p className="font-display font-semibold text-ink leading-snug mb-3">fix(stripe): migrate Checkout Sessions</p>
+          <p className="font-display font-semibold text-ink leading-snug mb-3">Fix: mockpay 1.0.0 &rarr; 2.0.0</p>
           <ul className="space-y-2 text-[13px] text-text-secondary flex-1">
-            <li className="flex gap-2 items-start"><Check size={15} strokeWidth={2} className="text-success shrink-0 mt-0.5" aria-hidden="true" />Full diff, 2 files</li>
+            <li className="flex gap-2 items-start"><Check size={15} strokeWidth={2} className="text-success shrink-0 mt-0.5" aria-hidden="true" />Full diff, 1 file</li>
             <li className="flex gap-2 items-start"><Check size={15} strokeWidth={2} className="text-success shrink-0 mt-0.5" aria-hidden="true" />Before/after test output</li>
-            <li className="flex gap-2 items-start"><Check size={15} strokeWidth={2} className="text-success shrink-0 mt-0.5" aria-hidden="true" />Affected call sites</li>
+            <li className="flex gap-2 items-start"><Check size={15} strokeWidth={2} className="text-success shrink-0 mt-0.5" aria-hidden="true" />Coverage honesty block</li>
           </ul>
           <p className="mt-4 text-[12px] text-text-tertiary">PR delivery in development</p>
         </div>
@@ -93,13 +93,13 @@ function TerminalMock() {
       </div>
       <div className="p-6 font-mono text-[13px] leading-7 overflow-x-auto">
         <div className="text-white/40">$ npm run prove</div>
-        <div className="text-white/70">reproducing break on stripe-node 23.0.1&hellip;</div>
-        <div className="text-[#FF8A8A]"><X size={14} strokeWidth={2} className="inline" aria-hidden="true" /> creates checkout session &middot; payment_method_types unknown</div>
-        <div className="text-[#FF8A8A]"><X size={14} strokeWidth={2} className="inline" aria-hidden="true" /> retries failed session</div>
-        <div className="text-[#FF8A8A]"><X size={14} strokeWidth={2} className="inline" aria-hidden="true" /> preserves line items</div>
-        <div className="mt-3 text-white/70">applying patch&hellip; rerunning suite&hellip;</div>
-        <div className="text-[#7EE2A0]"><Check size={14} strokeWidth={2} className="inline" aria-hidden="true" /> 47/47 tests passing</div>
-        <div className="text-white/40">exit code 0</div>
+        <div className="text-white/70">change: mockpay 1.0.0 &rarr; 2.0.0 &middot; fixtures/sample-repo</div>
+        <div className="text-white/70">baseline (1.0.0): 3 passed, 0 failed</div>
+        <div className="text-[#FF8A8A]"><X size={14} strokeWidth={2} className="inline" aria-hidden="true" /> bumped (2.0.0): 1 passed, 2 failed</div>
+        <div className="text-[#FF8A8A]">&nbsp;&nbsp;Missing required parameter: payment_method</div>
+        <div className="mt-3 text-white/70">fixing src/createCharge.js&hellip; rerunning suite&hellip;</div>
+        <div className="text-[#7EE2A0]"><Check size={14} strokeWidth={2} className="inline" aria-hidden="true" /> after fix (2.0.0): 3 passed, 0 failed</div>
+        <div className="text-white/40">PROOF VALID &middot; exit code 0</div>
       </div>
     </div>
   );
@@ -128,17 +128,16 @@ function DiffMock() {
   return (
     <div className="rounded-3xl bg-white border border-rule shadow-card overflow-hidden">
       <div className="flex flex-wrap gap-2 items-center justify-between px-6 py-4 border-b border-rule">
-        <p className="font-mono text-[13px] text-text-secondary">src/checkout/createSession.ts</p>
+        <p className="font-mono text-[13px] text-text-secondary">src/createCharge.js</p>
         <span className="badge bg-accent-light text-navy">minimal diff</span>
       </div>
       <div className="bg-code-bg p-5 font-mono text-[12.5px] leading-6 overflow-x-auto">
-        <p className="text-code-text/50">  12  const session =</p>
-        <p className="text-[#F08585] bg-[#F08585]/10 -mx-5 px-5">- 13  await stripe.checkout.sessions.create({'{'}</p>
-        <p className="text-[#F08585] bg-[#F08585]/10 -mx-5 px-5">- 14&nbsp;&nbsp;payment_method_types: [&apos;card&apos;],</p>
-        <p className="text-[#8ADCB0] bg-[#8ADCB0]/10 -mx-5 px-5">+ 13  await stripe.checkout.sessions.create({'{'}</p>
-        <p className="text-[#8ADCB0] bg-[#8ADCB0]/10 -mx-5 px-5">+ 14&nbsp;&nbsp;mode: &apos;payment&apos;,</p>
-        <p className="text-code-text/50">  15&nbsp;&nbsp;line_items, success_url,</p>
-        <p className="text-code-text/50">  16  {'}'});</p>
+        <p className="text-code-text/50">  3  async function createCharge(amount, currency, source) {'{'}</p>
+        <p className="text-code-text/50">  4&nbsp;&nbsp;&nbsp;const charge = await mockpay.charges.create({'{'}</p>
+        <p className="text-[#F08585] bg-[#F08585]/10 -mx-5 px-5">- 6&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;source: source,</p>
+        <p className="text-[#8ADCB0] bg-[#8ADCB0]/10 -mx-5 px-5">+ 6&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;payment_method: source,</p>
+        <p className="text-code-text/50">  7&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;description: &apos;Payment for order&apos;</p>
+        <p className="text-code-text/50">  8&nbsp;&nbsp;&nbsp;{'}'});</p>
       </div>
       <p className="px-6 py-4 text-sm text-text-secondary border-t border-rule">Only the broken lines change. Nothing else in the file is touched.</p>
     </div>
@@ -152,15 +151,13 @@ function TestRunMock() {
         <span className="w-2.5 h-2.5 rounded-full bg-[#FF5F56]" />
         <span className="w-2.5 h-2.5 rounded-full bg-[#FFBD2E]" />
         <span className="w-2.5 h-2.5 rounded-full bg-[#27CA40]" />
-        <span className="ml-2 text-[12px] font-mono text-white/40">illustrative test output</span>
+        <span className="ml-2 text-[12px] font-mono text-white/40">verified fixture run</span>
       </div>
       <div className="p-6 font-mono text-[13px] leading-7 overflow-x-auto">
         <div className="text-white/40">$ npm test</div>
-        <div className="text-white/70">running 47 tests against patched code&hellip;</div>
-        <div className="text-white/50">checkout/createSession.test.ts &middot; 21 tests</div>
-        <div className="text-white/50">checkout/retrySession.test.ts &middot; 14 tests</div>
-        <div className="text-white/50">webhooks/handler.test.ts &middot; 12 tests</div>
-        <div className="mt-2 text-[#7EE2A0]"><Check size={14} strokeWidth={2} className="inline" aria-hidden="true" /> 47/47 passing &middot; finished in 9.1s</div>
+        <div className="text-white/70">running 3 tests against patched code&hellip;</div>
+        <div className="text-white/50">src/createCharge.test.js &middot; 3 tests</div>
+        <div className="mt-2 text-[#7EE2A0]"><Check size={14} strokeWidth={2} className="inline" aria-hidden="true" /> 3/3 passing &middot; finished in 0.3s</div>
       </div>
     </div>
   );
@@ -172,18 +169,18 @@ function EvidenceMock() {
       <div className="px-6 py-4 border-b border-rule flex items-center gap-3">
         <span className="w-8 h-8 rounded-full bg-navy text-white flex items-center justify-center text-[13px] font-semibold">PB</span>
         <div>
-          <p className="text-[14px] font-semibold text-ink">fix(stripe): migrate Checkout Sessions off payment_method_types</p>
+          <p className="text-[14px] font-semibold text-ink">Fix: mockpay 1.0.0 &rarr; 2.0.0 (1 call site)</p>
           <p className="text-[12px] text-text-tertiary">patchbay &middot; evidence attached</p>
         </div>
       </div>
       <div className="p-6 space-y-4">
         <div className="rounded-xl bg-code-bg p-4 font-mono text-[12.5px] leading-6 overflow-x-auto">
-          <div className="text-[#FF8A8A]">-  payment_method_types: [&apos;card&apos;],</div>
-          <div className="text-[#7EE2A0]">+  mode: &apos;payment&apos;,</div>
+          <div className="text-[#FF8A8A]">-  source: source,</div>
+          <div className="text-[#7EE2A0]">+  payment_method: source,</div>
         </div>
         <div className="grid grid-cols-2 gap-3 text-[13px]">
-          <div className="rounded-xl bg-error-bg px-4 py-3"><span className="font-semibold text-error">Before</span><br /><span className="text-text-secondary">3 tests failing</span></div>
-          <div className="rounded-xl bg-success-bg px-4 py-3"><span className="font-semibold text-success">After</span><br /><span className="text-text-secondary">47/47 passing</span></div>
+          <div className="rounded-xl bg-error-bg px-4 py-3"><span className="font-semibold text-error">Before</span><br /><span className="text-text-secondary">2 tests failing</span></div>
+          <div className="rounded-xl bg-success-bg px-4 py-3"><span className="font-semibold text-success">After</span><br /><span className="text-text-secondary">3/3 passing</span></div>
         </div>
         <p className="text-[13px] text-text-secondary">Call sites, the full diff and the raw test output travel with the PR. Review is a read, not an investigation.</p>
       </div>
@@ -194,7 +191,7 @@ function EvidenceMock() {
 /* ---------------------------------- page ---------------------------------- */
 
 const STAGES = [
-  { name: 'Detect', desc: 'A provider ships a change that breaks an API shape your code uses. Continuous watching is in development; detection itself is proven.', status: 'Proven locally' },
+  { name: 'Detect', desc: 'A provider ships a change that breaks an API shape your code uses. Continuous watching is in development; detection runs today on recorded changes.', status: 'Proven locally' },
   { name: 'Analyze', desc: 'An index of every call site that touches the changed surface, down to the line.', status: 'Proven locally' },
   { name: 'Patch', desc: 'A minimal diff that changes only what the break requires.', status: 'Proven locally' },
   { name: 'Test', desc: 'Your own test suite runs against the patch - the same command you would run.', status: 'Proven locally' },
@@ -207,7 +204,7 @@ type SourceEntry =
   | { kind: 'icon'; icon: 'store' | 'bot' | 'openapi'; name: string; note: string };
 
 const SOURCES: SourceEntry[] = [
-  { kind: 'brand', brand: 'stripe', name: 'Stripe', note: 'Versioned API with published upgrade guides. Migration verified locally.' },
+  { kind: 'brand', brand: 'stripe', name: 'Stripe', note: 'Versioned API with published upgrade guides. Live watching in development.' },
   { kind: 'icon', icon: 'store', name: 'Shopify', note: 'Quarterly API releases with forced version upgrades for apps.' },
   { kind: 'brand', brand: 'twilio', name: 'Twilio', note: 'Deprecation notices and helper-library majors.' },
   { kind: 'icon', icon: 'bot', name: 'OpenAI', note: 'Model deprecations and SDK breaking changes.' },
@@ -229,7 +226,7 @@ export default function HomePage() {
           <Reveal>
             <span className="glass inline-flex items-center gap-2 rounded-full px-4 py-2 text-[13px] font-medium text-white/90">
               <span className="w-1.5 h-1.5 rounded-full bg-[#7EE2A0] inline-block" />
-              Proof loop verified locally &middot; 47/47 tests
+              Proof loop verified locally &middot; fixture run, 3/3 tests
             </span>
           </Reveal>
           <Reveal delay={80}>
@@ -244,7 +241,7 @@ export default function HomePage() {
           </Reveal>
           <Reveal delay={240}>
             <div className="mt-10 flex flex-col sm:flex-row items-center gap-3">
-              <a href="#proof" className="pill-light">See the verified loop</a>
+              <a href="#proof" className="pill-light">See the verified run</a>
               <a href="/how-it-works" className="pill-outline">How it works</a>
             </div>
           </Reveal>
@@ -256,7 +253,7 @@ export default function HomePage() {
         <Reveal className="max-w-content mx-auto">
           <DashboardMock />
           <p className="mt-4 text-center text-[13px] text-text-tertiary">
-            Illustrated preview of the PatchBay run view, modeled on a real local verification run. Hosted dashboard in development.
+            Real output from the bundled end-to-end proof run (runs/latest/proof.json); the fixture dependency stands in for a live provider. Hosted dashboard in development.
           </p>
         </Reveal>
       </section>
@@ -369,7 +366,7 @@ export default function HomePage() {
                 When a dependency breaks an API shape, PatchBay indexes your repository and lists each call site that touches it - file, line, and the change it needs. No grep-and-hope.
               </p>
               <p className="text-base leading-8 text-text-secondary">
-                The layout below illustrates a two-file impact map. Paths and line numbers are examples, not a transcript of the verified run.
+                The layout below illustrates a two-file impact map. Paths and line numbers are examples.
               </p>
             </Reveal>
             <Reveal delay={120}>
@@ -393,7 +390,7 @@ export default function HomePage() {
             </Reveal>
             <Reveal delay={120} className="lg:order-1">
               <DiffMock />
-              <p className="mt-3 text-center text-[13px] text-text-tertiary">Illustrative migration diff; not the raw verified-run artifact.</p>
+              <p className="mt-3 text-center text-[13px] text-text-tertiary">The real diff from the verified fixture run, runs/latest/proof.json.</p>
             </Reveal>
           </div>
 
@@ -412,7 +409,7 @@ export default function HomePage() {
             </Reveal>
             <Reveal delay={120} className="lg:col-span-3">
               <TestRunMock />
-              <p className="mt-3 text-center text-[13px] text-text-tertiary">Illustrative test display. Counts use the verified 47/47 result; file breakdown and timing are examples.</p>
+              <p className="mt-3 text-center text-[13px] text-text-tertiary">From the verified fixture run (runs/latest/proof.json); display condensed.</p>
             </Reveal>
           </div>
 
@@ -426,7 +423,7 @@ export default function HomePage() {
                 PatchBay reproduces the break against your real code, applies a minimal patch, and reruns your test suite. If the suite does not go green, you get a diagnosis of the break - never an unproven fix.
               </p>
               <p className="text-base leading-8 text-text-secondary">
-                This loop runs today against a real Stripe API migration: three failing tests in, 47 passing tests out.
+                This loop runs today against the bundled fixture migration (mockpay 1.0.0 to 2.0.0): two failing tests in, three passing tests out. The fixture stands in for a live provider; a real-provider run is the next milestone.
               </p>
             </Reveal>
             <Reveal delay={120}>
@@ -573,7 +570,7 @@ export default function HomePage() {
               </div>
             ))}
             <div className="snap-start shrink-0 w-[280px] rounded-2xl border border-dashed border-rule-strong p-7 flex items-center">
-              <p className="text-sm leading-6 text-text-tertiary">Detection sources beyond Stripe are on the roadmap.</p>
+              <p className="text-sm leading-6 text-text-tertiary">Live watching for these sources is in development; detection today runs on recorded changes.</p>
             </div>
           </div>
         </Reveal>
