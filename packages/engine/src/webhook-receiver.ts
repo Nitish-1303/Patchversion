@@ -42,7 +42,10 @@ export class WebhookReceiver {
         return;
       }
 
-      let body = '';
+      // Buffer RAW bytes. Per-chunk toString('utf8') would corrupt multibyte
+      // characters split across chunk boundaries (replacement chars), and the
+      // HMAC must be computed over the exact original request bytes.
+      const chunks: Buffer[] = [];
       let bodyBytes = 0;
       let tooLarge = false;
       req.on('data', (chunk: Buffer) => {
@@ -55,10 +58,10 @@ export class WebhookReceiver {
         bodyBytes += chunk.length;
         if (bodyBytes > MAX_BODY_BYTES) {
           tooLarge = true;
-          body = ''; // release what was buffered
+          chunks.length = 0; // release what was buffered
           return;
         }
-        body += chunk.toString('utf8');
+        chunks.push(chunk);
       });
       req.on('end', () => {
         // Size is enforced before signature verification or event processing.
@@ -66,10 +69,11 @@ export class WebhookReceiver {
           res.writeHead(413).end('Payload too large');
           return;
         }
-        // Verify webhook signature if secret is configured
+        const rawBody = Buffer.concat(chunks, bodyBytes);
+        // Verify the signature over the exact original bytes BEFORE decoding.
         if (this.webhookSecret) {
           const signature = req.headers['x-hub-signature-256'] as string | undefined;
-          if (!this.verifySignature(body, signature)) {
+          if (!this.verifySignature(rawBody, signature)) {
             res.writeHead(401).end('Invalid signature');
             return;
           }
@@ -77,7 +81,8 @@ export class WebhookReceiver {
 
         const event = req.headers['x-github-event'] as string;
         try {
-          const payload = JSON.parse(body);
+          // Decode for JSON parsing only after the signature has been verified.
+          const payload = JSON.parse(rawBody.toString('utf8'));
           this.handleEvent(event, payload);
           res.writeHead(200).end('OK');
         } catch (err) {
@@ -98,7 +103,7 @@ export class WebhookReceiver {
     this.server?.close();
   }
 
-  private verifySignature(body: string, signature: string | undefined): boolean {
+  private verifySignature(body: Buffer, signature: string | undefined): boolean {
     if (!this.webhookSecret) return true;
     if (typeof signature !== 'string' || signature.length === 0) return false;
     const expected = 'sha256=' + crypto
