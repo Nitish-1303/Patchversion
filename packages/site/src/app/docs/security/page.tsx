@@ -6,9 +6,10 @@ export default function DocsSecurityPage() {
 
       <div className="space-y-8">
         <section>
-          <h2 className="text-xl font-semibold mb-4">Repository Access</h2>
+          <h2 className="text-xl font-semibold mb-4">Repository Access (planned)</h2>
           <p className="text-text-secondary mb-4">
-            PatchBay uses a GitHub App with least-privilege permissions:
+            The plan is a GitHub App with least-privilege permissions. The app is not yet
+            registered, and PatchBay has no access to any repository today:
           </p>
           <ul className="space-y-2 text-text-secondary list-disc pl-5">
             <li><strong>Read:</strong> Repository contents, metadata</li>
@@ -18,25 +19,23 @@ export default function DocsSecurityPage() {
         </section>
 
         <section>
-          <h2 className="text-xl font-semibold mb-4">Sandbox Isolation</h2>
+          <h2 className="text-xl font-semibold mb-4">Execution Isolation</h2>
           <p className="text-text-secondary mb-4">
-            When validating fixes, PatchBay runs your test suite in an isolated environment:
+            Today, fix verification runs as a local child process on the maintainer&apos;s own
+            machine, against repositories they own. The hardened isolated environment intended for
+            running other people&apos;s code (network-disabled container, resource limits) is
+            designed but <strong>not yet qualified</strong>: it failed an internal security review,
+            and customer repositories stay blocked until a qualified isolation boundary exists.
           </p>
-          <ul className="space-y-2 text-text-secondary list-disc pl-5">
-            <li>Docker container with <code className="bg-accent-light px-1 rounded">--network none</code> (no external access)</li>
-            <li>Resource limits: 512MB memory, 1 CPU, 120-second timeout</li>
-            <li>Local child-process fallback when Docker is unavailable</li>
-            <li>No customer code leaves the sandbox unencrypted</li>
-          </ul>
         </section>
 
         <section>
-          <h2 className="text-xl font-semibold mb-4">Data Handling</h2>
+          <h2 className="text-xl font-semibold mb-4">Data Handling (design commitments)</h2>
           <ul className="space-y-2 text-text-secondary list-disc pl-5">
-            <li>Customer code is never used for model training</li>
-            <li>Only affected code context (not full files) is sent to LLM for fix generation</li>
+            <li>Customer code will never be used for model training</li>
+            <li>Only affected code context (not full files) is sent to an LLM when LLM-assisted fixes ship (not built yet)</li>
             <li>Secrets files (.env, credentials) are explicitly excluded from analysis</li>
-            <li>Audit events are recorded for every detection, analysis, fix attempt, and PR</li>
+            <li>Audit events are planned for every detection, analysis, fix attempt, and PR</li>
           </ul>
         </section>
 
@@ -46,6 +45,8 @@ export default function DocsSecurityPage() {
             <li>Formal security audit</li>
             <li>SOC 2 or compliance certification</li>
             <li>Penetration testing</li>
+            <li>Hardened isolated execution environment (in qualification, not passed)</li>
+            <li>GitHub App registration and repository access</li>
             <li>Encrypted at-rest state storage</li>
             <li>Multi-tenant data isolation (single-tenant only for now)</li>
           </ul>
@@ -54,3 +55,4 @@ export default function DocsSecurityPage() {
     </div>
   );
 }
+

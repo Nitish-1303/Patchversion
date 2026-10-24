@@ -30,7 +30,7 @@ export default function CompetitorsPage() {
             <tbody className="divide-y divide-rule">
               <tr>
                 <td className="p-3 font-medium">API change detection</td>
-                <td className="p-3">npm registry + changelog</td>
+                <td className="p-3">npm registry + changelog (in development)</td>
                 <td className="p-3">Changelog + OpenAPI + SDK</td>
                 <td className="p-3">Changelog + SDK + OpenAPI</td>
                 <td className="p-3">Registry + changelog + behavior</td>
@@ -44,14 +44,14 @@ export default function CompetitorsPage() {
               </tr>
               <tr>
                 <td className="p-3 font-medium">Fix generation</td>
-                <td className="p-3">Deterministic + LLM</td>
+                <td className="p-3">Deterministic (LLM planned)</td>
                 <td className="p-3">Opt-in migration PRs</td>
                 <td className="p-3">47 migration packs</td>
                 <td className="p-3">Draft repair PRs</td>
               </tr>
               <tr>
                 <td className="p-3 font-medium">Test validation</td>
-                <td className="p-3">Sandbox red-to-green</td>
+                <td className="p-3">Red-to-green proof in local test runs</td>
                 <td className="p-3">Network-isolated sandbox</td>
                 <td className="p-3">Not specified</td>
                 <td className="p-3">In user CI</td>
@@ -123,8 +123,9 @@ export default function CompetitorsPage() {
         <h2 className="text-xl font-bold mb-4">Where PatchBay stands today</h2>
         <div className="space-y-3 text-sm text-text-secondary">
           <p>
-            PatchBay is in early development. The engine code exists and passes tests,
-            but has not been validated against a real production repository.
+            PatchBay is in early development. The proof loop (detect, map, patch, verify) runs locally and is verified
+            on a real stripe-node migration. It has not run against a customer repository,
+            and watching plus PR delivery are not built yet.
           </p>
           <p>
             Patchline and MendAPI are live products with real users. If you need API change
@@ -139,3 +140,4 @@ export default function CompetitorsPage() {
     </div>
   );
 }
+

@@ -2,7 +2,11 @@ export default function ConceptsPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
       <p className="text-sm text-text-tertiary mb-2"><a href="/docs" className="text-accent hover:underline">Docs</a> / Core Concepts</p>
-      <h1 className="text-3xl font-bold mb-8">Core Concepts</h1>
+      <h1 className="text-3xl font-bold mb-4">Core Concepts</h1>
+      <p className="text-sm text-text-tertiary mb-8">
+        These pages describe how the system is designed to work. Impact analysis and proof
+        artifacts run locally today; watching and pull-request delivery are in development.
+      </p>
 
       <div className="space-y-8">
         <section>
@@ -54,3 +58,4 @@ export default function ConceptsPage() {
     </div>
   );
 }
+

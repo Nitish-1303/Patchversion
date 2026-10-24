@@ -82,3 +82,4 @@ function OnboardingStep({ step, title, description, status }: {
     </div>
   );
 }
+

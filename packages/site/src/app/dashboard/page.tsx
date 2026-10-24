@@ -73,7 +73,7 @@ export default function DashboardPage() {
 
               <div className="flex items-center justify-between">
                 <div className="text-xs text-text-tertiary">
-                  Coverage: 2 of 2 call sites verified | Sandbox: isolated
+                  Coverage: 2 of 2 call sites verified | Verification: local test run
                 </div>
                 <div className="flex gap-2">
                   <button className="btn-secondary text-xs" disabled title="Demo mode - no real PR">View Full Diff</button>
@@ -164,3 +164,4 @@ function ActivityItem({ text, time }: { text: string; time: string }) {
     </div>
   );
 }
+

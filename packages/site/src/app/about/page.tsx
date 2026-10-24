@@ -10,8 +10,10 @@ export default function AboutPage() {
         <p>
           When a third-party API ships a breaking change, most engineering teams discover
           it through a production error, a customer complaint, or hours of manual
-          investigation. PatchBay detects the change, maps the affected code,
-          generates a tested fix, and presents it as a reviewable pull request.
+          investigation. PatchBay is built to detect the change, map the affected code,
+          generate a tested fix, and present it as a reviewable pull request. Today the
+          detect-map-fix-prove loop runs locally; watching and pull-request delivery are
+          in development.
         </p>
         <p>
           The product is in early development. No customers, no revenue, no external
@@ -22,3 +24,4 @@ export default function AboutPage() {
     </div>
   );
 }
+

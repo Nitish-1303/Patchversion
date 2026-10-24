@@ -5,7 +5,7 @@ export default function HowItWorksPage() {
         <h1 className="text-4xl font-bold mb-4">How It Works</h1>
         <p className="text-lg text-text-secondary">
           The complete pipeline from API change to reviewed pull request.
-          Each stage is automated, with human review before any merge.
+          Each stage is labeled with its real status: what runs today, and what is still being built.
         </p>
       </div>
 
@@ -13,7 +13,8 @@ export default function HowItWorksPage() {
         <Stage
           number={1}
           title="Connect"
-          description="Authorize a repository and configure which APIs to monitor. PatchBay uses a GitHub App with least-privilege permissions: read access to your code, write access limited to creating branches and pull requests."
+          status="planned"
+          description="Authorize a repository and configure which APIs to monitor. The plan is a GitHub App with least-privilege permissions: read access to your code, write access limited to creating branches and pull requests. The app is not yet registered."
           details={[
             'Install the GitHub App on selected repositories',
             'Choose which npm packages or API endpoints to track',
@@ -23,17 +24,19 @@ export default function HowItWorksPage() {
         <Stage
           number={2}
           title="Monitor"
-          description="PatchBay polls the npm registry for new versions of tracked packages, parses changelogs, and optionally probes live API endpoints to detect behavioral drift before release notes exist."
+          status="development"
+          description="PatchBay is being built to poll the npm registry for new versions of tracked packages and parse changelogs. Today, detection runs on recorded changes fed to the local engine - the same change records the watcher will produce. Live contract probes are planned, not built."
           details={[
             'Registry polling on a configurable schedule',
             'Changelog parsing with normalized change records',
-            'Live contract probes compare response schemas against stored baselines',
+            'Live contract probes (planned) would compare response schemas against stored baselines',
           ]}
         />
         <Stage
           number={3}
           title="Detect"
-          description="Each new version or drift event is classified: breaking, additive, or informational. Classification uses semver analysis plus release note keyword detection with a confidence score."
+          status="local"
+          description="Each change is classified: breaking, additive, or informational. Classification uses semver analysis plus release note keyword detection with a confidence score. This logic runs in the local engine today."
           details={[
             'Semver major/minor/patch analysis',
             'Release note pattern matching (breaking, removed, renamed, deprecated)',
@@ -43,7 +46,8 @@ export default function HowItWorksPage() {
         <Stage
           number={4}
           title="Analyze"
-          description="For confirmed breaking changes, PatchBay scans your repository using AST analysis to find every import, require, and call expression that touches the changed package."
+          status="proven"
+          description="For confirmed breaking changes, PatchBay scans the repository using AST analysis to find every import, require, and call expression that touches the changed package. Verified locally on a real payments repository."
           details={[
             'ts-morph AST parsing (not regex or text search)',
             'Handles named imports, default imports, namespace imports, and require()',
@@ -53,28 +57,31 @@ export default function HowItWorksPage() {
         <Stage
           number={5}
           title="Remediate"
-          description="PatchBay generates a minimal patch. For known migration patterns (field renames), it applies a deterministic transformation. For complex cases, it uses LLM-assisted generation with the failing code and test output as context."
+          status="proven"
+          description="PatchBay generates a minimal patch. For known migration patterns (field removals, renames) it applies a deterministic transformation - verified locally on a real stripe-node migration. LLM-assisted generation for novel breaking changes is planned, not built."
           details={[
             'Deterministic fixes for known patterns (fast, reliable)',
-            'LLM-assisted generation for novel breaking changes',
+            'LLM-assisted generation for novel breaking changes (planned)',
             'Minimal diffs only - no unnecessary refactoring',
           ]}
         />
         <Stage
           number={6}
           title="Verify"
-          description="The fix runs in an isolated sandbox against your repo&apos;s own test suite. The sandbox runs your tests against the old version (baseline), the new version (expect failures), and the new version with the fix (expect green). Only a verified green produces a PR."
+          status="proven"
+          description="The fix runs against the repo&apos;s own test suite in a local child process: tests on the old version (baseline), the new version (expect failures), and the new version with the fix (expect green). Verified locally: 3 failing tests turned into 47/47 passing on a real Stripe migration. A hardened isolated environment for running other people&apos;s code is designed but not yet qualified - it failed an internal security review, so customer repositories stay blocked until it passes."
           details={[
-            'Docker container with --network none (no external access)',
-            'Local child-process fallback when Docker is unavailable',
-            'Red-to-green proof artifact included in every PR',
-            'If the fix fails, no PR is created - an honest issue is opened instead',
+            'Local child-process execution (runs today)',
+            'Hardened isolation (network-disabled container, resource limits) - in qualification, not passed',
+            'Red-to-green proof artifact produced by every run',
+            'If the fix fails, no proposal - the break is reported instead',
           ]}
         />
         <Stage
           number={7}
           title="Review"
-          description="A pull request is created with the fix diff, the proof artifact, a coverage-honesty block, and the change classification. Your team reviews and merges. Nothing merges automatically."
+          status="planned"
+          description="The design: a pull request with the fix diff, the proof artifact, a coverage-honesty block, and the change classification. Your team reviews and merges; nothing merges automatically. PR delivery is not built yet - the evidence format is already produced by the local proof loop."
           details={[
             'PR includes what changed upstream, affected call sites, and fix diff',
             'Proof table: baseline / before-fix / after-fix test results',
@@ -89,6 +96,13 @@ export default function HowItWorksPage() {
         <h2 className="text-2xl font-bold mb-6">Current limitations</h2>
         <div className="grid md:grid-cols-2 gap-6">
           <div className="card">
+            <h3 className="font-semibold mb-2">Not a hosted product yet</h3>
+            <p className="text-sm text-text-secondary">
+              The proof loop runs locally. There is no deployed service, no GitHub App,
+              no live repository watching, and no automated pull requests yet.
+            </p>
+          </div>
+          <div className="card">
             <h3 className="font-semibold mb-2">Ecosystem coverage</h3>
             <p className="text-sm text-text-secondary">
               JavaScript/TypeScript (npm) only. Python, Go, Ruby, and other ecosystems
@@ -98,22 +112,15 @@ export default function HowItWorksPage() {
           <div className="card">
             <h3 className="font-semibold mb-2">Test dependency</h3>
             <p className="text-sm text-text-secondary">
-              The sandbox requires a working test suite in your repository. Repositories
-              without tests get impact analysis and fix proposals, but no automated verification.
+              Verification requires a working test suite in the repository. Repositories
+              without tests can get impact analysis and fix proposals, but no automated proof.
             </p>
           </div>
           <div className="card">
             <h3 className="font-semibold mb-2">Fix coverage</h3>
             <p className="text-sm text-text-secondary">
-              Deterministic fixes cover known patterns (renames, signature changes). Novel
-              breaking changes require LLM generation, which may not always produce a working fix.
-            </p>
-          </div>
-          <div className="card">
-            <h3 className="font-semibold mb-2">Live probe coverage</h3>
-            <p className="text-sm text-text-secondary">
-              Contract probes require publicly accessible API endpoints. Authenticated or
-              internal APIs need manual baseline configuration.
+              Deterministic fixes cover known patterns (removals, renames, signature changes). Novel
+              breaking changes need LLM-assisted generation, which is planned and unproven.
             </p>
           </div>
         </div>
@@ -122,12 +129,21 @@ export default function HowItWorksPage() {
   );
 }
 
-function Stage({ number, title, description, details }: {
+const STATUS_LABEL: Record<string, { text: string; className: string }> = {
+  proven: { text: 'Proven locally', className: 'badge-success' },
+  local: { text: 'Runs locally', className: 'badge-success' },
+  development: { text: 'In development', className: 'badge bg-accent-light text-text-secondary' },
+  planned: { text: 'Planned', className: 'badge bg-accent-light text-text-secondary' },
+};
+
+function Stage({ number, title, description, details, status }: {
   number: number;
   title: string;
   description: string;
   details: string[];
+  status: 'proven' | 'local' | 'development' | 'planned';
 }) {
+  const s = STATUS_LABEL[status];
   return (
     <section className="grid md:grid-cols-12 gap-8">
       <div className="md:col-span-4">
@@ -136,6 +152,7 @@ function Stage({ number, title, description, details }: {
             {number}
           </span>
           <h2 className="text-2xl font-bold">{title}</h2>
+          <span className={s.className}>{s.text}</span>
         </div>
         <p className="text-text-secondary">{description}</p>
       </div>

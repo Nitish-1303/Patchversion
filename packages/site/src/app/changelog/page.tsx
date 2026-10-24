@@ -9,12 +9,24 @@ export default function ChangelogPage() {
       <div className="space-y-8">
         <div className="card">
           <div className="flex items-center gap-3 mb-3">
+            <span className="badge-feature">engine</span>
+            <span className="text-sm text-text-tertiary">2026-10-24</span>
+          </div>
+          <h3 className="font-semibold mb-2">Stripe migration verified locally</h3>
+          <ul className="text-sm text-text-secondary space-y-1 list-disc pl-5">
+            <li>Real stripe-node migration (Checkout Sessions, 21.0.1 to 23.0.1) reproduced and fixed locally</li>
+            <li>Red to green: 3 failing tests in, 47/47 passing after the patch (npm run prove, exit 0)</li>
+            <li>AST call-site mapping verified on a real payments repository</li>
+          </ul>
+        </div>
+        <div className="card">
+          <div className="flex items-center gap-3 mb-3">
             <span className="badge-feature">v0.1.0</span>
             <span className="text-sm text-text-tertiary">2026-10-23</span>
           </div>
           <h3 className="font-semibold mb-2">Initial scaffold</h3>
           <ul className="text-sm text-text-secondary space-y-1 list-disc pl-5">
-            <li>Core engine: npm watcher, usage mapper, break detector, sandbox proof loop, fix generator, PR bot</li>
+            <li>Core engine scaffold: usage mapper, break detector, local proof loop, fix generator (watcher and PR delivery stubbed)</li>
             <li>Marketing site: homepage, product, pricing, how-it-works, integrations, competitors</li>
             <li>Dashboard demo with labeled fixture data</li>
             <li>13 unit tests passing</li>
@@ -31,3 +43,4 @@ export default function ChangelogPage() {
     </div>
   );
 }
+

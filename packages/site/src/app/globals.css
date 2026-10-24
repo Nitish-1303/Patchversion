@@ -3,6 +3,19 @@
 @tailwind utilities;
 
 @layer base {
+  /* Lenis smooth scroll (see components/SmoothScroll). No CSS scroll-behavior - it conflicts. */
+  html.lenis, html.lenis body {
+    height: auto;
+  }
+  .lenis.lenis-smooth {
+    scroll-behavior: auto !important;
+  }
+  .lenis.lenis-smooth [data-lenis-prevent] {
+    overscroll-behavior: contain;
+  }
+  .lenis.lenis-stopped {
+    overflow: hidden;
+  }
   body {
     @apply bg-background text-ink font-body antialiased;
   }
@@ -11,6 +24,10 @@
   }
   code, pre {
     @apply font-mono;
+  }
+  ::selection {
+    background: #cdd0e5;
+    color: #111534;
   }
 }
 
@@ -21,14 +38,28 @@
   .rule-t {
     @apply border-t border-rule;
   }
+  /* Pill CTA language */
+  .pill-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-navy text-white px-7 py-3.5 text-[15px] font-medium leading-none transition-all duration-200 hover:bg-navy-deep hover:shadow-card;
+  }
+  .pill-light {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-white text-navy px-7 py-3.5 text-[15px] font-medium leading-none transition-all duration-200 hover:bg-pale;
+  }
+  .pill-outline {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-white/40 text-white px-7 py-3.5 text-[15px] font-medium leading-none backdrop-blur-sm transition-all duration-200 hover:bg-white/10;
+  }
+  .pill-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-rule-strong text-navy px-7 py-3.5 text-[15px] font-medium leading-none transition-all duration-200 hover:border-navy hover:bg-accent-light;
+  }
+  /* Legacy aliases used by subpages */
   .btn-primary {
-    @apply inline-flex items-center justify-center bg-accent text-white px-5 py-2.5 text-sm font-medium rounded-md hover:bg-accent/90 transition-colors;
+    @apply pill-primary px-5 py-2.5 text-sm;
   }
   .btn-secondary {
-    @apply inline-flex items-center justify-center border border-rule-strong text-ink px-5 py-2.5 text-sm font-medium rounded-md hover:bg-accent-light hover:border-accent transition-colors;
+    @apply pill-secondary px-5 py-2.5 text-sm;
   }
   .card {
-    @apply bg-surface border border-rule rounded-lg p-6;
+    @apply bg-surface border border-rule rounded-2xl p-6;
   }
   .badge {
     @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
@@ -37,12 +68,41 @@
     @apply badge bg-error-bg text-error;
   }
   .badge-feature {
-    @apply badge bg-accent-light text-accent;
+    @apply badge bg-accent-light text-navy;
   }
   .badge-success {
     @apply badge bg-success-bg text-success;
   }
   .code-block {
-    @apply bg-code-bg text-code-text rounded-lg p-4 overflow-x-auto text-sm font-mono;
+    @apply bg-code-bg text-code-text rounded-2xl p-4 overflow-x-auto text-sm font-mono;
+  }
+  /* Frosted glass over imagery */
+  .glass {
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  .eyebrow {
+    @apply text-[13px] font-semibold uppercase tracking-[0.18em] text-navy/60;
+  }
+}
+
+@layer utilities {
+  .gutter {
+    @apply px-6 sm:px-10 lg:px-[60px];
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .will-change-transform {
+    transition: none !important;
   }
 }

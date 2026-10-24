@@ -1,22 +1,17 @@
+import ContactForm from '../components/ContactForm';
+
 export default function ContactPage() {
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-      <h1 className="text-3xl font-bold mb-8">Contact</h1>
-      <div className="space-y-6 text-text-secondary">
-        <p>
-          PatchBay is in early development by a solo founder.
-        </p>
-        <p>
-          For questions, feedback, or design-partner inquiries, open an issue on the
-          GitHub repository.
-        </p>
-        <a
-          href="https://github.com/Nitish-1303/Patchversion/issues"
-          className="btn-secondary inline-block"
-        >
-          Open an Issue on GitHub
-        </a>
-      </div>
+    <div className="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8 py-20 sm:py-28">
+      <p className="eyebrow mb-4">CONTACT</p>
+      <h1 className="font-display text-4xl sm:text-5xl font-bold tracking-tight text-ink mb-6">
+        Talk to the founder.
+      </h1>
+      <p className="text-lg text-text-secondary mb-12">
+        PatchBay is in early development by a solo founder. Questions, feedback,
+        or design-partner inquiries all land in the same inbox - and get a real reply.
+      </p>
+      <ContactForm />
     </div>
   );
 }

@@ -4,29 +4,41 @@ export default function PricingPage() {
       <div className="text-center mb-16">
         <h1 className="text-4xl font-bold mb-4">Pricing</h1>
         <p className="text-lg text-text-secondary max-w-xl mx-auto">
-          Paid plans for developers and engineering teams.
+          Planned paid plans for developers and engineering teams.
         </p>
         <p className="text-sm text-text-tertiary mt-2">Proposed plans - product and billing are not yet available.</p>
+        <p className="text-sm text-text-secondary mt-4 max-w-2xl mx-auto">
+          Every feature below is labeled honestly: <span className="badge-success">Runs today</span> means
+          verified in local runs on real code. <span className="badge bg-accent-light text-text-secondary">Planned</span> means
+          designed but not built yet.
+        </p>
       </div>
 
       <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
         {/* Pro */}
         <div className="card flex flex-col border-accent relative">
           <h3 className="text-lg font-semibold mb-1">Pro</h3>
-          <p className="text-sm text-text-secondary mb-6">For developers maintaining multiple integrations.</p>
+          <p className="text-sm text-text-secondary mb-6">For developers maintaining API integrations.</p>
           <div className="mb-6">
             <span className="text-4xl font-bold">$29</span>
             <span className="text-text-secondary">/month</span>
           </div>
-          <ul className="space-y-3 text-sm text-text-secondary flex-1">
-            <PricingFeature>10 repositories</PricingFeature>
-            <PricingFeature>20 monitored API services</PricingFeature>
-            <PricingFeature>15-minute change detection</PricingFeature>
-            <PricingFeature>Unlimited remediation runs</PricingFeature>
-            <PricingFeature>PR automation with proof</PricingFeature>
-            <PricingFeature>Priority support</PricingFeature>
+          <p className="text-xs font-semibold uppercase tracking-wider text-text-tertiary mb-3">Verified in local runs</p>
+          <ul className="space-y-3 text-sm text-text-secondary">
+            <PricingFeature>Break reproduction against a repo&apos;s own test suite</PricingFeature>
+            <PricingFeature>AST call-site mapping for TypeScript/JavaScript</PricingFeature>
+            <PricingFeature>Minimal deterministic patches for known migration patterns</PricingFeature>
+            <PricingFeature>Evidence artifacts: diff + before/after test output</PricingFeature>
           </ul>
-          <a href="/signup" className="btn-primary mt-8 text-center">Choose Pro</a>
+          <p className="text-xs font-semibold uppercase tracking-wider text-text-tertiary mt-6 mb-3">Planned for launch</p>
+          <ul className="space-y-3 text-sm text-text-tertiary flex-1">
+            <PricingFeature planned>Up to 10 repositories</PricingFeature>
+            <PricingFeature planned>Up to 20 watched API services</PricingFeature>
+            <PricingFeature planned>Scheduled change detection</PricingFeature>
+            <PricingFeature planned>Pull requests delivered with proof attached</PricingFeature>
+            <PricingFeature planned>Priority support</PricingFeature>
+          </ul>
+          <span className="btn-primary mt-8 text-center opacity-50 cursor-not-allowed" aria-disabled="true">Not yet available</span>
         </div>
 
         {/* Team */}
@@ -37,17 +49,20 @@ export default function PricingPage() {
             <span className="text-4xl font-bold">$99</span>
             <span className="text-text-secondary">/month</span>
           </div>
-          <ul className="space-y-3 text-sm text-text-secondary flex-1">
-            <PricingFeature>Unlimited repositories</PricingFeature>
-            <PricingFeature>Unlimited API services</PricingFeature>
-            <PricingFeature>Real-time change detection</PricingFeature>
-            <PricingFeature>Unlimited remediation runs</PricingFeature>
-            <PricingFeature>Team workspace + roles</PricingFeature>
-            <PricingFeature>Audit history (90 days)</PricingFeature>
-            <PricingFeature>Slack notifications</PricingFeature>
-            <PricingFeature>Dedicated support</PricingFeature>
+          <p className="text-xs font-semibold uppercase tracking-wider text-text-tertiary mb-3">Verified in local runs</p>
+          <ul className="space-y-3 text-sm text-text-secondary">
+            <PricingFeature>Everything verified for Pro</PricingFeature>
           </ul>
-          <a href="/signup" className="btn-secondary mt-8 text-center">Contact Sales</a>
+          <p className="text-xs font-semibold uppercase tracking-wider text-text-tertiary mt-6 mb-3">Planned for launch</p>
+          <ul className="space-y-3 text-sm text-text-tertiary flex-1">
+            <PricingFeature planned>Everything in Pro</PricingFeature>
+            <PricingFeature planned>Unlimited repositories and watched services</PricingFeature>
+            <PricingFeature planned>Team workspace and roles</PricingFeature>
+            <PricingFeature planned>Audit history</PricingFeature>
+            <PricingFeature planned>Slack notifications</PricingFeature>
+            <PricingFeature planned>Dedicated support</PricingFeature>
+          </ul>
+          <span className="btn-secondary mt-8 text-center opacity-50 cursor-not-allowed" aria-disabled="true">Not yet available</span>
         </div>
       </div>
 
@@ -57,27 +72,27 @@ export default function PricingPage() {
         <div className="space-y-6">
           <FaqItem
             q="Which API providers are supported?"
-            a="PatchBay monitors npm packages and public API changelogs. The first supported ecosystem is JavaScript/TypeScript packages on npm. Additional providers and spec-based monitoring are in development."
+            a="Today the proof loop runs locally against npm package upgrades - it is verified on a real stripe-node migration (Checkout Sessions, 21.0.1 to 23.0.1). Live registry and changelog watching, plus OpenAPI spec monitoring, are in development."
           />
           <FaqItem
             q="Does PatchBay modify my code automatically?"
-            a="No. PatchBay generates a proposed fix and prepares a pull request. Your team reviews and approves before anything merges. No automatic merging."
+            a="No. The design is: PatchBay prepares a proposed fix as a pull request with evidence attached, and your team reviews and merges. Nothing merges automatically. Pull-request delivery itself is in development."
           />
           <FaqItem
             q="Can I review every proposed patch?"
-            a="Yes. Every PR includes the full diff, the test results from our sandbox verification, and a coverage-honesty block showing exactly what was and was not verified."
+            a="Yes - that is the point. The proof loop already produces the full diff and the before/after test output in local runs. Packaging that evidence into a pull request is in development."
           />
           <FaqItem
             q="How are repository permissions handled?"
-            a="PatchBay uses a GitHub App with least-privilege permissions: read access to code and metadata, write access limited to creating branches and pull requests. No access to secrets or deployments."
+            a="The plan is a GitHub App with least-privilege permissions: read access to code and metadata, write access limited to branches and pull requests. The app is not yet registered."
           />
           <FaqItem
             q="What happens when a fix fails its tests?"
-            a="The PR is not created. Instead, PatchBay opens an issue describing the break, the affected code, and what it could not fix. No silent failures."
+            a="No pull request. In the local proof loop, a patch that cannot turn the repo's own test suite green is rejected. The designed behavior for launch is an issue describing the break and what could not be fixed."
           />
           <FaqItem
             q="Can I use my own API specifications?"
-            a="Yes. You can register OpenAPI specifications, GraphQL schemas, or changelog URLs as monitoring sources alongside npm registry watching."
+            a="Not yet. Registering OpenAPI specifications as monitoring sources is planned. Detection is currently proven for npm package upgrades."
           />
         </div>
       </div>
@@ -85,12 +100,16 @@ export default function PricingPage() {
   );
 }
 
-function PricingFeature({ children }: { children: React.ReactNode }) {
+function PricingFeature({ children, planned }: { children: React.ReactNode; planned?: boolean }) {
   return (
-    <li className="flex gap-2">
-      <svg className="w-4 h-4 text-success flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-      </svg>
+    <li className="flex gap-2 items-start">
+      {planned ? (
+        <span className="badge bg-accent-light text-text-tertiary flex-shrink-0 mt-0.5">Planned</span>
+      ) : (
+        <svg className="w-4 h-4 text-success flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+        </svg>
+      )}
       {children}
     </li>
   );

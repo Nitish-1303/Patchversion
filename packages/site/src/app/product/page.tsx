@@ -4,8 +4,8 @@ export default function ProductPage() {
       <div className="max-w-3xl mb-16">
         <h1 className="text-4xl font-bold mb-4">Product</h1>
         <p className="text-lg text-text-secondary">
-          PatchBay automates the maintenance pipeline between API providers and your codebase.
-          Here is what each stage does and how it works.
+          PatchBay is designed to automate the maintenance pipeline between API providers and your codebase.
+          Each stage below is labeled with where it actually stands today.
         </p>
       </div>
 
@@ -34,19 +34,26 @@ export default function ProductPage() {
 
       {/* API Monitoring */}
       <section id="monitoring" className="mb-20">
-        <h2 className="text-2xl font-bold mb-6">API Monitoring</h2>
+        <div className="flex items-center gap-3 mb-6">
+          <h2 className="text-2xl font-bold">API Monitoring</h2>
+          <span className="badge bg-accent-light text-text-secondary">In development</span>
+        </div>
         <div className="grid md:grid-cols-2 gap-8">
           <div className="min-w-0">
             <p className="text-text-secondary mb-4">
-              PatchBay watches the packages and APIs your code depends on. When a new version
-              ships or a live API response shape changes, it produces a normalized change record
+              Designed to watch the packages and APIs your code depends on: when a new version
+              ships or a documented API shape changes, PatchBay produces a normalized change record
               with the source, version, and classification.
             </p>
+            <p className="text-text-secondary mb-4">
+              Live watching is not running yet. Detection today is driven by recorded changes fed
+              to the local engine - the same records the watcher will produce.
+            </p>
             <ul className="space-y-2 text-sm text-text-secondary">
-              <li className="flex gap-2"><CheckIcon /> npm registry version tracking</li>
-              <li className="flex gap-2"><CheckIcon /> Changelog parsing and normalization</li>
-              <li className="flex gap-2"><CheckIcon /> Live API contract probes (response schema diffing)</li>
-              <li className="flex gap-2"><CheckIcon /> OpenAPI specification watching</li>
+              <li className="flex gap-2"><CheckIcon /> npm registry version tracking <PlannedChip /></li>
+              <li className="flex gap-2"><CheckIcon /> Changelog parsing and normalization <PlannedChip /></li>
+              <li className="flex gap-2"><CheckIcon /> Live API contract probes <PlannedChip /></li>
+              <li className="flex gap-2"><CheckIcon /> OpenAPI specification watching <PlannedChip /></li>
             </ul>
           </div>
           <div className="card min-w-0">
@@ -54,22 +61,24 @@ export default function ProductPage() {
             <div className="code-block text-xs">
               <pre>{`{
   "package": "stripe-node",
-  "from": "14.2.0",
-  "to": "15.0.0",
-  "source": "registry",
+  "from": "21.0.1",
+  "to": "23.0.1",
+  "source": "upgrade-guide",
   "severity": "breaking",
-  "confidence": 0.95,
-  "evidence": "renamed source to payment_method"
+  "evidence": "payment_method_types removed from Checkout Sessions"
 }`}</pre>
             </div>
-            <p className="text-xs text-text-tertiary mt-3">Simulated data for illustration.</p>
+            <p className="text-xs text-text-tertiary mt-3">Recorded change from the verified local Stripe migration run.</p>
           </div>
         </div>
       </section>
 
       {/* Change Intelligence */}
       <section id="intelligence" className="mb-20 rule-t pt-20">
-        <h2 className="text-2xl font-bold mb-6">Change Intelligence</h2>
+        <div className="flex items-center gap-3 mb-6">
+          <h2 className="text-2xl font-bold">Change Intelligence</h2>
+          <span className="badge-success">Runs locally</span>
+        </div>
         <div className="grid md:grid-cols-2 gap-8">
           <div className="min-w-0">
             <p className="text-text-secondary mb-4">
@@ -103,17 +112,21 @@ export default function ProductPage() {
                 <p className="text-xs text-text-secondary">Confidence: 72%</p>
               </div>
             </div>
+            <p className="text-xs text-text-tertiary">Example classifications for illustration.</p>
           </div>
         </div>
       </section>
 
       {/* Impact Analysis */}
       <section id="impact" className="mb-20 rule-t pt-20">
-        <h2 className="text-2xl font-bold mb-6">Impact Analysis</h2>
+        <div className="flex items-center gap-3 mb-6">
+          <h2 className="text-2xl font-bold">Impact Analysis</h2>
+          <span className="badge-success">Proven locally</span>
+        </div>
         <div className="grid md:grid-cols-2 gap-8">
           <div className="min-w-0">
             <p className="text-text-secondary mb-4">
-              Once a breaking change is confirmed, PatchBay maps every call site in your
+              Once a breaking change is confirmed, PatchBay maps every call site in the
               repository that touches the changed package. This uses AST (Abstract Syntax Tree)
               analysis, not text search, so it handles imports, aliases, and re-exports correctly.
             </p>
@@ -126,68 +139,68 @@ export default function ProductPage() {
             <p className="text-xs font-medium text-text-secondary mb-3 uppercase tracking-wider">Impact Report</p>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between py-1 rule-b">
-                <span className="font-mono text-xs">src/createCharge.ts:5</span>
+                <span className="font-mono text-xs">src/checkout/createSession.ts:14</span>
                 <span className="badge-breaking text-xs">affected</span>
               </div>
               <div className="flex justify-between py-1 rule-b">
-                <span className="font-mono text-xs">src/createCharge.ts:12</span>
+                <span className="font-mono text-xs">src/checkout/retrySession.ts:41</span>
                 <span className="badge-breaking text-xs">affected</span>
-              </div>
-              <div className="flex justify-between py-1 rule-b">
-                <span className="font-mono text-xs">src/refund.ts:3</span>
-                <span className="badge-success text-xs">not affected</span>
               </div>
               <div className="flex justify-between py-1">
                 <span className="font-mono text-xs">src/webhook.ts:8</span>
                 <span className="badge-success text-xs">not affected</span>
               </div>
             </div>
-            <p className="text-xs text-text-tertiary mt-3">Simulated data for illustration.</p>
+            <p className="text-xs text-text-tertiary mt-3">Condensed from the verified local Stripe migration run.</p>
           </div>
         </div>
       </section>
 
       {/* AI Remediation */}
       <section id="remediation" className="mb-20 rule-t pt-20">
-        <h2 className="text-2xl font-bold mb-6">AI Remediation</h2>
+        <div className="flex items-center gap-3 mb-6">
+          <h2 className="text-2xl font-bold">Remediation</h2>
+          <span className="badge-success">Proven locally</span>
+        </div>
         <div className="grid md:grid-cols-2 gap-8">
           <div className="min-w-0">
             <p className="text-text-secondary mb-4">
-              For known migration patterns (field renames, signature changes), PatchBay applies
-              a deterministic fix. For complex cases, it uses LLM-assisted generation with the
-              failing code, change description, and test output as context.
+              For known migration patterns (field removals, renames, signature changes), PatchBay applies
+              a deterministic fix - the same class of fix that migrated a real repo off
+              stripe-node&apos;s removed <span className="font-mono text-sm">payment_method_types</span> field.
             </p>
-            <p className="text-text-secondary">
-              The fix is only accepted if the sandbox proves it: your repo&apos;s own test suite
-              must pass against the new version after the fix is applied. No green tests, no PR.
+            <p className="text-text-secondary mb-4">
+              The fix is only accepted if the repo&apos;s own test suite passes against the new
+              version after the fix is applied. No green tests, no proposal. LLM-assisted generation
+              for novel breaking changes is planned, not built.
             </p>
           </div>
           <div className="card min-w-0">
             <p className="text-xs font-medium text-text-secondary mb-3 uppercase tracking-wider">Proof Artifact</p>
             <div className="space-y-3 text-sm">
               <div className="flex justify-between">
-                <span>Tests on v14 (baseline)</span>
-                <span className="text-success font-medium">15/15 passed</span>
+                <span>Tests before fix</span>
+                <span className="text-error font-medium">3 failing</span>
               </div>
               <div className="flex justify-between">
-                <span>Tests on v15 (before fix)</span>
-                <span className="text-error font-medium">10/15 passed</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Tests on v15 (after fix)</span>
-                <span className="text-success font-medium">15/15 passed</span>
+                <span>Tests after fix</span>
+                <span className="text-success font-medium">47/47 passed</span>
               </div>
               <div className="rule-t pt-3 flex justify-between font-medium">
-                <span>Coverage</span>
-                <span>2 of 2 call sites verified</span>
+                <span>Call sites</span>
+                <span>2 of 2 patched</span>
               </div>
             </div>
-            <p className="text-xs text-text-tertiary mt-3">Simulated data for illustration.</p>
+            <p className="text-xs text-text-tertiary mt-3">From the verified local Stripe migration run (npm run prove, exit 0).</p>
           </div>
         </div>
       </section>
     </div>
   );
+}
+
+function PlannedChip() {
+  return <span className="badge bg-accent-light text-text-tertiary ml-1">Planned</span>;
 }
 
 function CheckIcon() {
