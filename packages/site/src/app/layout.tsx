@@ -3,6 +3,7 @@ import { Manrope, Inter } from 'next/font/google';
 import './globals.css';
 import Chrome from './Chrome';
 import SmoothScroll from './components/SmoothScroll';
+import { Analytics } from '@vercel/analytics/next';
 
 const manrope = Manrope({
   subsets: ['latin'],
@@ -33,6 +34,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SmoothScroll>
           <Chrome>{children}</Chrome>
         </SmoothScroll>
+        <Analytics />
       </body>
     </html>
   );
