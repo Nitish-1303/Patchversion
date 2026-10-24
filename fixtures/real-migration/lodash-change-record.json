@@ -1,0 +1,18 @@
+{
+  "id": "npm-lodash-3.10.1-4.17.21",
+  "packageName": "lodash",
+  "ecosystem": "npm",
+  "fromVersion": "3.10.1",
+  "toVersion": "4.17.21",
+  "detectedAt": "2026-10-24T00:00:00.000Z",
+  "source": "changelog",
+  "sourceUrl": "https://github.com/lodash/lodash/releases/tag/4.0.0",
+  "rawNotes": "BREAKING CHANGE: Renamed `_.contains` to `_.includes`. (lodash v4.0.0 changelog; the rename and removal are also verified by executing both real package versions.)",
+  "classification": {
+    "isBreaking": true,
+    "confidence": 0.9,
+    "affectedExports": ["contains"],
+    "reason": "major version bump 3.10.1 -> 4.17.21; documented rename in the v4.0.0 changelog"
+  },
+  "severity": "breaking"
+}

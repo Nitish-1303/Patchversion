@@ -3,8 +3,26 @@ import path from 'path';
 export interface EngineConfig {
   /** Root directory for state persistence */
   stateDir: string;
-  /** Sandbox mode: docker-isolated or local child process fallback */
+  /**
+   * Sandbox mode. 'docker' is BLOCKED everywhere: container isolation has
+   * never been validated, so no config value enables it. 'local' runs repo
+   * code as a plain child process with NO isolation - only trusted
+   * directories (see trustedFixtureDirs) may be executed this way.
+   */
   sandboxMode: 'docker' | 'local';
+  /**
+   * Fail-closed gate, default true: refuse to execute any repository that
+   * is not under trustedFixtureDirs while the sandbox is unisolated.
+   * Customer repositories stay blocked until a verified isolated sandbox
+   * exists. Setting this to false only makes sense for tests of the
+   * runner itself and is not production permission.
+   */
+  requireIsolation: boolean;
+  /**
+   * Absolute paths of the bundled fixture roots that may run unisolated.
+   * Defaults to this repository's fixtures/ directory.
+   */
+  trustedFixtureDirs: string[];
   /** Maximum time (ms) for a sandbox run before timeout */
   sandboxTimeoutMs: number;
   /** Maximum LLM budget per day per install (USD) */
@@ -27,10 +45,25 @@ export interface EngineConfig {
   logLevel: 'debug' | 'info' | 'warn' | 'error';
 }
 
+/** Repository root (works from both src/ and dist/). */
+function repoRoot(): string {
+  return path.resolve(__dirname, '..', '..', '..');
+}
+
 export function loadConfig(overrides?: Partial<EngineConfig>): EngineConfig {
-  return {
+  const sandboxMode = overrides?.sandboxMode ?? 'local';
+  if (sandboxMode === 'docker') {
+    throw new Error(
+      'Docker sandbox mode is UNVERIFIED and blocked: container isolation ' +
+      'has never been validated on any host. Use local mode (trusted fixtures only).',
+    );
+  }
+
+  const config: EngineConfig = {
     stateDir: overrides?.stateDir ?? path.join(process.cwd(), '.patchversion-state'),
-    sandboxMode: overrides?.sandboxMode ?? (isDockerAvailable() ? 'docker' : 'local'),
+    sandboxMode,
+    requireIsolation: overrides?.requireIsolation ?? true,
+    trustedFixtureDirs: overrides?.trustedFixtureDirs ?? [path.join(repoRoot(), 'fixtures')],
     sandboxTimeoutMs: overrides?.sandboxTimeoutMs ?? 120_000,
     dailyLlmBudgetUsd: overrides?.dailyLlmBudgetUsd ?? 5.0,
     githubApp: overrides?.githubApp ?? null,
@@ -39,13 +72,11 @@ export function loadConfig(overrides?: Partial<EngineConfig>): EngineConfig {
     probeIntervalMs: overrides?.probeIntervalMs ?? 14_400_000, // 4 hours
     logLevel: overrides?.logLevel ?? 'info',
   };
-}
 
-function isDockerAvailable(): boolean {
-  try {
-    require('child_process').execSync('docker info', { stdio: 'pipe' });
-    return true;
-  } catch {
-    return false;
-  }
+  // Snapshot the policy fields so later caller mutation of the overrides
+  // object cannot change enforcement mid-run.
+  return Object.freeze({
+    ...config,
+    trustedFixtureDirs: Object.freeze([...config.trustedFixtureDirs]) as unknown as string[],
+  }) as EngineConfig;
 }

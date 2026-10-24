@@ -25,6 +25,14 @@ export class WebhookReceiver {
   }
 
   start(port = 3000): void {
+    // Fail closed: in production a missing secret must stop the receiver,
+    // not silently accept unauthenticated webhooks. Outside production the
+    // receiver may run secret-less for local development, with a warning.
+    if (!this.webhookSecret && process.env.NODE_ENV === 'production') {
+      throw new Error(
+        'Webhook secret is required in production; refusing to start an unauthenticated receiver.',
+      );
+    }
     this.server = http.createServer((req, res) => {
       if (req.method !== 'POST') {
         res.writeHead(405).end('Method not allowed');
@@ -32,11 +40,20 @@ export class WebhookReceiver {
       }
 
       let body = '';
-      req.on('data', chunk => { body += chunk; });
+      let tooLarge = false;
+      req.on('data', chunk => {
+        // Cap payload size - unbounded buffering is a memory-exhaustion risk
+        if (body.length > 1024 * 1024) { tooLarge = true; return; }
+        body += chunk;
+      });
       req.on('end', () => {
+        if (tooLarge) {
+          res.writeHead(413).end('Payload too large');
+          return;
+        }
         // Verify webhook signature if secret is configured
         if (this.webhookSecret) {
-          const signature = req.headers['x-hub-signature-256'] as string;
+          const signature = req.headers['x-hub-signature-256'] as string | undefined;
           if (!this.verifySignature(body, signature)) {
             res.writeHead(401).end('Invalid signature');
             return;
@@ -55,6 +72,9 @@ export class WebhookReceiver {
     });
 
     this.server.listen(port, () => {
+      if (!this.webhookSecret) {
+        console.warn('[webhook] WARNING: no webhook secret configured - signature verification is OFF (development only)');
+      }
       console.log(`Webhook receiver listening on :${port}`);
     });
   }
@@ -63,13 +83,18 @@ export class WebhookReceiver {
     this.server?.close();
   }
 
-  private verifySignature(body: string, signature: string): boolean {
+  private verifySignature(body: string, signature: string | undefined): boolean {
     if (!this.webhookSecret) return true;
+    if (typeof signature !== 'string' || signature.length === 0) return false;
     const expected = 'sha256=' + crypto
       .createHmac('sha256', this.webhookSecret)
       .update(body)
       .digest('hex');
-    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+    const a = Buffer.from(signature);
+    const b = Buffer.from(expected);
+    // timingSafeEqual throws on length mismatch - check first
+    if (a.length !== b.length) return false;
+    return crypto.timingSafeEqual(a, b);
   }
 
   private handleEvent(event: string, payload: Record<string, unknown>): void {

@@ -73,7 +73,7 @@ export default function PricingPage() {
         <div className="space-y-6">
           <FaqItem
             q="Which API providers are supported?"
-            a="Today the proof loop runs locally against npm package upgrades - it is verified on a real stripe-node migration (Checkout Sessions, 21.0.1 to 23.0.1). Live registry and changelog watching, plus OpenAPI spec monitoring, are in development."
+            a="Today the proof loop runs locally against the bundled fixture - verified end to end on a mockpay 1.0.0 to 2.0.0 migration (2 failing to 3/3 passing, runs/latest/proof.json). Live registry and changelog watching, plus OpenAPI spec monitoring, are in development."
           />
           <FaqItem
             q="Does PatchBay modify my code automatically?"

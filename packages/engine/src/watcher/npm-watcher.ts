@@ -80,6 +80,10 @@ export class NpmWatcher {
     if (!versionInfo) return null;
 
     const releaseDate = registry.time[latest] ?? new Date().toISOString();
+    // NOTE: only registry metadata is available here - the npm deprecation
+    // message, not real release notes or changelogs. Classification for
+    // non-deprecated releases rests on semver alone until a changelog
+    // source is implemented.
     const rawNotes = versionInfo.deprecated ?? '';
 
     const classification = classifyChange(
@@ -90,7 +94,9 @@ export class NpmWatcher {
     );
 
     return {
-      id: `npm-${packageName}-${latest}-${Date.now()}`,
+      // Deterministic id: the same transition re-detected after a state
+      // reset overwrites the same record instead of duplicating it.
+      id: `npm-${packageName}-${lastKnownVersion ?? 'unknown'}-${latest}`,
       packageName,
       ecosystem: 'npm',
       fromVersion: lastKnownVersion ?? 'unknown',

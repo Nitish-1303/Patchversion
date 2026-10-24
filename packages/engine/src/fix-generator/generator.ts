@@ -74,24 +74,26 @@ export class FixGenerator {
     return null;
   }
 
-  /** Extract a rename (old -> new) from common release-note phrasings. */
+  /** Extract a rename (old -> new) from common release-note phrasings.
+   *  Names may be dotted ("_.contains"); only the last segment is used,
+   *  since the fix renames the property/parameter, not the module. */
   private extractRename(notes: string): { oldName: string; newName: string } | null {
     // Direct: "renamed X to Y" / "renamed from X to Y" (quoted or bare)
-    const direct = notes.match(/renamed?\s+(?:from\s+)?[`'"]?(\w+)[`'"]?\s+to\s+[`'"]?(\w+)[`'"]?/i);
+    const direct = notes.match(/renamed?\s+(?:from\s+)?[`'"]?([\w.]+)[`'"]?\s+to\s+[`'"]?([\w.]+)[`'"]?/i);
     if (direct && !/^to$/i.test(direct[1])) {
-      return { oldName: direct[1], newName: direct[2] };
+      return { oldName: this.lastSegment(direct[1]), newName: this.lastSegment(direct[2]) };
     }
 
     // Passive: "X has been renamed to Y" / "X was renamed to Y", including
     // "the 'X' parameter ... has been renamed to 'Y'".
-    const passive = notes.match(/(?:has been|was)\s+renamed\s+to\s+[`'"]?(\w+)[`'"]?/i);
+    const passive = notes.match(/(?:has been|was)\s+renamed\s+to\s+[`'"]?([\w.]+)[`'"]?/i);
     if (passive && passive.index !== undefined) {
-      const newName = passive[1];
+      const newName = this.lastSegment(passive[1]);
       // The old name is the closest quoted word before the rename phrase.
       const window = notes.slice(Math.max(0, passive.index - 120), passive.index);
-      const quoted = [...window.matchAll(/[`'"](\w+)[`'"]/g)];
+      const quoted = [...window.matchAll(/[`'"]([\w.]+)[`'"]/g)];
       if (quoted.length > 0) {
-        return { oldName: quoted[quoted.length - 1][1], newName };
+        return { oldName: this.lastSegment(quoted[quoted.length - 1][1]), newName };
       }
       // Fallback: bare word immediately before "has been renamed".
       const bare = window.match(/(\w+)\s*$/);
@@ -101,6 +103,18 @@ export class FixGenerator {
     }
 
     return null;
+  }
+
+  private lastSegment(name: string): string {
+    // Strip surrounding dots first: a trailing sentence period ("... to
+    // payment_method.") is punctuation, not part of the identifier.
+    const trimmed = name.replace(/^\.+|\.+$/g, '');
+    const idx = trimmed.lastIndexOf('.');
+    return idx >= 0 ? trimmed.slice(idx + 1) : trimmed;
+  }
+
+  private escapeRegExp(s: string): string {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
   private generateRenameFix(
@@ -119,12 +133,12 @@ export class FixGenerator {
       byFile.set(site.filePath, existing);
     }
 
-    for (const [filePath] of byFile) {
+    for (const [filePath, fileSites] of byFile) {
       const fullPath = path.join(repoPath, filePath);
       if (!fs.existsSync(fullPath)) continue;
 
       const content = fs.readFileSync(fullPath, 'utf-8');
-      const fixed = this.applyRename(content, oldName, newName);
+      const fixed = this.applyRenameScoped(content, fileSites, oldName, newName);
 
       if (fixed !== content) {
         // Standard unified diff with context, parseable by patch/git apply
@@ -135,26 +149,68 @@ export class FixGenerator {
     return diffs.length > 0 ? diffs.join('') : null;
   }
 
-  private applyRename(content: string, oldName: string, newName: string): string {
-    // Rename object property assignments and accesses
-    // This is intentionally simple - handles the most common patterns
-    let result = content;
+  /**
+   * Minimal-patch rename: replacements are applied ONLY inside the line
+   * spans of the affected call sites, never to the whole file. A `source:`
+   * key in an unrelated object elsewhere in the file stays untouched.
+   */
+  private applyRenameScoped(
+    content: string,
+    sites: CallSite[],
+    oldName: string,
+    newName: string,
+  ): string {
+    const lines = content.split('\n');
+    const spans = sites.map(site => this.callSiteSpan(lines, site.line));
 
-    // Pattern: { oldName: value } -> { newName: value }
+    for (const [start, end] of spans) {
+      for (let i = start; i <= end && i < lines.length; i++) {
+        lines[i] = this.renameInLine(lines[i], oldName, newName);
+      }
+    }
+    return lines.join('\n');
+  }
+
+  /**
+   * Line span of a call expression starting at `line` (1-based): extend
+   * forward until brackets opened on the first line balance out. Falls
+   * back to the single line when no open bracket is found.
+   */
+  private callSiteSpan(lines: string[], line: number): [number, number] {
+    const start = Math.max(0, line - 1);
+    let balance = 0;
+    let sawOpen = false;
+    for (let i = start; i < lines.length; i++) {
+      for (const ch of lines[i]) {
+        if (ch === '(' || ch === '{' || ch === '[') { balance++; sawOpen = true; }
+        else if (ch === ')' || ch === '}' || ch === ']') { balance--; }
+      }
+      if (sawOpen && balance <= 0) return [start, i];
+      if (i - start > 200) break; // safety bound for pathological files
+    }
+    return [start, start];
+  }
+
+  private renameInLine(line: string, oldName: string, newName: string): string {
+    const old = this.escapeRegExp(oldName);
+    let result = line;
+
+    // Pattern: { oldName: value } -> { newName: value } (object key at
+    // line start, after '{' or after ','; whitespace preserved exactly)
     result = result.replace(
-      new RegExp(`(\\{[^}]*?)\\b${oldName}\\s*:`, 'g'),
-      `$1${newName}:`,
+      new RegExp(`(^|[{,])(\\s*)${old}(\\s*:)`, 'g'),
+      (_m, prefix: string, ws: string, colon: string) => `${prefix}${ws}${newName}${colon}`,
     );
 
     // Pattern: .oldName -> .newName (property access)
     result = result.replace(
-      new RegExp(`\\.${oldName}\\b`, 'g'),
+      new RegExp(`\\.${old}\\b`, 'g'),
       `.${newName}`,
     );
 
     // Pattern: ['oldName'] -> ['newName'] (bracket access)
     result = result.replace(
-      new RegExp(`\\[['"]${oldName}['"]\\]`, 'g'),
+      new RegExp(`\\[['"]${old}['"]\\]`, 'g'),
       `['${newName}']`,
     );
 

@@ -12,11 +12,11 @@ export default function ChangelogPage() {
             <span className="badge-feature">engine</span>
             <span className="text-sm text-text-tertiary">2026-10-24</span>
           </div>
-          <h3 className="font-semibold mb-2">Stripe migration verified locally</h3>
+          <h3 className="font-semibold mb-2">Proof loop verified end to end (bundled fixture)</h3>
           <ul className="text-sm text-text-secondary space-y-1 list-disc pl-5">
-            <li>Real stripe-node migration (Checkout Sessions, 21.0.1 to 23.0.1) reproduced and fixed locally</li>
-            <li>Red to green: 3 failing tests in, 47/47 passing after the patch (npm run prove, exit 0)</li>
-            <li>AST call-site mapping verified on a real payments repository</li>
+            <li>mockpay migration (1.0.0 to 2.0.0) reproduced and fixed locally against the bundled fixture</li>
+            <li>Red to green: 2 failing tests in, 3/3 passing after the patch (npm run prove, exit 0)</li>
+            <li>AST call-site mapping verified on the bundled sample repository (fixtures/sample-repo)</li>
           </ul>
         </div>
         <div className="card">
