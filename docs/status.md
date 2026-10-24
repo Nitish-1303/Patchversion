@@ -23,7 +23,7 @@
 - `fixtures`: Sample repo with vendored mockpay 1.0.0 and 2.0.0 (real, installable;
   tests exercise the real client) + breaking change record
 - CI workflow, README, LICENSE
-- 54/54 tests passing in 8 suites (25 pre-existing + 21 Phase 1 + 8 sweep-hardening), build clean, typecheck clean
+- 66/66 tests passing in 10 suites (25 pre-existing + 21 Phase 1 + 8 sweep-hardening + 5 webhook body-limit + 7 webhook raw-signature), build clean, typecheck clean
 
 ### Proven 2026-10-24: REAL npm package migration (local run, `npm run prove:real`)
 - Package: lodash 3.10.1 -> 4.17.21, installed from the public npm registry

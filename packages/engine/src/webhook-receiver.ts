@@ -2,6 +2,9 @@ import http from 'http';
 import crypto from 'crypto';
 import { PatchversionEngine } from './engine';
 
+/** Maximum accepted webhook payload size: 1 MB of raw bytes. */
+const MAX_BODY_BYTES = 1024 * 1024;
+
 /**
  * GitHub App webhook receiver.
  *
@@ -39,22 +42,38 @@ export class WebhookReceiver {
         return;
       }
 
-      let body = '';
+      // Buffer RAW bytes. Per-chunk toString('utf8') would corrupt multibyte
+      // characters split across chunk boundaries (replacement chars), and the
+      // HMAC must be computed over the exact original request bytes.
+      const chunks: Buffer[] = [];
+      let bodyBytes = 0;
       let tooLarge = false;
-      req.on('data', chunk => {
-        // Cap payload size - unbounded buffering is a memory-exhaustion risk
-        if (body.length > 1024 * 1024) { tooLarge = true; return; }
-        body += chunk;
+      req.on('data', (chunk: Buffer) => {
+        // Cap payload size - unbounded buffering is a memory-exhaustion risk.
+        // Once the limit is exceeded, drain the rest of the request without
+        // buffering so it can be rejected with 413 when it ends.
+        if (tooLarge) return;
+        // chunk is a Buffer, so chunk.length is the raw byte count - NOT the
+        // string character count (multibyte UTF-8 counts correctly).
+        bodyBytes += chunk.length;
+        if (bodyBytes > MAX_BODY_BYTES) {
+          tooLarge = true;
+          chunks.length = 0; // release what was buffered
+          return;
+        }
+        chunks.push(chunk);
       });
       req.on('end', () => {
+        // Size is enforced before signature verification or event processing.
         if (tooLarge) {
           res.writeHead(413).end('Payload too large');
           return;
         }
-        // Verify webhook signature if secret is configured
+        const rawBody = Buffer.concat(chunks, bodyBytes);
+        // Verify the signature over the exact original bytes BEFORE decoding.
         if (this.webhookSecret) {
           const signature = req.headers['x-hub-signature-256'] as string | undefined;
-          if (!this.verifySignature(body, signature)) {
+          if (!this.verifySignature(rawBody, signature)) {
             res.writeHead(401).end('Invalid signature');
             return;
           }
@@ -62,7 +81,8 @@ export class WebhookReceiver {
 
         const event = req.headers['x-github-event'] as string;
         try {
-          const payload = JSON.parse(body);
+          // Decode for JSON parsing only after the signature has been verified.
+          const payload = JSON.parse(rawBody.toString('utf8'));
           this.handleEvent(event, payload);
           res.writeHead(200).end('OK');
         } catch (err) {
@@ -83,7 +103,7 @@ export class WebhookReceiver {
     this.server?.close();
   }
 
-  private verifySignature(body: string, signature: string | undefined): boolean {
+  private verifySignature(body: Buffer, signature: string | undefined): boolean {
     if (!this.webhookSecret) return true;
     if (typeof signature !== 'string' || signature.length === 0) return false;
     const expected = 'sha256=' + crypto
