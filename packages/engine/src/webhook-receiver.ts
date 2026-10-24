@@ -2,6 +2,9 @@ import http from 'http';
 import crypto from 'crypto';
 import { PatchversionEngine } from './engine';
 
+/** Maximum accepted webhook payload size: 1 MB of raw bytes. */
+const MAX_BODY_BYTES = 1024 * 1024;
+
 /**
  * GitHub App webhook receiver.
  *
@@ -40,13 +43,25 @@ export class WebhookReceiver {
       }
 
       let body = '';
+      let bodyBytes = 0;
       let tooLarge = false;
-      req.on('data', chunk => {
-        // Cap payload size - unbounded buffering is a memory-exhaustion risk
-        if (body.length > 1024 * 1024) { tooLarge = true; return; }
-        body += chunk;
+      req.on('data', (chunk: Buffer) => {
+        // Cap payload size - unbounded buffering is a memory-exhaustion risk.
+        // Once the limit is exceeded, drain the rest of the request without
+        // buffering so it can be rejected with 413 when it ends.
+        if (tooLarge) return;
+        // chunk is a Buffer, so chunk.length is the raw byte count - NOT the
+        // string character count (multibyte UTF-8 counts correctly).
+        bodyBytes += chunk.length;
+        if (bodyBytes > MAX_BODY_BYTES) {
+          tooLarge = true;
+          body = ''; // release what was buffered
+          return;
+        }
+        body += chunk.toString('utf8');
       });
       req.on('end', () => {
+        // Size is enforced before signature verification or event processing.
         if (tooLarge) {
           res.writeHead(413).end('Payload too large');
           return;
