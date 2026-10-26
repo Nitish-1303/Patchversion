@@ -4,8 +4,8 @@ export default function DashboardPage() {
       {/* Demo banner */}
       <div className="bg-warning-bg border border-warning/20 rounded-lg px-4 py-3 mb-8">
         <p className="text-sm text-warning font-medium">
-          DEMO DATA - NOT A LIVE REPOSITORY SCAN. This dashboard displays simulated fixtures
-          to demonstrate the interface. No repositories are connected.
+          ILLUSTRATIVE DEMO - No live monitoring, repository scanning, or PR delivery.
+          All counts, events, test results, and timestamps below are simulated. No repositories are connected.
         </p>
       </div>
 
@@ -14,23 +14,23 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold">Dashboard</h1>
           <p className="text-sm text-text-secondary">Workspace: demo-workspace</p>
         </div>
-        <a href="/signup" className="btn-primary text-sm">Connect a Repository</a>
+        <a href="/signup" className="btn-primary text-sm">Repository setup (planned)</a>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard label="Monitored APIs" value="3" />
-        <StatCard label="Connected Repos" value="1" />
-        <StatCard label="Detected Changes" value="2" />
-        <StatCard label="Pending Review" value="1" />
+        <StatCard label="Demo APIs" value="3" />
+        <StatCard label="Demo Repos" value="1" />
+        <StatCard label="Example Changes" value="2" />
+        <StatCard label="Example Reviews" value="1" />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-8">
         {/* Main content */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Detected Changes */}
+          {/* Example Changes */}
           <section>
-            <h2 className="text-lg font-semibold mb-4">Recent Changes</h2>
+            <h2 className="text-lg font-semibold mb-4">Example Changes</h2>
             <div className="space-y-3">
               <ChangeCard
                 package="stripe-node"
@@ -55,14 +55,14 @@ export default function DashboardPage() {
 
           {/* Proposed PR */}
           <section>
-            <h2 className="text-lg font-semibold mb-4">Proposed Pull Requests</h2>
+            <h2 className="text-lg font-semibold mb-4">Example Pull Request</h2>
             <div className="card">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="font-medium">Fix: stripe-node 14.2.0 to 15.0.0</h3>
-                  <p className="text-sm text-text-secondary">acme/payments - 2 call sites affected</p>
+                  <h3 className="font-medium">Example fix: stripe-node 14.2.0 to 15.0.0</h3>
+                  <p className="text-sm text-text-secondary">Demo repo: acme/payments - 2 example call sites</p>
                 </div>
-                <span className="badge-success">Tests: 15/15 passed</span>
+                <span className="badge-success">Illustrative tests: 15/15</span>
               </div>
 
               <div className="code-block text-xs mb-4">
@@ -73,7 +73,7 @@ export default function DashboardPage() {
 
               <div className="flex items-center justify-between">
                 <div className="text-xs text-text-tertiary">
-                  Coverage: 2 of 2 call sites verified | Verification: local test run
+                  Illustrative coverage: 2/2 | No live verification
                 </div>
                 <div className="flex gap-2">
                   <button className="btn-secondary text-xs" disabled title="Demo mode - no real PR">View Full Diff</button>
@@ -86,9 +86,9 @@ export default function DashboardPage() {
 
         {/* Sidebar */}
         <div className="space-y-6">
-          {/* Monitored APIs */}
+          {/* Demo APIs */}
           <section className="card">
-            <h3 className="font-semibold mb-4">Monitored APIs</h3>
+            <h3 className="font-semibold mb-4">Demo APIs</h3>
             <div className="space-y-3">
               <MonitoredAPI name="stripe-node" version="14.2.0" status="watching" />
               <MonitoredAPI name="openai" version="4.28.0" status="watching" />
@@ -98,7 +98,7 @@ export default function DashboardPage() {
 
           {/* Activity */}
           <section className="card">
-            <h3 className="font-semibold mb-4">Activity</h3>
+            <h3 className="font-semibold mb-4">Example Activity</h3>
             <div className="space-y-3 text-sm">
               <ActivityItem text="Breaking change detected in stripe-node@15.0.0" time="2h ago" />
               <ActivityItem text="Impact analysis completed for acme/payments" time="2h ago" />
@@ -135,10 +135,10 @@ function ChangeCard({ package: pkg, from, to, severity, time, affectedFiles, sta
             {severity}
           </span>
         </div>
-        <p className="text-xs text-text-tertiary">{time} - {affectedFiles} file{affectedFiles !== 1 ? 's' : ''} affected</p>
+        <p className="text-xs text-text-tertiary">Example: {time} - {affectedFiles} example file{affectedFiles !== 1 ? 's' : ''} affected</p>
       </div>
       <span className={`text-xs font-medium ${status === 'fix-verified' ? 'text-success' : 'text-text-tertiary'}`}>
-        {status === 'fix-verified' ? 'Fix Verified' : 'No Impact'}
+        {status === 'fix-verified' ? 'Demo: Fix Verified' : 'Demo: No Impact'}
       </span>
     </div>
   );
@@ -151,7 +151,7 @@ function MonitoredAPI({ name, version, status }: { name: string; version: string
         <p className="text-sm font-medium">{name}</p>
         <p className="text-xs text-text-tertiary">v{version}</p>
       </div>
-      <span className={`w-2 h-2 rounded-full ${status === 'watching' ? 'bg-success' : 'bg-text-tertiary'}`} />
+      <span role="img" aria-label={`Illustrative ${status === 'watching' ? 'active' : 'paused'} state; no live polling`} className={`w-2 h-2 rounded-full ${status === 'watching' ? 'bg-success' : 'bg-text-tertiary'}`} />
     </div>
   );
 }
@@ -159,9 +159,8 @@ function MonitoredAPI({ name, version, status }: { name: string; version: string
 function ActivityItem({ text, time }: { text: string; time: string }) {
   return (
     <div className="flex justify-between">
-      <p className="text-text-secondary">{text}</p>
-      <p className="text-text-tertiary text-xs flex-shrink-0 ml-2">{time}</p>
+      <p className="text-text-secondary">Example: {text}</p>
+      <p className="text-text-tertiary text-xs flex-shrink-0 ml-2">Example: {time}</p>
     </div>
   );
 }
-
