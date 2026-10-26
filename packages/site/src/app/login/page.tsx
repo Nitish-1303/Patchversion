@@ -5,14 +5,14 @@ export default function LoginPage() {
       <div className="card max-w-md w-full">
         <h1 className="text-2xl font-bold mb-2">Sign in to PatchBay</h1>
         <p className="text-sm text-text-secondary mb-8">
-          Sign in with your GitHub account to access your dashboard.
+          Planned sign-in preview. GitHub authentication and account-backed dashboards are not implemented.
         </p>
 
         <div className="space-y-4">
           <button
             className="w-full btn-primary flex items-center justify-center gap-2"
             disabled
-            title="Authentication not yet configured"
+            title="Authentication not yet implemented"
           >
             <BrandLogo name="github" size={20} />
             Sign in with GitHub
@@ -20,17 +20,9 @@ export default function LoginPage() {
 
           <div className="bg-warning-bg border border-warning/20 rounded-md p-4">
             <p className="text-sm text-warning">
-              <strong>Configuration required.</strong> GitHub App credentials are not yet configured.
-              Set the following environment variables to enable authentication:
+              <strong>Not yet available.</strong> Adding environment variables does not enable
+              authentication in this prototype. The GitHub App sign-in flow still needs to be implemented.
             </p>
-            <ul className="mt-2 text-xs text-warning space-y-1 font-mono">
-              <li>GITHUB_APP_ID</li>
-              <li>GITHUB_APP_PRIVATE_KEY</li>
-              <li>GITHUB_APP_CLIENT_ID</li>
-              <li>GITHUB_APP_CLIENT_SECRET</li>
-              <li>NEXTAUTH_SECRET</li>
-              <li>NEXTAUTH_URL</li>
-            </ul>
           </div>
 
           <p className="text-center text-sm text-text-secondary">
@@ -42,4 +34,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
