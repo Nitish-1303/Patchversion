@@ -27,7 +27,7 @@ const BANNED: [RegExp, string][] = [
   [/every\s+fix\s+PR\s+carries[\s\S]{0,140}produced\s+in\s+the\s+sandbox/i, 'claims sandbox-produced proof for delivered PRs'],
   [/\bbefore\s+the\s+PR\s+opens\b/i, 'prototype does not open actual PRs'],
   [/\b(?:opens|submits)\s+(?:an?\s+)?(?:actual\s+|verified\s+)?(?:fix\s+)?(?:PR|pull request)s?\b/i, 'claims live PR delivery'],
-  [/\bevery\s+affected\s+call\s+site,?\s+found\b/i, 'claims complete call-site coverage'],
+  [/\bevery\s+affected\s+call\s+site\b/i, 'claims complete call-site coverage'],
   [/\bfull diff ships in the pull request\b/i, 'claims live PR delivery'],
   [/\bSet the following environment variables to enable authentication\b/i, 'authentication is not implemented'],
   [/\bBreak reproduction against a repo(?:&apos;|')s own test suite\b/i, 'end-to-end execution is fixture-only'],
@@ -79,6 +79,7 @@ describe('public-claims guard regression examples', () => {
   const rejected = (text: string) => BANNED.some(([re]) => re.test(text));
   test.each([
     'Every affected call site, found.',
+    'Every affected call site, down to the line',
     'The full diff ships in the pull request.',
     'Set the following environment variables to enable authentication:',
     'Break reproduction against a repo&apos;s own test suite',
