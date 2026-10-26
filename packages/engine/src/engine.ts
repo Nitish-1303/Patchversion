@@ -7,8 +7,7 @@ import { analyzeImpact } from './break-detector/impact-analyzer';
 import { SandboxRunner } from './sandbox/runner';
 import { FixGenerator } from './fix-generator/generator';
 import { PRBot } from './pr-bot/bot';
-import fs from 'fs';
-import path from 'path';
+import { resolveTrustedFixture } from './fixture-admission';
 import { ChangeRecord, WatchTarget, PreparedPR, ProveResult } from '@patchversion/shared';
 
 /**
@@ -146,21 +145,7 @@ export class PatchversionEngine {
   private isRepoExecutionAllowed(repoPath: string): boolean {
     if (!this.config.requireIsolation) return true;
     if (this.config.sandboxMode !== 'local') return true; // non-local modes carry their own gates
-    let realRepo: string;
-    try {
-      realRepo = fs.realpathSync(repoPath);
-    } catch {
-      return false;
-    }
-    return this.config.trustedFixtureDirs.some(dir => {
-      let realDir: string;
-      try {
-        realDir = fs.realpathSync(dir);
-      } catch {
-        return false;
-      }
-      return realRepo === realDir || realRepo.startsWith(realDir + path.sep);
-    });
+    return resolveTrustedFixture(repoPath, this.config.trustedFixtureDirs) !== null;
   }
 
   /** Outcome of the most recent proveLoop, for callers (e.g. prove.ts). */

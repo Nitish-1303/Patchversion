@@ -69,6 +69,8 @@ export class PRBot {
     const title = `[Patchversion] ${change.packageName}@${change.toVersion} may break your code - needs human review`;
 
     const body = [
+      `**Not submitted to GitHub. Prepared issue text only.**`,
+      ``,
       `## Breaking change detected`,
       ``,
       `**Package:** ${change.packageName}`,
@@ -92,7 +94,7 @@ export class PRBot {
       `The break is real but the fix requires human judgment.`,
       ``,
       `---`,
-      `*Opened by Patchversion. This is an honest report, not a fix.*`,
+      `*Prepared by Patchversion. Not submitted to GitHub. This is a report, not a fix.*`,
     ].join('\n');
 
     this.store.logEvent('unfixable_issue_prepared', {
@@ -118,11 +120,16 @@ export class PRBot {
       proof.fixedFiles.includes(site.filePath),
     );
 
-    const sandboxLine = proof.sandboxType === 'docker-isolated'
-      ? `This fix was verified in an isolated Docker sandbox BEFORE this PR was opened.`
-      : `This fix was verified in a local process (no isolation) BEFORE this PR was opened.`;
+    // A caller-supplied or persisted label is not evidence of isolation.
+    // Only the local execution path is currently implemented and supported.
+    const isLocalProcess = proof.sandboxType === 'local-process';
+    const sandboxLine = isLocalProcess
+      ? `This fix was verified in a local process (no isolation) before this PR text was prepared.`
+      : `Execution environment is unsupported or unknown; isolation has not been verified.`;
 
     const sections: string[] = [
+      `**Not submitted to GitHub. Prepared PR text only.**`,
+      ``,
       `## What changed`,
       ``,
       `**${change.packageName}** released **${change.toVersion}** (from ${change.fromVersion}).`,
@@ -175,11 +182,13 @@ export class PRBot {
       `### Confidence`,
       ``,
       `- Change classification confidence: ${(change.classification.confidence * 100).toFixed(0)}%`,
-      `- Sandbox type: ${proof.sandboxType}`,
+      `- Sandbox type: ${isLocalProcess ? 'local-process' : 'unsupported or unknown (not verified)'}`,
       `- Proof generated: ${proof.producedAt}`,
       ``,
       `---`,
-      `*Opened by Patchversion. Every claim above is backed by a sandbox execution record.*`,
+      isLocalProcess
+        ? `*Prepared by Patchversion. Not submitted to GitHub. Proof recorded from local execution.*`
+        : `*Prepared by Patchversion. Not submitted to GitHub. Execution environment not verified.*`,
     );
 
     return sections.join('\n');

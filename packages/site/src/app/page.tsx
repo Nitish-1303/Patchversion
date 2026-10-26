@@ -360,10 +360,10 @@ export default function HomePage() {
             <Reveal>
               <p className="eyebrow mb-4">Impact analysis</p>
               <h2 className="font-display font-semibold text-[clamp(1.9rem,3.5vw,2.75rem)] leading-[1.15] tracking-[-0.01em] mb-6">
-                Every affected call site, down to the line
+                Call sites found by static analysis, down to the line
               </h2>
               <p className="text-base leading-8 text-text-secondary mb-6">
-                When a dependency breaks an API shape, PatchBay indexes your repository and lists each call site that touches it - file, line, and the change it needs. No grep-and-hope.
+                The prototype maps call sites found by static analysis - file, line, and the affected API. Coverage is partial; dynamic usage may be missed.
               </p>
               <p className="text-base leading-8 text-text-secondary">
                 The layout below illustrates a two-file impact map. Paths and line numbers are examples.
