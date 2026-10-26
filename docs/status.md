@@ -1,6 +1,6 @@
 # Current Status
 
-**Last updated:** 2026-10-24 (Phase 1)
+**Last updated:** 2026-10-26 (baseline revalidation; see docs/build-scoreboard.md)
 
 ## What exists
 
@@ -23,7 +23,7 @@
 - `fixtures`: Sample repo with vendored mockpay 1.0.0 and 2.0.0 (real, installable;
   tests exercise the real client) + breaking change record
 - CI workflow, README, LICENSE
-- 66/66 tests passing in 10 suites (25 pre-existing + 21 Phase 1 + 8 sweep-hardening + 5 webhook body-limit + 7 webhook raw-signature), build clean, typecheck clean
+- 92/92 tests passing in 11 suites (the 66 above plus 26 site copy-guard checks added 2026-10-26), build clean, typecheck clean - revalidated 2026-10-26
 
 ### Proven 2026-10-24: REAL npm package migration (local run, `npm run prove:real`)
 - Package: lodash 3.10.1 -> 4.17.21, installed from the public npm registry
@@ -95,7 +95,8 @@
 
 - Engine loop: REAL against the vendored mockpay fixture (see proof above)
 - mockpay itself: a vendored test double standing in for a real third-party
-  package; the next step is a real package and a real repository
+  package. A real package proof (lodash, above) is done; the next step is a
+  real customer repository, BLOCKED on the isolation gate
 - Site pages: real Next.js pages, deployed
 - Homepage demo preview: clearly labeled simulated data
 - Pricing: proposed, not billing-enabled
