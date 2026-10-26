@@ -182,7 +182,7 @@ function EvidenceMock() {
           <div className="rounded-xl bg-error-bg px-4 py-3"><span className="font-semibold text-error">Before</span><br /><span className="text-text-secondary">2 tests failing</span></div>
           <div className="rounded-xl bg-success-bg px-4 py-3"><span className="font-semibold text-success">After</span><br /><span className="text-text-secondary">3/3 passing</span></div>
         </div>
-        <p className="text-[13px] text-text-secondary">Call sites, the full diff and the raw test output travel with the PR. Review is a read, not an investigation.</p>
+        <p className="text-[13px] text-text-secondary">Call sites, the full diff and raw test output are prepared locally with PR text. GitHub PR delivery is planned.</p>
       </div>
     </div>
   );
@@ -194,7 +194,7 @@ const STAGES = [
   { name: 'Detect', desc: 'A provider ships a change that breaks an API shape your code uses. Continuous watching is in development; detection runs today on recorded changes.', status: 'Proven locally' },
   { name: 'Analyze', desc: 'Static analysis lists the call sites it can see that touch the changed surface, down to the line. Coverage is partial: dynamic or indirect use can be missed.', status: 'Proven locally' },
   { name: 'Patch', desc: 'A minimal diff that changes only what the break requires.', status: 'Proven locally' },
-  { name: 'Test', desc: 'Your own test suite runs against the patch - the same command you would run.', status: 'Proven locally' },
+  { name: 'Test', desc: 'The bundled fixture test suite runs against the rename-only patch in a local process with no isolation.', status: 'Proven locally' },
   { name: 'Verify', desc: 'Before and after outputs compared. Green, or no PR.', status: 'Proven locally' },
   { name: 'Review', desc: 'A pull request with the evidence attached. Today this is a local artifact only; nothing is opened on GitHub.', status: 'In development' },
 ];
@@ -420,7 +420,7 @@ export default function HomePage() {
                 Red to green, or no pull request
               </h2>
               <p className="text-base leading-8 text-text-secondary mb-6">
-                PatchBay reproduces the break against your real code, applies a minimal patch, and reruns your test suite. If the suite does not go green, you get a diagnosis of the break - never an unproven fix.
+                On bundled fixtures only, PatchBay reproduces the break, applies a deterministic rename patch, and reruns the fixture test suite. If the suite does not go green, you get a diagnosis of the break - never an unproven fix.
               </p>
               <p className="text-base leading-8 text-text-secondary">
                 This loop runs today against the bundled fixture migration (mockpay 1.0.0 to 2.0.0): two failing tests in, three passing tests out. The fixture stands in for a live provider; a real-provider run is the next milestone.
