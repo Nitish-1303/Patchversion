@@ -10,7 +10,7 @@ export default function PricingPage() {
         <p className="text-sm text-text-tertiary mt-2">Proposed plans - product and billing are not yet available.</p>
         <p className="text-sm text-text-secondary mt-4 max-w-2xl mx-auto">
           Every feature below is labeled honestly: <span className="badge-success">Runs today</span> means
-          verified in local runs on real code. <span className="badge bg-accent-light text-text-secondary">Planned</span> means
+          verified in local runs on bundled fixtures only (not customer repositories). <span className="badge bg-accent-light text-text-secondary">Planned</span> means
           designed but not built yet.
         </p>
       </div>
@@ -26,7 +26,7 @@ export default function PricingPage() {
           </div>
           <p className="text-xs font-semibold uppercase tracking-wider text-text-tertiary mb-3">Verified in local runs</p>
           <ul className="space-y-3 text-sm text-text-secondary">
-            <PricingFeature>Break reproduction against a repo&apos;s own test suite</PricingFeature>
+            <PricingFeature>Break reproduction against the bundled fixtures&apos; test suites</PricingFeature>
             <PricingFeature>AST call-site mapping for TypeScript/JavaScript</PricingFeature>
             <PricingFeature>Minimal deterministic patches for known migration patterns</PricingFeature>
             <PricingFeature>Evidence artifacts: diff + before/after test output</PricingFeature>
@@ -89,7 +89,7 @@ export default function PricingPage() {
           />
           <FaqItem
             q="What happens when a fix fails its tests?"
-            a="No pull request. In the local proof loop, a patch that cannot turn the repo's own test suite green is rejected. The designed behavior for launch is an issue describing the break and what could not be fixed."
+            a="No pull request. In the local fixture proof loop, a patch that cannot turn the fixture test suite green is rejected. The designed behavior for launch is an issue describing the break and what could not be fixed."
           />
           <FaqItem
             q="Can I use my own API specifications?"

@@ -1,6 +1,9 @@
 # Technical Architecture
 
-**Status:** As built. Subject to revision based on MVP scoping.
+**Status:** Prototype implementation and intended architecture, distinguished below.
+Today the end-to-end loop runs locally on bundled fixtures with no isolation.
+It prepares PR text; it does not open or submit pull requests. Hosted watching,
+GitHub App authentication, and PR delivery are not implemented.
 
 ## Stack
 
@@ -33,7 +36,12 @@ packages/
 fixtures/                    # Test fixtures
 ```
 
-## Data Flow
+## Intended Data Flow
+
+The fixture demo exercises mapping, classification, deterministic rename fixes,
+local test reruns, and PR-text preparation. Watcher/probe modules are prototype
+code, not a running hosted service. The sandbox label below names a module, not
+a verified isolation boundary.
 
 ```
 npm registry --> watcher --> change record
@@ -53,17 +61,21 @@ npm registry --> watcher --> change record
 
 ## Key Design Decisions
 
-1. **Every stage has a real path and an offline fallback.** Docker sandbox falls back
-   to local child process. LLM fix generation falls back to deterministic patterns.
-   GitHub App PR falls back to local git branch.
+1. **Current paths are deliberately limited.** Docker execution is blocked as
+   unverified; only bundled fixtures may run in the local child process (no isolation).
+   Deterministic rename fixes work; the LLM path is a stub. PR preparation produces
+   local text/artifacts, not GitHub delivery. These are prototype limits, not
+   production-ready fallbacks.
 
 2. **Silence by default.** No PR, no notification, unless there is a verified fix
    or a verified unfixable break.
 
-3. **Proof is a first-class artifact.** Every fix PR carries the red-to-green test
-   results produced in the sandbox BEFORE the PR opens.
+3. **Proof is a first-class artifact.** Intended architecture: a future fix PR
+   should carry red-to-green test results before review. Today those results are
+   produced in a local process with no isolation on bundled fixtures only; no
+   verified isolated sandbox exists and no actual PR is opened or submitted.
 
-4. **Coverage honesty.** Every PR states exactly which call sites were and were not
-   verified.
+4. **Coverage honesty.** Prepared PR text states which call sites were and were not
+   verified. Future delivered PRs should preserve those limits.
 
 5. **No auto-merge.** Human review is required for every change.

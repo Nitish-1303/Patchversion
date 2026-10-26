@@ -3,22 +3,28 @@ export default function GettingStartedPage() {
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
       <p className="text-sm text-text-tertiary mb-2"><a href="/docs" className="text-accent hover:underline">Docs</a> / Getting Started</p>
       <h1 className="text-3xl font-bold mb-8">Getting Started</h1>
+      <p className="text-text-secondary mb-8">
+        Prototype today: run <code>npm install</code> and <code>npm run prove</code> from a local
+        checkout to reproduce the bundled fixture demo. It runs without isolation and prepares
+        PR text only; it does not open or submit pull requests. The hosted setup below is planned,
+        not available through configuration alone.
+      </p>
 
       <div className="space-y-8">
         <section>
-          <h2 className="text-xl font-semibold mb-4">Prerequisites</h2>
+          <h2 className="text-xl font-semibold mb-4">Planned hosted setup prerequisites</h2>
           <ul className="space-y-2 text-text-secondary list-disc pl-5">
-            <li>A GitHub account with repositories to monitor</li>
-            <li>Node.js 18+ installed locally (for self-hosted engine)</li>
-            <li>At least one npm dependency to track</li>
+            <li>Planned: a GitHub account with repositories to connect when App installation ships</li>
+            <li>Node.js 18+ installed locally (for the current bundled fixture demo)</li>
+            <li>Planned: select npm dependencies to track; live watching is not running</li>
           </ul>
         </section>
 
         <section>
-          <h2 className="text-xl font-semibold mb-4">1. Install the GitHub App</h2>
+          <h2 className="text-xl font-semibold mb-4">1. Connect a repository (planned)</h2>
           <p className="text-text-secondary mb-4">
-            The PatchBay GitHub App requests read access to your code and write access
-            for creating branches and pull requests. No other permissions are requested.
+            A GitHub App with limited repository read access and branch/pull-request write access
+            is planned. Authentication, permission requests, and App installation are not implemented.
           </p>
           <div className="card bg-warning-bg border-warning/20">
             <p className="text-sm text-warning">
@@ -29,10 +35,10 @@ export default function GettingStartedPage() {
         </section>
 
         <section>
-          <h2 className="text-xl font-semibold mb-4">2. Configure monitoring</h2>
+          <h2 className="text-xl font-semibold mb-4">2. Configure monitoring (planned)</h2>
           <p className="text-text-secondary mb-4">
-            Choose which npm packages to watch. PatchBay checks the registry for new
-            versions and parses changelogs for breaking change indicators.
+            The intended workflow will let you choose npm packages to watch for new versions
+            and breaking changes. Hosted registry watching and changelog parsing are not running.
           </p>
           <div className="code-block">
             <pre>{`# Example: watch stripe-node and openai
@@ -43,11 +49,11 @@ patchversion watch add openai`}</pre>
         </section>
 
         <section>
-          <h2 className="text-xl font-semibold mb-4">3. Review your first change</h2>
+          <h2 className="text-xl font-semibold mb-4">3. Review your first change (planned)</h2>
           <p className="text-text-secondary">
-            When a breaking change is detected, PatchBay maps the affected code it can find in your
-            repository, generates a fix, validates it against your test suite, and is meant to
-            prepare a pull request with the evidence. You review and merge.
+            The intended workflow maps affected code, proposes a fix, reruns tests, and delivers
+            evidence in a pull request for human review. Today the end-to-end loop is limited
+            to bundled fixtures and prepares local PR text; GitHub PR delivery is not implemented.
           </p>
           <p className="text-xs text-text-tertiary mt-2">Designed workflow. This is not live yet; the current demo uses a local fixture.</p>
         </section>
@@ -55,4 +61,3 @@ patchversion watch add openai`}</pre>
     </div>
   );
 }
-

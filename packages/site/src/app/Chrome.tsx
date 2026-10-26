@@ -144,19 +144,19 @@ function Footer() {
           <div className="col-span-2">
             <Logo dark />
             <p className="mt-4 text-[15px] leading-6 text-text-secondary italic">
-              Your APIs change. Your code keeps up.
+              A prototype for keeping code in step with API changes.
             </p>
             <p className="mt-2 text-sm leading-6 text-text-secondary">
-              The maintenance layer between API providers and the applications that depend on them.
+              Local proof on bundled fixtures today. Live monitoring and PR delivery are planned.
             </p>
           </div>
           <div>
             <h4 className="text-[13px] font-semibold uppercase tracking-[0.14em] text-ink mb-4">Product</h4>
             <ul className="space-y-2.5 text-sm text-text-secondary">
               <li><a href="/product" className="hover:text-ink">Overview</a></li>
-              <li><a href="/product#monitoring" className="hover:text-ink">API Monitoring</a></li>
-              <li><a href="/product#impact" className="hover:text-ink">Impact Analysis</a></li>
-              <li><a href="/product#remediation" className="hover:text-ink">AI Remediation</a></li>
+              <li><a href="/product#monitoring" className="hover:text-ink">API Monitoring (planned)</a></li>
+              <li><a href="/product#impact" className="hover:text-ink">Impact Analysis (prototype)</a></li>
+              <li><a href="/product#remediation" className="hover:text-ink">AI Remediation (planned)</a></li>
               <li><a href="/integrations" className="hover:text-ink">Integrations</a></li>
               <li><a href="/pricing" className="hover:text-ink">Pricing</a></li>
             </ul>

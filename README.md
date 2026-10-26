@@ -31,7 +31,7 @@ Planned flow when a third-party API your code depends on ships a breaking change
 
 ## Non-negotiables
 
-- **Proof is a first-class artifact.** Every fix PR carries human-readable proof produced in the sandbox before the PR opens.
+- **Proof is a first-class artifact.** Design goal: any future fix PR should include human-readable red-to-green evidence before review. Today proof runs in a local process with no isolation, on bundled fixtures only; the prototype prepares PR text but does not open or submit pull requests.
 - **Coverage honesty in every PR.** "Verified N of M call sites; these K have no test path."
 - **Silence by default.** No PR, no notification, unless there is a verified fix or a verified unfixable break needing a human.
 - **Honesty in public.** Limitations are published. No failure-rate metrics exist yet.
@@ -60,7 +60,7 @@ npm test
 One command runs the full loop against the bundled fixture: detect a breaking
 change (mockpay 1.0.0 -> 2.0.0 renames `source` to `payment_method`), map the
 affected call sites, generate the fix, prove it red-to-green in a local process (no isolation),
-and prepare the evidence-backed PR. Transcript, proof artifact and PR text
+and prepare evidence-backed PR text (not an actual pull request). Transcript, proof artifact and PR text
 land in `runs/latest/` (previous runs are archived to `runs/archive/`).
 
 A second command proves the loop against a REAL npm package (lodash
