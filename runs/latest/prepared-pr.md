@@ -2,6 +2,8 @@
 
 Branch: `patchversion/mockpay-2.0.0`
 
+**Not submitted to GitHub. Prepared PR text only.**
+
 ## What changed
 
 **mockpay** released **2.0.0** (from 1.0.0).
@@ -20,7 +22,7 @@ Updates 1 call site to work with mockpay@2.0.0.
 
 ## Proof
 
-This fix was verified in a local process (no isolation) BEFORE this PR was opened.
+This fix was verified in a local process (no isolation) before this PR text was prepared.
 
 | Step | Result |
 |------|--------|
@@ -43,4 +45,4 @@ The following call sites could not be verified by the test suite:
 - Proof generated: 2026-10-24T09:30:56.257Z
 
 ---
-*Opened by Patchversion. Every claim above is backed by a sandbox execution record.*
+*Prepared by Patchversion. Not submitted to GitHub. Proof recorded from local execution.*
