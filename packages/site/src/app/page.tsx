@@ -192,7 +192,7 @@ function EvidenceMock() {
 
 const STAGES = [
   { name: 'Detect', desc: 'A provider ships a change that breaks an API shape your code uses. Continuous watching is in development; detection runs today on recorded changes.', status: 'Proven locally' },
-  { name: 'Analyze', desc: 'An index of every call site that touches the changed surface, down to the line.', status: 'Proven locally' },
+  { name: 'Analyze', desc: 'An index of supported call sites that touch the changed surface. Coverage is partial; both MockPay and Lodash demos are PARTIAL / NOT READY.', status: 'Proven locally' },
   { name: 'Patch', desc: 'A minimal diff that changes only what the break requires.', status: 'Proven locally' },
   { name: 'Test', desc: 'Your own test suite runs against the patch - the same command you would run.', status: 'Proven locally' },
   { name: 'Verify', desc: 'Before and after outputs compared. Green, or no PR.', status: 'Proven locally' },
@@ -236,7 +236,7 @@ export default function HomePage() {
           </Reveal>
           <Reveal delay={160}>
             <p className="mt-6 text-lg leading-8 text-white/80 max-w-xl">
-              PatchBay helps engineering teams navigate breaking SDK changes by identifying affected code, proposing migration patches, running tests, and preparing reviewable pull requests with verification evidence.
+              PatchBay is built to help engineering teams navigate breaking SDK changes by identifying affected code, proposing migration patches, and running tests. Pull-request delivery with verification evidence is planned; today the work runs locally on fixtures.
             </p>
           </Reveal>
           <Reveal delay={240}>
@@ -303,10 +303,10 @@ export default function HomePage() {
                 <div className="px-7 py-5 border-b border-rule font-display font-semibold text-navy bg-accent-light/50">The PatchBay way</div>
                 {[
                   ['Understand what broke', 'Read the changelog and the migration guide, line by line.', 'The breaking change is detected and explained.'],
-                  ['Find affected code', 'Grep the repo and hope the search terms catch every call site.', 'Every call site is located and listed.'],
+                  ['Find affected code', 'Grep the repo and hope the search terms catch every call site.', 'Affected call sites are mapped, but coverage is partial: both demos are PARTIAL / NOT READY.'],
                   ['Update the implementation', 'Rewrite each call by hand, file by file.', 'A migration patch is proposed for review.'],
                   ['Prove it works', 'Run the tests, debug the failures, rerun until green.', 'Your own test suite reruns before and after, outputs attached.'],
-                  ['Prepare the review', 'Write up the PR and summarize what changed and why it is safe.', 'The PR arrives with the diff and the verification evidence.'],
+                  ['Prepare the review', 'Write up the PR and summarize what changed and why it is safe.', 'Planned: a pull request with the diff and the verification evidence. Today only a local prepared-PR file exists.'],
                 ].map(([step, manual, pb]) => (
                   <div key={step} className="contents">
                     <div className="px-7 py-4 border-b border-rule font-medium text-ink">{step}</div>
@@ -360,10 +360,10 @@ export default function HomePage() {
             <Reveal>
               <p className="eyebrow mb-4">Impact analysis</p>
               <h2 className="font-display font-semibold text-[clamp(1.9rem,3.5vw,2.75rem)] leading-[1.15] tracking-[-0.01em] mb-6">
-                Every affected call site, down to the line
+                Supported call sites, with file and line
               </h2>
               <p className="text-base leading-8 text-text-secondary mb-6">
-                When a dependency breaks an API shape, PatchBay indexes your repository and lists each call site that touches it - file, line, and the change it needs. No grep-and-hope.
+                When a dependency breaks an API shape, PatchBay indexes your repository and lists the supported call sites it finds that touch it - file, line, and the change it needs. Coverage is partial, so some call sites may be missed.
               </p>
               <p className="text-base leading-8 text-text-secondary">
                 The layout below illustrates a two-file impact map. Paths and line numbers are examples.

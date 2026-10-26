@@ -2,7 +2,7 @@
 
 **Proof you can read. Results we publish.**
 
-A GitHub App that watches third-party APIs and packages for breaking changes, maps exactly where your code is affected, proves the fix in a sandbox BEFORE opening a PR, and publishes its own failure rate in public.
+Today PatchBay is a local, fixture-based prototype. Against recorded breaking changes in its bundled fixture repositories, it maps the supported call sites where your code is affected (coverage is partial and may miss some), generates a deterministic rename fix, and proves it by re-running the fixture's own test suite, red to green. Planned and not yet built: the GitHub App, continuous monitoring of live APIs and packages, a verified isolated sandbox, live pull-request delivery, and publishing its own failure rate in public.
 
 ## Current status
 
@@ -21,8 +21,8 @@ No customer repositories have been processed.
 
 When a third-party API your code depends on ships a breaking change:
 
-1. **WATCH** - Detects the release via npm registry, changelogs, and live API contract probes
-2. **MAP** - AST-based analysis finds every call site in your repo that touches the changed package
+1. **WATCH** - Detects the release via npm registry metadata today; changelog watching and live API contract probes are planned, not built
+2. **MAP** - AST-based analysis finds the supported call sites in your repo that touch the changed package - limited to supported cases, and may miss call sites
 3. **DETECT** - Classifies the change as breaking with confidence scoring
 4. **REPRODUCE** - Runs your test suite against the new version in a local sandbox process (Docker isolation is designed, not yet qualified)
 5. **FIX** - Generates a minimal patch (deterministic for known patterns; LLM assistance is planned, not built)
@@ -87,11 +87,11 @@ bump genuinely turns them red and only the fix turns them green again.
 ## Architecture
 
 - **Watcher**: polls the npm registry for new versions of tracked packages (registry metadata only today - deprecation messages, not full changelogs)
-- **Contract probes**: hit live API endpoints and diff response schemas against stored baselines
-- **Usage mapper**: ts-morph AST analysis to find every import and call site per tracked package
+- **Contract probes**: PLANNED and not verified - would hit live API endpoints and diff response schemas against stored baselines (code exists, never run against live endpoints)
+- **Usage mapper**: ts-morph AST analysis to find the supported imports and call sites per tracked package (partial coverage, may miss some)
 - **Break detector**: semver + release note analysis to classify breaking changes
 - **Sandbox**: local child process (NO isolation; trusted fixtures only, other repos are refused). A Docker-isolated mode is planned but UNVERIFIED and blocked in code until validated
-- **Fix generator**: deterministic patterns first, LLM fallback; fix accepted only if sandbox proves green
+- **Fix generator**: deterministic rename fixes only (removals and signature changes are not handled). An LLM fallback is PLANNED and NOT implemented (the code path is a stub that returns nothing). A fix is accepted only if the sandbox proves green
 - **PR bot**: prepares evidence-backed PR text locally, with proof artifacts and coverage honesty blocks; GitHub PR delivery is in development
 - **State store**: durable record of every detection, decision, proof, failure - raw material for the public dataset
 

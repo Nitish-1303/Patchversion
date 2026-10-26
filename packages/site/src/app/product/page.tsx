@@ -125,13 +125,15 @@ export default function ProductPage() {
         <div className="grid md:grid-cols-2 gap-8">
           <div className="min-w-0">
             <p className="text-text-secondary mb-4">
-              Once a breaking change is confirmed, PatchBay maps every call site in the
-              repository that touches the changed package. This uses AST (Abstract Syntax Tree)
-              analysis, not text search, so it handles imports, aliases, and re-exports correctly.
+              Once a breaking change is confirmed, PatchBay uses AST (Abstract Syntax Tree)
+              analysis to map supported call sites that touch the changed package. Coverage is
+              partial today: both MockPay and Lodash demos are PARTIAL / NOT READY, not complete
+              repository-wide call-site maps.
             </p>
             <p className="text-text-secondary">
-              The result is a precise list of affected files, line numbers, and call expressions.
-              No false positives from commented-out code or string literals.
+              The result is a list of affected files, line numbers, and call expressions for the
+              supported cases. It may miss call sites, and precision has not been measured beyond
+              the bundled fixtures.
             </p>
           </div>
           <div className="card min-w-0">
@@ -164,8 +166,9 @@ export default function ProductPage() {
         <div className="grid md:grid-cols-2 gap-8">
           <div className="min-w-0">
             <p className="text-text-secondary mb-4">
-              For known migration patterns (field removals, renames, signature changes), PatchBay applies
-              a deterministic fix - the same class of fix that migrated the bundled sample repo off
+              The only deterministic fix built today is a parameter or field rename
+              (removals and signature changes are not handled) - the same class of fix that migrated
+              the bundled sample repo off
               mockpay 2.0.0&apos;s renamed <span className="font-mono text-sm">source</span> parameter.
             </p>
             <p className="text-text-secondary mb-4">

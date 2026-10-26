@@ -48,20 +48,20 @@ export default function HowItWorksPage() {
           number={4}
           title="Analyze"
           status="proven"
-          description="For confirmed breaking changes, PatchBay scans the repository using AST analysis to find every import, require, and call expression that touches the changed package. Verified locally on the bundled sample repository."
+          description="For confirmed breaking changes, PatchBay scans the repository using AST analysis to find the supported import, require, and call expression patterns that touch the changed package. Coverage is partial, so some usages may be missed. Verified locally on the bundled sample repository."
           details={[
             'ts-morph AST parsing (not regex or text search)',
             'Handles named imports, default imports, namespace imports, and require()',
-            'Produces a precise call-site map with file paths, line numbers, and expressions',
+            'Produces a call-site map with file paths, line numbers, and expressions for supported cases - fixture-verified, with partial coverage that may miss call sites',
           ]}
         />
         <Stage
           number={5}
           title="Remediate"
           status="proven"
-          description="PatchBay generates a minimal patch. For known migration patterns (field removals, renames) it applies a deterministic transformation - verified locally on the bundled mockpay migration fixture. LLM-assisted generation for novel breaking changes is planned, not built."
+          description="PatchBay generates a minimal patch. The only deterministic transformation built today is a parameter or field rename, verified locally on the bundled mockpay migration fixture. Removals and signature changes are not handled. LLM-assisted generation for novel breaking changes is planned, not built."
           details={[
-            'Deterministic fixes for known patterns (fast, reliable)',
+            'Deterministic fixes for renames only (removals and signature changes not handled)',
             'LLM-assisted generation for novel breaking changes (planned)',
             'Minimal diffs only - no unnecessary refactoring',
           ]}
@@ -120,8 +120,8 @@ export default function HowItWorksPage() {
           <div className="card">
             <h3 className="font-semibold mb-2">Fix coverage</h3>
             <p className="text-sm text-text-secondary">
-              Deterministic fixes cover known patterns (removals, renames, signature changes). Novel
-              breaking changes need LLM-assisted generation, which is planned and unproven.
+              Deterministic fixes cover renames only; removals and signature changes are not handled. Other
+              breaking changes would need LLM-assisted generation, which is planned and unproven.
             </p>
           </div>
         </div>

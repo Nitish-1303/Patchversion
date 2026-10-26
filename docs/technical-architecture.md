@@ -1,69 +1,73 @@
 # Technical Architecture
 
-**Status:** As built. Subject to revision based on MVP scoping.
+**Status:** Part 1 describes what is implemented and verified locally today. Part 2 is PLANNED architecture that is not built. Nothing in Part 2 is available, and Part 2 is not a description of the current system.
 
-## Stack
+## Part 1: Implemented today (local fixture pipeline only)
+
+### Stack
 
 - **Language:** TypeScript (strict)
 - **Monorepo:** npm workspaces
 - **Engine:** Node.js, ts-morph (AST), Jest (testing)
 - **Site:** Next.js 14 (App Router), Tailwind CSS
-- **State:** File-backed store (to be replaced with PostgreSQL for production)
-- **CI:** GitHub Actions (typecheck + test on push/PR)
+- **State:** File-backed store
+- **CI:** GitHub Actions workflow (typecheck + test on push/PR) is written but not yet verified by a run on GitHub
 
-## Components
+### Components
 
 ```
 packages/
   engine/                    # Core pipeline
     src/
-      watcher/               # npm registry polling
-      probes/                # Live API contract probes
-      usage-map/             # AST-based call-site mapper
+      watcher/               # npm registry polling (registry metadata only)
+      probes/                # Contract probe code (not verified against live endpoints)
+      usage-map/             # AST-based call-site mapper (partial coverage)
       break-detector/        # Classification + impact analysis
-      sandbox/               # Red-to-green proof loop
-      fix-generator/         # Deterministic + LLM fix generation
-      pr-bot/                # Evidence-backed PR preparation
+      sandbox/               # Red-to-green proof loop (local child process, NO isolation)
+      fix-generator/         # Deterministic rename fixes; LLM path is a stub
+      pr-bot/                # Prepares PR text and a local branch/file; submits nothing
       state/                 # File-backed durable store
       engine.ts              # Orchestrator
-      webhook-receiver.ts    # GitHub App webhook handler
+      webhook-receiver.ts    # Webhook receiver (signature-checked); no GitHub App auth
       config.ts              # Configuration
   shared/                    # Types + design tokens
   site/                      # Next.js marketing site
 fixtures/                    # Test fixtures
 ```
 
-## Data Flow
+### Data flow
 
 ```
-npm registry --> watcher --> change record
+change record --> break-detector --> classification
                                   |
-                          break-detector --> classification
-                                  |
-                          usage-map --> call sites
+                          usage-map --> supported call sites (partial coverage)
                                   |
                           impact-analyzer --> affected call sites
                                   |
-                          fix-generator --> candidate fix
+                          fix-generator --> candidate fix (rename only)
                                   |
-                          sandbox --> red-to-green proof
+                          sandbox --> red-to-green proof (bundled fixtures only)
                                   |
-                          pr-bot --> prepared PR (not submitted)
+                          pr-bot --> prepared PR file (local; not submitted)
 ```
 
-## Key Design Decisions
+### Execution limits in the code today
 
-1. **Every stage has a real path and an offline fallback.** Docker sandbox falls back
-   to local child process. LLM fix generation falls back to deterministic patterns.
-   GitHub App PR falls back to local git branch.
+1. **Sandbox:** the only working mode is a local child process with no isolation. The engine refuses to run any repository that is not a bundled trusted fixture. Docker mode is blocked in code because container isolation has never been validated.
+2. **Fix generation:** deterministic parameter or field renames only. Removals and signature changes are not handled. The LLM path builds a prompt and returns nothing; it is not a working fallback.
+3. **Pull requests:** the pr-bot writes a prepared PR file and local evidence. No pull request is opened on GitHub, and there is no GitHub App authentication.
+4. **Silence by default.** Nothing is prepared unless there is a verified fix or a verified unfixable break.
+5. **Proof as an artifact.** A prepared fix carries the red-to-green test results from the local run.
+6. **Coverage honesty.** Prepared output states which call sites were and were not verified. Mapping is partial and may miss call sites.
+7. **No auto-merge.** Human review is required for every change.
 
-2. **Silence by default.** No PR, no notification, unless there is a verified fix
-   or a verified unfixable break.
+## Part 2: PLANNED architecture (not built)
 
-3. **Proof is a first-class artifact.** Every fix PR carries the red-to-green test
-   results produced in the sandbox BEFORE the PR opens.
+These items are design intent only.
 
-4. **Coverage honesty.** Every PR states exactly which call sites were and were not
-   verified.
-
-5. **No auto-merge.** Human review is required for every change.
+- **Isolated sandbox:** a container-based sandbox with no network, validated on a real host, before any non-fixture repository can run. Until then local mode stays fixture-only.
+- **LLM-assisted fix generation:** a model call for breaking changes that deterministic rename fixes do not cover. A fix would still be accepted only if the sandbox proves it green.
+- **GitHub App delivery:** App registration, installation auth, and opening a pull request with the proof attached. Until then the output is the local prepared PR file.
+- **Hosted monitoring:** continuous watching of tracked packages and changelogs from a hosted worker.
+- **Production state store:** replace the file-backed store with PostgreSQL.
+- **Fallbacks:** none of these planned paths exist yet, so there is no automatic fallback from one to another. Today the single available path is the local, fixture-only one.

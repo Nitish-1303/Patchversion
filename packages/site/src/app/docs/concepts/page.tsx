@@ -22,9 +22,11 @@ export default function ConceptsPage() {
         <section>
           <h2 className="text-xl font-semibold mb-4">Usage Maps</h2>
           <p className="text-text-secondary">
-            A usage map is an AST-derived index of every call site in your repository that
-            touches a tracked package. It records the file path, line number, import statement,
-            and call expression for each usage. Usage maps are rebuilt when your code changes.
+            A usage map is an AST-derived index of the call sites in your repository that
+            touch a tracked package. Coverage is partial today: both demos are PARTIAL / NOT READY,
+            and complete call-site coverage is planned, not verified. It records the file path,
+            line number, import statement, and call expression for each usage it finds. Usage maps
+            are rebuilt when your code changes.
           </p>
         </section>
 
@@ -32,8 +34,9 @@ export default function ConceptsPage() {
           <h2 className="text-xl font-semibold mb-4">Impact Analysis</h2>
           <p className="text-text-secondary">
             When a breaking change is detected, PatchBay intersects the change record
-            with your usage map to find exactly which call sites are affected. The result
-            includes both affected and unaffected call sites, so you can see the full picture.
+            with your usage map to identify the affected call sites among the usages it maps.
+            Coverage is partial, so some call sites may be missed. The result lists the
+            affected and unaffected call sites it found, so you can see what was mapped.
           </p>
         </section>
 

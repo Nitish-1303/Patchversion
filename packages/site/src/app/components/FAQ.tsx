@@ -8,7 +8,7 @@ import { EASE, DURATION } from './motion';
 const ITEMS = [
   {
     q: 'What does PatchBay do?',
-    a: 'It watches for breaking changes in the third-party SDKs your code depends on, locates the affected call sites in your repositories, proposes a migration patch, runs your own test suite against it, and prepares a pull request with the verification evidence attached.',
+    a: 'Today PatchBay demonstrates fixture-based migration work, run locally. Against recorded breaking changes it maps affected call sites, proposes a migration patch, and reruns the test suite before and after as proof. Both demos, MockPay and Lodash, are PARTIAL / NOT READY. Continuous monitoring of live SDK changes and live GitHub pull-request delivery are not implemented.',
   },
   {
     q: 'Which ecosystems are supported today?',
@@ -20,7 +20,7 @@ const ITEMS = [
   },
   {
     q: 'Does it auto-merge changes?',
-    a: 'No. Every migration arrives as a pull request for a human to review. Nothing is merged automatically, and a prepared PR does not mean the change is safe to merge without review.',
+    a: 'No. PatchBay never merges anything. It does not open pull requests yet either: GitHub pull-request delivery is not implemented, and local runs only write a prepared-PR file. The design is that a proposed migration would reach a human as a pull request for review, and a prepared PR would still not mean the change is safe to merge without that review.',
   },
   {
     q: 'What happens when tests fail?',
@@ -32,7 +32,7 @@ const ITEMS = [
   },
   {
     q: 'How is my repository code handled?',
-    a: 'The current proof loop runs locally against repositories you point it at. Planned hosted execution with isolated environments is still under security review and is not claimed as available.',
+    a: 'The current proof loop runs locally on one machine and only against the bundled fixture repositories. It refuses other repositories, including yours, because no verified isolated sandbox exists yet. Planned hosted execution with isolated environments is still under security review and is not claimed as available.',
   },
   {
     q: 'Which features are implemented today?',

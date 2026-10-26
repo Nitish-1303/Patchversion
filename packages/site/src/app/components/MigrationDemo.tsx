@@ -7,7 +7,7 @@ import { ArrowRight, Check } from 'lucide-react';
 
 const STAGES = [
   { id: 'A', title: 'Dependency change detected', body: 'paylink-sdk publishes 5.0.0. The changelog removes the legacy charges.create({ card }) signature your billing code relies on.' },
-  { id: 'B', title: 'Impact analysis', body: 'PatchBay maps the dependency surface of the repo and flags every call site that touches the removed API - two files in this example.' },
+  { id: 'B', title: 'Impact analysis', body: 'PatchBay maps the dependency surface of the repo and flags the supported call sites it finds that touch the removed API - two files in this example. Coverage is partial, so other call sites may be missed.' },
   { id: 'C', title: 'Proposed patch', body: 'A minimal patch rewrites each affected call to the 5.0.0 signature. Nothing outside the blast radius is touched.' },
   { id: 'D', title: 'Test execution', body: 'The repo\u2019s own test suite runs against the patched code - the same command a developer would run, with the raw output kept.' },
   { id: 'E', title: 'Verification', body: 'The suite runs before and after the patch and both outputs are compared. Only a green after-run earns the verified state - here, 2 failing to 42 of 42 passing.' },

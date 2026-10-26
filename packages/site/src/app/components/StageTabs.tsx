@@ -28,8 +28,8 @@ const TABS = [
   {
     id: 'map',
     label: 'Map',
-    title: 'Every affected call site, found.',
-    body: "An index of your repo\u2019s API usage pinpoints exactly which files and lines touch the changed surface - not a guess, a list.",
+    title: 'Supported call sites, mapped.',
+    body: "An index of your repo\u2019s API usage lists the files and lines it finds that touch the changed surface. Shown on the bundled sample repo; coverage is partial and may miss call sites.",
     status: 'Call-site mapping verified locally against the bundled sample repo.',
     panel: (
       <div className="space-y-3">
@@ -46,7 +46,7 @@ const TABS = [
     id: 'patch',
     label: 'Patch',
     title: 'A minimal fix, not a rewrite.',
-    body: 'The patch changes only what the break requires. The full diff ships in the pull request, so review takes minutes, not archaeology.',
+    body: 'The patch changes only what the break requires. It is written as a unified diff, so review stays short. Today it lands in a local prepared-PR file; live GitHub pull-request delivery is not implemented.',
     status: 'Patch generation verified locally on the fixture, red to green.',
     panel: (
       <div className="rounded-xl bg-white/5 border border-white/10 p-4 font-mono text-[13px] leading-7 overflow-x-auto">
@@ -60,15 +60,15 @@ const TABS = [
   {
     id: 'prove',
     label: 'Prove',
-    title: 'Green tests, or no pull request.',
-    body: 'Before anything reaches you, PatchBay reruns your own test suite against the patched code. A fix that cannot turn the suite green is reported as a diagnosis, never opened as a PR.',
+    title: 'Green tests, or no proposal.',
+    body: 'Before anything reaches you, PatchBay reruns your own test suite against the patched code. A fix that cannot turn the suite green is reported as a diagnosis, and no PR file is prepared for it.',
     status: 'Verified locally on the fixture: 2 failing to 3/3 passing after the patch (runs/latest/proof.json).',
     panel: (
       <div className="rounded-xl bg-white/5 border border-white/10 p-4 font-mono text-[13px] leading-7 overflow-x-auto">
         <div className="text-white/40">$ npm run prove</div>
         <div className="text-[#FF8A8A]">before: 2 failing &middot; missing parameter payment_method</div>
         <div className="text-[#7EE2A0]">after:&nbsp;&nbsp;3/3 passing</div>
-        <div className="text-white/60">exit code 0 &middot; evidence attached to PR</div>
+        <div className="text-white/60">exit code 0 &middot; evidence in local PR file</div>
       </div>
     ),
   },
