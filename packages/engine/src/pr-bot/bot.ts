@@ -69,6 +69,8 @@ export class PRBot {
     const title = `[Patchversion] ${change.packageName}@${change.toVersion} may break your code - needs human review`;
 
     const body = [
+      `**Not submitted to GitHub. Prepared issue text only.**`,
+      ``,
       `## Breaking change detected`,
       ``,
       `**Package:** ${change.packageName}`,
@@ -92,7 +94,7 @@ export class PRBot {
       `The break is real but the fix requires human judgment.`,
       ``,
       `---`,
-      `*Opened by Patchversion. This is an honest report, not a fix.*`,
+      `*Prepared by Patchversion. Not submitted to GitHub. This is a report, not a fix.*`,
     ].join('\n');
 
     this.store.logEvent('unfixable_issue_prepared', {
@@ -119,10 +121,12 @@ export class PRBot {
     );
 
     const sandboxLine = proof.sandboxType === 'docker-isolated'
-      ? `This fix was verified in an isolated Docker sandbox BEFORE this PR was opened.`
-      : `This fix was verified in a local process (no isolation) BEFORE this PR was opened.`;
+      ? `This fix was verified in an isolated Docker sandbox before this PR text was prepared.`
+      : `This fix was verified in a local process (no isolation) before this PR text was prepared.`;
 
     const sections: string[] = [
+      `**Not submitted to GitHub. Prepared PR text only.**`,
+      ``,
       `## What changed`,
       ``,
       `**${change.packageName}** released **${change.toVersion}** (from ${change.fromVersion}).`,
@@ -179,7 +183,7 @@ export class PRBot {
       `- Proof generated: ${proof.producedAt}`,
       ``,
       `---`,
-      `*Opened by Patchversion. Every claim above is backed by a sandbox execution record.*`,
+      `*Prepared by Patchversion. Not submitted to GitHub. Proof recorded from local execution.*`,
     );
 
     return sections.join('\n');
