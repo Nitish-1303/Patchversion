@@ -1,7 +1,8 @@
-Patchversion proof run - 2026-10-24T09:30:52.852Z
+Patchversion proof run - 2026-10-26T05:24:51.517Z
 Fixture repo: fixtures/sample-repo
 Change record: fixtures/breaking-change/change-record.json
 
+Installing fixture dependencies...
 Change: mockpay 1.0.0 -> 2.0.0
 Source: registry - https://www.npmjs.com/package/mockpay/v/2.0.0
 Notes: BREAKING CHANGE: The 'source' parameter in charges.create has been renamed to 'payment_method'. Update your integration to use the new parameter name. The old parameter will be ignored.

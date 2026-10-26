@@ -1,7 +1,8 @@
-Patchversion proof run - 2026-10-24T09:31:00.887Z
+Patchversion proof run - 2026-10-26T05:25:14.020Z
 Fixture repo: fixtures/lodash-repo
 Change record: fixtures/real-migration/lodash-change-record.json
 
+Installing fixture dependencies...
 Change: lodash 3.10.1 -> 4.17.21
 Source: changelog - https://github.com/lodash/lodash/releases/tag/4.0.0
 Notes: BREAKING CHANGE: Renamed `_.contains` to `_.includes`. (lodash v4.0.0 changelog; the rename and removal are also verified by executing both real package versions.)
