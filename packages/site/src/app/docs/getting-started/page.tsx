@@ -45,9 +45,9 @@ patchversion watch add openai`}</pre>
         <section>
           <h2 className="text-xl font-semibold mb-4">3. Review your first change</h2>
           <p className="text-text-secondary">
-            When a breaking change is detected, PatchBay maps affected code in your
-            repository, generates a fix, validates it against your test suite, and prepares
-            a pull request with the evidence. You review and merge.
+            When a breaking change is detected, PatchBay maps the affected code it can find in your
+            repository, generates a fix, validates it against your test suite, and is meant to
+            prepare a pull request with the evidence. You review and merge.
           </p>
           <p className="text-xs text-text-tertiary mt-2">Designed workflow. This is not live yet; the current demo uses a local fixture.</p>
         </section>
