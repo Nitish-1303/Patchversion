@@ -305,8 +305,8 @@ export default function HomePage() {
                   ['Understand what broke', 'Read the changelog and the migration guide, line by line.', 'The breaking change is detected and explained.'],
                   ['Find affected code', 'Grep the repo and hope the search terms catch every call site.', 'Call sites found by static analysis are listed. Dynamic or indirect use can be missed.'],
                   ['Update the implementation', 'Rewrite each call by hand, file by file.', 'A migration patch is proposed for review.'],
-                  ['Prove it works', 'Run the tests, debug the failures, rerun until green.', 'Your own test suite reruns before and after, outputs attached.'],
-                  ['Prepare the review', 'Write up the PR and summarize what changed and why it is safe.', 'The PR arrives with the diff and the verification evidence.'],
+                  ['Prove it works', 'Run the tests, debug the failures, rerun until green.', 'Bundled fixture tests rerun before and after a rename-only patch, with local output.'],
+                  ['Prepare the review', 'Write up the PR and summarize what changed and why it is safe.', 'PR text, the diff and test evidence are prepared locally. GitHub delivery is planned.'],
                 ].map(([step, manual, pb]) => (
                   <div key={step} className="contents">
                     <div className="px-7 py-4 border-b border-rule font-medium text-ink">{step}</div>
