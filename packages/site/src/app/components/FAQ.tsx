@@ -20,7 +20,7 @@ const ITEMS = [
   },
   {
     q: 'Does it auto-merge changes?',
-    a: 'No. Every migration arrives as a pull request for a human to review. Nothing is merged automatically, and a prepared PR does not mean the change is safe to merge without review.',
+    a: 'No. The plan is a pull request for a human to review; today only PR text is prepared. Nothing is merged automatically, and prepared PR text does not mean the change is safe to merge without review.',
   },
   {
     q: 'What happens when tests fail?',
@@ -32,7 +32,7 @@ const ITEMS = [
   },
   {
     q: 'How is my repository code handled?',
-    a: 'The current proof loop runs locally against repositories you point it at. Planned hosted execution with isolated environments is still under security review and is not claimed as available.',
+    a: 'The current end-to-end proof loop runs locally on bundled fixtures. Other repositories remain blocked pending verified isolation. Planned hosted execution is still under security review and is not claimed as available.',
   },
   {
     q: 'Which features are implemented today?',

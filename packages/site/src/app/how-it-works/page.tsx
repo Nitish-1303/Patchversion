@@ -26,11 +26,11 @@ export default function HowItWorksPage() {
           number={2}
           title="Monitor"
           status="development"
-          description="PatchBay is being built to poll the npm registry for new versions of tracked packages and parse changelogs. Today, detection runs on recorded changes fed to the local engine - the same change records the watcher will produce. Live contract probes are planned, not built."
+          description="PatchBay is being built to poll the npm registry for new versions of tracked packages and parse changelogs. Today, detection runs on recorded changes fed to the local engine - the same change records the watcher will produce. A prototype ContractProber module exists, but hosted probing is not operational."
           details={[
             'Registry polling on a configurable schedule',
             'Changelog parsing with normalized change records',
-            'Live contract probes (planned) would compare response schemas against stored baselines',
+            'Prototype contract-probe code compares response schemas against stored baselines; hosted probing is not operational',
           ]}
         />
         <Stage

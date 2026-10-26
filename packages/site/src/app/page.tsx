@@ -605,7 +605,7 @@ export default function HomePage() {
           </Reveal>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
-              { icon: FolderGit2, t: 'Repos', d: 'The proof loop runs locally against the repositories you point it at.', st: 'Runs locally' },
+              { icon: FolderGit2, t: 'Repos', d: 'The proof loop runs locally on bundled fixtures. Other repositories stay blocked pending verified isolation.', st: 'Runs locally' },
               { icon: FileDiff, t: 'Diffs', d: 'Minimal, reviewable patches scoped to the affected call sites.', st: 'Runs locally' },
               { icon: FlaskConical, t: 'Tests', d: 'Your own suite, rerun before and after, output attached.', st: 'Runs locally' },
               { icon: GitPullRequest, t: 'Pull requests', d: 'Delivery as GitHub PRs is in development - no install button until it is real.', st: 'In development' },
