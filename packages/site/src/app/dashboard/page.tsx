@@ -102,7 +102,7 @@ export default function DashboardPage() {
             <div className="space-y-3 text-sm">
               <ActivityItem text="Breaking change detected in stripe-node@15.0.0" time="2h ago" />
               <ActivityItem text="Impact analysis completed for acme/payments" time="2h ago" />
-              <ActivityItem text="Fix generated and verified in sandbox" time="2h ago" />
+              <ActivityItem text="Fix generated and verified in a local test run" time="2h ago" />
               <ActivityItem text="Feature release detected in openai@4.29.0" time="6h ago" />
             </div>
           </section>
