@@ -192,11 +192,11 @@ function EvidenceMock() {
 
 const STAGES = [
   { name: 'Detect', desc: 'A provider ships a change that breaks an API shape your code uses. Continuous watching is in development; detection runs today on recorded changes.', status: 'Proven locally' },
-  { name: 'Analyze', desc: 'An index of every call site that touches the changed surface, down to the line.', status: 'Proven locally' },
+  { name: 'Analyze', desc: 'Static analysis lists the call sites it can see that touch the changed surface, down to the line. Coverage is partial: dynamic or indirect use can be missed.', status: 'Proven locally' },
   { name: 'Patch', desc: 'A minimal diff that changes only what the break requires.', status: 'Proven locally' },
   { name: 'Test', desc: 'Your own test suite runs against the patch - the same command you would run.', status: 'Proven locally' },
   { name: 'Verify', desc: 'Before and after outputs compared. Green, or no PR.', status: 'Proven locally' },
-  { name: 'Review', desc: 'A review-ready pull request with the evidence attached.', status: 'In development' },
+  { name: 'Review', desc: 'A pull request with the evidence attached. Today this is a local artifact only; nothing is opened on GitHub.', status: 'In development' },
 ];
 
 type SourceEntry =
@@ -236,7 +236,7 @@ export default function HomePage() {
           </Reveal>
           <Reveal delay={160}>
             <p className="mt-6 text-lg leading-8 text-white/80 max-w-xl">
-              PatchBay helps engineering teams navigate breaking SDK changes by identifying affected code, proposing migration patches, running tests, and preparing reviewable pull requests with verification evidence.
+              An early-stage prototype for breaking SDK changes. Today a local proof loop maps call sites, applies a rename fix and reruns the tests on a bundled fixture. Live watching and pull-request delivery are in development.
             </p>
           </Reveal>
           <Reveal delay={240}>
@@ -303,7 +303,7 @@ export default function HomePage() {
                 <div className="px-7 py-5 border-b border-rule font-display font-semibold text-navy bg-accent-light/50">The PatchBay way</div>
                 {[
                   ['Understand what broke', 'Read the changelog and the migration guide, line by line.', 'The breaking change is detected and explained.'],
-                  ['Find affected code', 'Grep the repo and hope the search terms catch every call site.', 'Every call site is located and listed.'],
+                  ['Find affected code', 'Grep the repo and hope the search terms catch every call site.', 'Call sites found by static analysis are listed. Dynamic or indirect use can be missed.'],
                   ['Update the implementation', 'Rewrite each call by hand, file by file.', 'A migration patch is proposed for review.'],
                   ['Prove it works', 'Run the tests, debug the failures, rerun until green.', 'Your own test suite reruns before and after, outputs attached.'],
                   ['Prepare the review', 'Write up the PR and summarize what changed and why it is safe.', 'The PR arrives with the diff and the verification evidence.'],
