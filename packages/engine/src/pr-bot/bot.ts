@@ -120,9 +120,12 @@ export class PRBot {
       proof.fixedFiles.includes(site.filePath),
     );
 
-    const sandboxLine = proof.sandboxType === 'docker-isolated'
-      ? `This fix was verified in an isolated Docker sandbox before this PR text was prepared.`
-      : `This fix was verified in a local process (no isolation) before this PR text was prepared.`;
+    // A caller-supplied or persisted label is not evidence of isolation.
+    // Only the local execution path is currently implemented and supported.
+    const isLocalProcess = proof.sandboxType === 'local-process';
+    const sandboxLine = isLocalProcess
+      ? `This fix was verified in a local process (no isolation) before this PR text was prepared.`
+      : `Execution environment is unsupported or unknown; isolation has not been verified.`;
 
     const sections: string[] = [
       `**Not submitted to GitHub. Prepared PR text only.**`,
@@ -179,11 +182,13 @@ export class PRBot {
       `### Confidence`,
       ``,
       `- Change classification confidence: ${(change.classification.confidence * 100).toFixed(0)}%`,
-      `- Sandbox type: ${proof.sandboxType}`,
+      `- Sandbox type: ${isLocalProcess ? 'local-process' : 'unsupported or unknown (not verified)'}`,
       `- Proof generated: ${proof.producedAt}`,
       ``,
       `---`,
-      `*Prepared by Patchversion. Not submitted to GitHub. Proof recorded from local execution.*`,
+      isLocalProcess
+        ? `*Prepared by Patchversion. Not submitted to GitHub. Proof recorded from local execution.*`
+        : `*Prepared by Patchversion. Not submitted to GitHub. Execution environment not verified.*`,
     );
 
     return sections.join('\n');
