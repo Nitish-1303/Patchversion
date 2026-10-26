@@ -22,9 +22,9 @@ export default function ConceptsPage() {
         <section>
           <h2 className="text-xl font-semibold mb-4">Usage Maps</h2>
           <p className="text-text-secondary">
-            A usage map is an AST-derived index of every call site in your repository that
-            touches a tracked package. It records the file path, line number, import statement,
-            and call expression for each usage. Usage maps are rebuilt when your code changes.
+            A usage map is an AST-derived index of the call sites in your repository that
+            touch a tracked package. Coverage is partial: dynamic or indirect use can be missed. It records the file path, line number, import statement,
+            and call expression for each usage. Today a usage map is built when the local engine is run.
           </p>
         </section>
 

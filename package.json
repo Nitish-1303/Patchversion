@@ -2,7 +2,7 @@
   "name": "patchversion",
   "version": "0.1.0",
   "private": true,
-  "description": "Self-maintaining API agent: watches third-party APIs for breaking changes, maps affected code, proves fixes in a sandbox, opens evidence-backed PRs.",
+  "description": "Early-stage prototype: local proof loop for breaking SDK changes (call-site mapping, deterministic rename fix, test rerun). Live watching and PR delivery are in development.",
   "workspaces": [
     "packages/engine",
     "packages/site",

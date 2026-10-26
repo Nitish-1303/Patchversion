@@ -5,7 +5,7 @@ export default function HowItWorksPage() {
       <div className="max-w-3xl mb-16">
         <h1 className="text-4xl font-bold mb-4">How It Works</h1>
         <p className="text-lg text-text-secondary">
-          The complete pipeline from API change to reviewed pull request.
+          The planned pipeline from API change to reviewed pull request.
           Each stage is labeled with its real status: what runs today, and what is still being built.
         </p>
       </div>
@@ -48,7 +48,7 @@ export default function HowItWorksPage() {
           number={4}
           title="Analyze"
           status="proven"
-          description="For confirmed breaking changes, PatchBay scans the repository using AST analysis to find every import, require, and call expression that touches the changed package. Verified locally on the bundled sample repository."
+          description="For confirmed breaking changes, PatchBay scans the repository using AST analysis to find the import, require, and call expressions that touch the changed package. Coverage is partial: dynamic or indirect use can be missed. Verified locally on the bundled sample repository."
           details={[
             'ts-morph AST parsing (not regex or text search)',
             'Handles named imports, default imports, namespace imports, and require()',
@@ -59,7 +59,7 @@ export default function HowItWorksPage() {
           number={5}
           title="Remediate"
           status="proven"
-          description="PatchBay generates a minimal patch. For known migration patterns (field removals, renames) it applies a deterministic transformation - verified locally on the bundled mockpay migration fixture. LLM-assisted generation for novel breaking changes is planned, not built."
+          description="PatchBay generates a minimal patch. The only automatic fix today is a deterministic rename of a field or parameter - verified locally on the bundled mockpay migration fixture. LLM-assisted generation for novel breaking changes is planned, not built."
           details={[
             'Deterministic fixes for known patterns (fast, reliable)',
             'LLM-assisted generation for novel breaking changes (planned)',

@@ -125,13 +125,13 @@ export default function ProductPage() {
         <div className="grid md:grid-cols-2 gap-8">
           <div className="min-w-0">
             <p className="text-text-secondary mb-4">
-              Once a breaking change is confirmed, PatchBay maps every call site in the
+              Once a breaking change is confirmed, PatchBay maps the call sites it can find in the
               repository that touches the changed package. This uses AST (Abstract Syntax Tree)
-              analysis, not text search, so it handles imports, aliases, and re-exports correctly.
+              analysis, not text search, so it follows common import and require forms.
             </p>
             <p className="text-text-secondary">
-              The result is a precise list of affected files, line numbers, and call expressions.
-              No false positives from commented-out code or string literals.
+              The result is a list of affected files, line numbers, and call expressions.
+              Comments and string literals are not matched. Dynamic or indirect use can be missed.
             </p>
           </div>
           <div className="card min-w-0">
@@ -164,8 +164,7 @@ export default function ProductPage() {
         <div className="grid md:grid-cols-2 gap-8">
           <div className="min-w-0">
             <p className="text-text-secondary mb-4">
-              For known migration patterns (field removals, renames, signature changes), PatchBay applies
-              a deterministic fix - the same class of fix that migrated the bundled sample repo off
+              The only automatic fix today is a deterministic rename of a field or parameter - the same class of fix that migrated the bundled sample repo off
               mockpay 2.0.0&apos;s renamed <span className="font-mono text-sm">source</span> parameter.
             </p>
             <p className="text-text-secondary mb-4">
