@@ -114,14 +114,14 @@ export default function HowItWorksPage() {
             <h3 className="font-semibold mb-2">Test dependency</h3>
             <p className="text-sm text-text-secondary">
               Verification requires a working test suite in the repository. Repositories
-              without tests can get impact analysis and fix proposals, but no automated proof.
+              without tests would get no automated proof. Today only the bundled fixtures run end to end.
             </p>
           </div>
           <div className="card">
             <h3 className="font-semibold mb-2">Fix coverage</h3>
             <p className="text-sm text-text-secondary">
-              Deterministic fixes cover known patterns (removals, renames, signature changes). Novel
-              breaking changes need LLM-assisted generation, which is planned and unproven.
+              The only automatic fix today is a deterministic rename of a field or parameter. Other
+              breaking changes, including removals and signature changes, need LLM-assisted generation, which is not built.
             </p>
           </div>
         </div>
