@@ -22,7 +22,8 @@ export default function DocsSecurityPage() {
           <h2 className="text-xl font-semibold mb-4">Execution Isolation</h2>
           <p className="text-text-secondary mb-4">
             Today, fix verification runs as a local child process on the maintainer&apos;s own
-            machine, against repositories they own. The hardened isolated environment intended for
+            machine, against bundled fixture trees only. Other repositories are refused, including
+            repositories owned by the maintainer. The hardened isolated environment intended for
             running other people&apos;s code (network-disabled container, resource limits) is
             designed but <strong>not yet qualified</strong>: it failed an internal security review,
             and customer repositories stay blocked until a qualified isolation boundary exists.
@@ -55,4 +56,3 @@ export default function DocsSecurityPage() {
     </div>
   );
 }
-
