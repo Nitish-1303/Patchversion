@@ -28,8 +28,8 @@ const TABS = [
   {
     id: 'map',
     label: 'Map',
-    title: 'Every affected call site, found.',
-    body: "An index of your repo\u2019s API usage pinpoints exactly which files and lines touch the changed surface - not a guess, a list.",
+    title: 'Call sites mapped, with limits.',
+    body: "An index of your repo\u2019s API usage lists the files and lines it can find that touch the changed surface. Dynamic or indirect use can be missed.",
     status: 'Call-site mapping verified locally against the bundled sample repo.',
     panel: (
       <div className="space-y-3">
@@ -46,7 +46,7 @@ const TABS = [
     id: 'patch',
     label: 'Patch',
     title: 'A minimal fix, not a rewrite.',
-    body: 'The patch changes only what the break requires. The full diff ships in the pull request, so review takes minutes, not archaeology.',
+    body: 'The fixture patch changes only what the rename requires. The full diff is prepared locally with PR text; GitHub PR delivery is not implemented.',
     status: 'Patch generation verified locally on the fixture, red to green.',
     panel: (
       <div className="rounded-xl bg-white/5 border border-white/10 p-4 font-mono text-[13px] leading-7 overflow-x-auto">
@@ -61,14 +61,14 @@ const TABS = [
     id: 'prove',
     label: 'Prove',
     title: 'Green tests, or no pull request.',
-    body: 'Before anything reaches you, PatchBay reruns your own test suite against the patched code. A fix that cannot turn the suite green is reported as a diagnosis, never opened as a PR.',
+    body: 'On bundled fixtures, PatchBay reruns tests against the patched code. Failed or inconclusive runs are not accepted as fixes. Results are local artifacts; no actual PR is opened or submitted.',
     status: 'Verified locally on the fixture: 2 failing to 3/3 passing after the patch (runs/latest/proof.json).',
     panel: (
       <div className="rounded-xl bg-white/5 border border-white/10 p-4 font-mono text-[13px] leading-7 overflow-x-auto">
         <div className="text-white/40">$ npm run prove</div>
         <div className="text-[#FF8A8A]">before: 2 failing &middot; missing parameter payment_method</div>
         <div className="text-[#7EE2A0]">after:&nbsp;&nbsp;3/3 passing</div>
-        <div className="text-white/60">exit code 0 &middot; evidence attached to PR</div>
+        <div className="text-white/60">exit code 0 &middot; evidence saved locally; PR delivery planned</div>
       </div>
     ),
   },
