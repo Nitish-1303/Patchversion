@@ -8,7 +8,7 @@ import { EASE, DURATION } from './motion';
 const ITEMS = [
   {
     q: 'What does PatchBay do?',
-    a: 'It watches for breaking changes in the third-party SDKs your code depends on, locates the affected call sites in your repositories, proposes a migration patch, runs your own test suite against it, and prepares a pull request with the verification evidence attached.',
+    a: 'It is being built to watch for breaking changes in the third-party SDKs your code depends on, locate the affected call sites in your repositories, propose a migration patch, run your own test suite against it, and prepare a pull request with the verification evidence attached. Today the locate, patch and test steps run locally on bundled fixtures; watching and pull-request delivery are in development.',
   },
   {
     q: 'Which ecosystems are supported today?',
@@ -36,7 +36,7 @@ const ITEMS = [
   },
   {
     q: 'Which features are implemented today?',
-    a: 'Implemented and verified locally: detecting a breaking SDK change, locating affected call sites, generating a migration patch, and rerunning the test suite as proof. In development: continuous version monitoring, the hosted dashboard, and PR delivery.',
+    a: 'Implemented and verified locally: detecting a breaking SDK change, locating affected call sites (partial coverage), generating a rename-only migration patch, and rerunning the test suite as proof. In development: continuous version monitoring, the hosted dashboard, and PR delivery.',
   },
 ];
 

@@ -31,6 +31,8 @@ const BANNED: [RegExp, string][] = [
   [/publishes its own failure rate/i, 'no failure-rate metrics exist'],
   [/proves the fix in a sandbox/i, 'no verified sandbox execution'],
   [/verified in sandbox/i, 'no verified sandbox execution'],
+  [/removals, renames/i, 'only renames are auto-fixed'],
+  [/It watches for breaking changes/, 'watching is not running; use planned wording'],
   [/\u2014/, 'emdash in copy'],
 ];
 
