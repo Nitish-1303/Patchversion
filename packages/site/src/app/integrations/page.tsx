@@ -51,7 +51,7 @@ export default function IntegrationsPage() {
             <p className="text-sm text-text-secondary flex-1">{int.description}</p>
             <div className="mt-4 pt-4 rule-t">
               {int.status === 'available' ? (
-                <a href="/docs/integrations" className="text-sm text-accent font-medium hover:underline">
+                <a href="/docs/getting-started" className="text-sm text-accent font-medium hover:underline">
                   Setup instructions &rarr;
                 </a>
               ) : (

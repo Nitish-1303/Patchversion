@@ -1,8 +1,6 @@
 name: CI
 
-# NOTE (2026-10-24): this workflow is LOCALLY IMPLEMENTED but NOT remotely
-# verified - no CI run has occurred yet. Remove this note after the first
-# observed green run on GitHub Actions.
+# Verified on GitHub Actions: first green run observed 2026-10-24 on main.
 
 on:
   push:

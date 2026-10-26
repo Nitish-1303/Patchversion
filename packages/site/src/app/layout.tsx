@@ -18,12 +18,27 @@ const inter = Inter({
   variable: '--font-body',
 });
 
+const DESCRIPTION =
+  'Detects third-party API changes, finds affected code in your repositories, and prepares tested fixes your team can review.';
+
 export const metadata: Metadata = {
+  metadataBase: new URL('https://trypatchbay.vercel.app'),
   title: 'PatchBay - Your APIs change. Your code keeps up.',
-  description:
-    'Detects third-party API changes, finds affected code in your repositories, and prepares tested fixes your team can review.',
+  description: DESCRIPTION,
   icons: {
     icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }],
+  },
+  openGraph: {
+    title: 'PatchBay - Your APIs change. Your code keeps up.',
+    description: DESCRIPTION,
+    url: 'https://trypatchbay.vercel.app',
+    siteName: 'PatchBay',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'PatchBay - Your APIs change. Your code keeps up.',
+    description: DESCRIPTION,
   },
 };
 
