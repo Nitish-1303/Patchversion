@@ -16,7 +16,7 @@ const ITEMS = [
   },
   {
     q: 'How does verification work?',
-    a: 'PatchBay reruns the repository\u2019s own test suite before and after applying the proposed patch, and attaches both outputs to the result. A patch is never presented as correct without that test evidence.',
+    a: 'On bundled fixtures only, PatchBay reruns the fixture test suite before and after applying a rename-only patch, and saves both outputs locally. There is no verified isolation or live GitHub PR delivery. A patch is never presented as correct without that test evidence.',
   },
   {
     q: 'Does it auto-merge changes?',
