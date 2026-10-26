@@ -74,4 +74,7 @@ decision is missing) / `NOT RUN` (not executed).
 
 | Date | Commit | Change | Totals after |
 |------|--------|--------|--------------|
-| 2026-10-26 | (this branch, see git log) | Scoreboard created; baseline executed end-to-end (B-01..B-08 PASS, B-09 FAIL, B-10 NOT RUN); gate checks recorded | 11/1/2/10 |
+| 2026-10-26 | `6f58d07` | Scoreboard created; baseline executed end-to-end (B-01..B-08 PASS, B-09 FAIL, B-10 NOT RUN); gate checks recorded | 11/1/2/10 |
+| 2026-10-26 | `a05edba` | Proof-run artifacts refreshed from actual reruns; old artifacts archived | 11/1/2/10 |
+| 2026-10-26 | `1971054` | G0: honest root package description; lint script admits it is a no-op (B-09 stays FAIL until a linter is configured) | 11/1/2/10 |
+| 2026-10-26 | `a0069f8` | docs/status.md test counts and revalidation date refreshed | 11/1/2/10 |
