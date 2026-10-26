@@ -2,7 +2,7 @@
   "name": "patchversion",
   "version": "0.1.0",
   "private": true,
-  "description": "Self-maintaining API agent: watches third-party APIs for breaking changes, maps affected code, proves fixes in a sandbox, opens evidence-backed PRs.",
+  "description": "Fixture-based prototype of a migration-safety agent: maps affected call sites for recorded breaking changes and proves deterministic fixes red-to-green in a local process. GitHub App, live monitoring, isolated sandbox and PR delivery are planned, not built.",
   "workspaces": [
     "packages/engine",
     "packages/site",
@@ -12,7 +12,7 @@
     "build": "npm run build -w @patchversion/shared && npm run build --workspaces",
     "test": "npm run build -w @patchversion/shared && npm run test --workspaces",
     "typecheck": "npm run build -w @patchversion/shared && npm run typecheck --workspaces",
-    "lint": "npm run lint --workspaces --if-present",
+    "lint": "echo 'No linter is configured in this repository; lint ran zero checks.'",
     "prove": "npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run prove -w @patchversion/engine",
     "prove:real": "npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run prove:real -w @patchversion/engine"
   },
