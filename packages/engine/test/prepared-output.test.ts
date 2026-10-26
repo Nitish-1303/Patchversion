@@ -39,3 +39,23 @@ test('generated issue artifact never claims an issue or PR was opened', () => {
   expect(issue.body).toContain('Prepared issue text only.');
   expect(issue.body).not.toContain('Proof recorded from local execution');
 });
+
+test.each(['docker-isolated', 'unknown-runtime', undefined, null, 42, {}])(
+  'generated and persisted PR output does not infer isolation from unsupported type %p',
+  sandboxType => {
+    // JSON-backed state and callers do not provide runtime schema/provenance checks.
+    const store = new StateStore(tmp);
+    const supplied = { ...proof, sandboxType } as ProofArtifact;
+    store.saveProof(supplied);
+    const loaded = store.getProof(supplied.id)!;
+    const pr = bot.preparePR(change, impact, loaded);
+    expectNotSubmitted(pr.body);
+    expect(pr.body).toContain('Execution environment is unsupported or unknown; isolation has not been verified.');
+    expect(pr.body).toContain('Sandbox type: unsupported or unknown (not verified)');
+    expect(pr.body).not.toMatch(/verified in an isolated Docker sandbox|verified in a local process|Proof recorded from local execution/i);
+    expect(pr.body).toContain('Execution environment not verified.');
+    const saved = fs.readdirSync(path.join(tmp, 'prs')).map(file =>
+      JSON.parse(fs.readFileSync(path.join(tmp, 'prs', file), 'utf8')));
+    expect(saved.some(record => record.body === pr.body)).toBe(true);
+  },
+);
