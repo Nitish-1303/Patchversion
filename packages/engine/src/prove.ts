@@ -4,6 +4,8 @@ import { execFileSync } from 'child_process';
 import { PatchversionEngine } from './engine';
 import { ChangeRecord } from '@patchversion/shared';
 import { writeArtifacts } from './proof-output';
+import { loadConfig } from './config';
+import { resolveTrustedFixture } from './fixture-admission';
 
 /**
  * prove: run the full pipeline against a repository we control.
@@ -35,7 +37,13 @@ function log(line: string): void {
   console.log(line);
 }
 
-async function main(): Promise<void> {
+export async function main(targetPath = fixtureRepo): Promise<void> {
+  // Admission must precede package reads, dependency installation and engine work.
+  // Use the canonical path throughout so an admitted symlink is not reused.
+  const fixtureRepo = resolveTrustedFixture(targetPath, loadConfig().trustedFixtureDirs);
+  if (!fixtureRepo) {
+    throw new Error('Execution refused: repo is not a trusted fixture');
+  }
   const startedAt = new Date();
   log(`Patchversion proof run - ${startedAt.toISOString()}`);
   log(`Fixture repo: ${path.relative(repoRoot, fixtureRepo)}`);
@@ -132,7 +140,7 @@ function writeOutputs(pr: import('@patchversion/shared').PreparedPR | null): voi
   writeArtifacts(outDir, files);
 }
 
-main().catch(err => {
+if (require.main === module) main().catch(err => {
   log(`FATAL: ${err instanceof Error ? err.message : String(err)}`);
   writeOutputs(null);
   process.exit(1);
