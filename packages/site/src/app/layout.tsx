@@ -19,7 +19,7 @@ const inter = Inter({
 });
 
 const DESCRIPTION =
-  'Detects third-party API changes, finds affected code in your repositories, and prepares tested fixes your team can review.';
+  'Early-stage prototype. A local proof loop applies a rename fix for a recorded API change and reruns tests on a bundled fixture. Live watching and pull-request delivery are in development.';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://trypatchbay.vercel.app'),
