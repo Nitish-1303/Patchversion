@@ -3,6 +3,11 @@ import { ChangeRecord, ChangeClassification } from '@patchversion/shared';
 import { StateStore } from '../state/store';
 import { classifyChange } from '../break-detector/classifier';
 
+/** Timeout for one registry request; a hung socket fails the poll. */
+const REGISTRY_REQUEST_TIMEOUT_MS = 30_000;
+/** Cap on buffered registry metadata (large package docs run a few MB). */
+const MAX_REGISTRY_RESPONSE_BYTES = 16 * 1024 * 1024;
+
 interface NpmRegistryResponse {
   'dist-tags': { latest: string };
   versions: Record<string, {
@@ -21,6 +26,7 @@ export class NpmWatcher {
   private store: StateStore;
   private intervalMs: number;
   private timer: ReturnType<typeof setInterval> | null = null;
+  private pollInFlight = false;
 
   constructor(store: StateStore, intervalMs = 3_600_000) {
     this.store = store;
@@ -28,16 +34,30 @@ export class NpmWatcher {
   }
 
   start(): void {
-    this.pollAll();
-    this.timer = setInterval(() => this.pollAll(), this.intervalMs);
+    void this.pollAll();
+    this.timer = setInterval(() => void this.pollAll(), this.intervalMs);
   }
 
   stop(): void {
     if (this.timer) clearInterval(this.timer);
   }
 
-  /** Poll all watch targets once. */
+  /** Poll all watch targets once. Overlapping polls are skipped: a hung
+   *  registry request must never stack unbounded concurrent polls. */
   async pollAll(): Promise<ChangeRecord[]> {
+    if (this.pollInFlight) {
+      this.store.logEvent('watcher_overlap_skipped', {});
+      return [];
+    }
+    this.pollInFlight = true;
+    try {
+      return await this.pollAllInner();
+    } finally {
+      this.pollInFlight = false;
+    }
+  }
+
+  private async pollAllInner(): Promise<ChangeRecord[]> {
     const targets = this.store.listWatchTargets();
     const changes: ChangeRecord[] = [];
 
@@ -113,9 +133,19 @@ export class NpmWatcher {
   private fetchRegistry(packageName: string): Promise<NpmRegistryResponse> {
     return new Promise((resolve, reject) => {
       const encoded = encodeURIComponent(packageName);
-      https.get(`https://registry.npmjs.org/${encoded}`, (res) => {
+      const req = https.get(`https://registry.npmjs.org/${encoded}`, (res) => {
         let data = '';
-        res.on('data', chunk => { data += chunk; });
+        let bytes = 0;
+        res.on('data', (chunk: Buffer) => {
+          bytes += chunk.length;
+          if (bytes > MAX_REGISTRY_RESPONSE_BYTES) {
+            req.destroy(
+              new Error(`registry response for ${packageName} exceeded ${MAX_REGISTRY_RESPONSE_BYTES} bytes`),
+            );
+            return;
+          }
+          data += chunk.toString();
+        });
         res.on('end', () => {
           try {
             resolve(JSON.parse(data));
@@ -123,7 +153,13 @@ export class NpmWatcher {
             reject(new Error(`Failed to parse registry response for ${packageName}`));
           }
         });
-      }).on('error', reject);
+      });
+      // A hung connection must fail the poll, not stall it forever: the
+      // next interval depends on this promise settling.
+      req.setTimeout(REGISTRY_REQUEST_TIMEOUT_MS, () => {
+        req.destroy(new Error(`registry request for ${packageName} timed out after ${REGISTRY_REQUEST_TIMEOUT_MS}ms`));
+      });
+      req.on('error', reject);
     });
   }
 }
