@@ -4,52 +4,53 @@ export default function OnboardingPage() {
     <div className="min-h-[60vh] flex items-center justify-center px-4">
       <div className="max-w-2xl w-full">
         <h1 className="text-3xl font-bold mb-2">Welcome to PatchBay</h1>
-        <p className="text-text-secondary mb-12">Let&apos;s get your first repository connected.</p>
+        <p className="text-text-secondary mb-12">Planned onboarding preview. Repository connection and hosted monitoring are not available.</p>
 
         <div className="space-y-6">
           <OnboardingStep
             step={1}
             title="Create a workspace"
-            description="A workspace groups your repositories, team members, and monitoring configuration."
+            description="Planned: group repositories, team members, and monitoring configuration in a workspace."
             status="pending"
           />
           <OnboardingStep
             step={2}
             title="Connect a repository"
-            description="Install the PatchBay GitHub App on the repositories you want to monitor."
+            description="Planned: connect selected repositories through a GitHub App. App installation is not implemented."
             status="pending"
           />
           <OnboardingStep
             step={3}
             title="Select API providers"
-            description="Choose which npm packages or API endpoints to track for changes."
+            description="Planned: choose npm packages or API endpoints to track for changes."
             status="pending"
           />
           <OnboardingStep
             step={4}
             title="Configure monitoring"
-            description="Set how often PatchBay checks for new versions and live API drift."
+            description="Planned: schedule checks for new versions and live API drift. Hosted monitoring is not running."
             status="pending"
           />
           <OnboardingStep
             step={5}
             title="Run first analysis"
-            description="Trigger an initial scan to map your current API usage across connected repositories."
+            description="Planned: scan connected repositories to map API usage. No connected-repository scan is available today."
             status="pending"
           />
           <OnboardingStep
             step={6}
             title="View results"
-            description="See your usage map, current dependency versions, and any pending updates."
+            description="Planned: view a usage map, dependency versions, and pending updates in a hosted dashboard."
             status="pending"
           />
         </div>
 
         <div className="mt-12 card bg-warning-bg border-warning/20">
           <p className="text-sm text-warning">
-            <strong>Setup required.</strong> The onboarding flow requires a configured GitHub App
-            and database. Follow the <a href="/docs/getting-started" className="underline">getting started guide</a> to
-            set up your environment.
+            <strong>Prototype only.</strong> Today the end-to-end proof loop runs locally on bundled fixtures,
+            without isolation, and prepares PR text only. It does not open or submit pull requests.
+            The <a href="/docs/getting-started" className="underline">getting started guide</a> separates
+            this local demo from the planned onboarding flow.
           </p>
         </div>
       </div>
@@ -81,4 +82,3 @@ function OnboardingStep({ step, title, description, status }: {
     </div>
   );
 }
-
