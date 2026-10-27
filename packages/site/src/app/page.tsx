@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { ArrowRight, Check, X, FolderGit2, FileDiff, FlaskConical, GitPullRequest, Store, Bot, FileJson, PackageOpen, Search, ShieldCheck } from 'lucide-react';
 import Reveal from './components/Reveal';
 import StageTabs from './components/StageTabs';
@@ -211,6 +212,10 @@ const SOURCES: SourceEntry[] = [
   { kind: 'brand', brand: 'npm', name: 'npm packages', note: 'Semver majors with breaking changelogs.' },
   { kind: 'icon', icon: 'openapi', name: 'OpenAPI specs', note: 'Spec diffs that flag removed fields and changed types.' },
 ];
+
+export const metadata: Metadata = {
+  alternates: { canonical: 'https://trypatchbay.vercel.app' },
+};
 
 export default function HomePage() {
   return (
