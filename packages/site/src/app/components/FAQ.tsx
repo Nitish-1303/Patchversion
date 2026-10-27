@@ -45,6 +45,18 @@ export default function FAQ() {
   const reduce = useReducedMotion();
   return (
     <div className="divide-y divide-rule border-y border-rule">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'FAQPage',
+          mainEntity: ITEMS.map(item => ({
+            '@type': 'Question',
+            name: item.q,
+            acceptedAnswer: { '@type': 'Answer', text: item.a },
+          })),
+        }).replace(/</g, '\\u003c') }}
+      />
       <noscript>{ITEMS.map(item => <details key={item.q} className="py-4"><summary>{item.q}</summary><p className="py-3 leading-7">{item.a}</p></details>)}</noscript>
       {ITEMS.map((item, i) => {
         const isOpen = open === i;
