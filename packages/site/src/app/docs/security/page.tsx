@@ -9,7 +9,7 @@ export default function DocsSecurityPage() {
           <h2 className="text-xl font-semibold mb-4">Repository Access (planned)</h2>
           <p className="text-text-secondary mb-4">
             The plan is a GitHub App with least-privilege permissions. The app is not yet
-            registered, and PatchBay has no access to any repository today:
+            registered, and trypatchbay has no access to any repository today:
           </p>
           <ul className="space-y-2 text-text-secondary list-disc pl-5">
             <li><strong>Read:</strong> Repository contents, metadata</li>
