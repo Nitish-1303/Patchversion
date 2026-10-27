@@ -8,7 +8,7 @@ export default function ContactPage() {
         Talk to the founder.
       </h1>
       <p className="text-lg text-text-secondary mb-12">
-        PatchBay is in early development by a solo founder. Questions, feedback,
+        trypatchbay is in early development by a solo founder. Questions, feedback,
         or design-partner inquiries all land in the same inbox - and get a real reply.
       </p>
       <ContactForm />
