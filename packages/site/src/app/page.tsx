@@ -18,7 +18,7 @@ function DashboardMock() {
           <span className="w-3 h-3 rounded-full bg-[#27CA40]" />
         </div>
         <span className="text-[13px] font-medium text-text-secondary">
-          PatchBay proof run &middot; mockpay 1.0.0 &rarr; 2.0.0
+          trypatchbay proof run &middot; mockpay 1.0.0 &rarr; 2.0.0
         </span>
         <span className="ml-auto badge-success">verified fixture run</span>
       </div>
@@ -170,7 +170,7 @@ function EvidenceMock() {
         <span className="w-8 h-8 rounded-full bg-navy text-white flex items-center justify-center text-[13px] font-semibold">PB</span>
         <div>
           <p className="text-[14px] font-semibold text-ink">Fix: mockpay 1.0.0 &rarr; 2.0.0 (1 call site)</p>
-          <p className="text-[12px] text-text-tertiary">patchbay &middot; evidence attached</p>
+          <p className="text-[12px] text-text-tertiary">trypatchbay &middot; evidence attached</p>
         </div>
       </div>
       <div className="p-6 space-y-4">
@@ -300,7 +300,7 @@ export default function HomePage() {
               <div className="grid md:grid-cols-[1.1fr_1fr_1fr] text-sm">
                 <div className="px-7 py-5 border-b border-rule font-display font-semibold text-ink">The same upgrade</div>
                 <div className="px-7 py-5 border-b border-rule font-display font-semibold text-text-secondary">The manual way</div>
-                <div className="px-7 py-5 border-b border-rule font-display font-semibold text-navy bg-accent-light/50">The PatchBay way</div>
+                <div className="px-7 py-5 border-b border-rule font-display font-semibold text-navy bg-accent-light/50">The trypatchbay way</div>
                 {[
                   ['Understand what broke', 'Read the changelog and the migration guide, line by line.', 'The breaking change is detected and explained.'],
                   ['Find affected code', 'Grep the repo and hope the search terms catch every call site.', 'Call sites found by static analysis are listed. Dynamic or indirect use can be missed.'],
@@ -401,7 +401,7 @@ export default function HomePage() {
                 Your suite is the judge
               </h2>
               <p className="text-base leading-8 text-text-secondary mb-6">
-                PatchBay runs the repository&rsquo;s own test command - the same one your CI runs. No simulated harness, no substitute checks, no partial credit.
+                trypatchbay runs the repository&rsquo;s own test command - the same one your CI runs. No simulated harness, no substitute checks, no partial credit.
               </p>
               <p className="text-base leading-8 text-text-secondary">
                 The raw output is kept and attached to the result, so a reviewer can rerun the exact same command.
@@ -420,7 +420,7 @@ export default function HomePage() {
                 Red to green, or no pull request
               </h2>
               <p className="text-base leading-8 text-text-secondary mb-6">
-                On bundled fixtures only, PatchBay reproduces the break, applies a deterministic rename patch, and reruns the fixture test suite. If the suite does not go green, you get a diagnosis of the break - never an unproven fix.
+                On bundled fixtures only, trypatchbay reproduces the break, applies a deterministic rename patch, and reruns the fixture test suite. If the suite does not go green, you get a diagnosis of the break - never an unproven fix.
               </p>
               <p className="text-base leading-8 text-text-secondary">
                 This loop runs today against the bundled fixture migration (mockpay 1.0.0 to 2.0.0): two failing tests in, three passing tests out. The fixture stands in for a live provider; a real-provider run is the next milestone.
@@ -505,10 +505,10 @@ export default function HomePage() {
               Every state means exactly what it says.
             </h2>
             <p className="text-base leading-8 text-text-secondary mb-8">
-              PatchBay never blurs the line between a suggestion and a proof. Each result carries one of these states, and the wording never upgrades a result it cannot stand behind.
+              trypatchbay never blurs the line between a suggestion and a proof. Each result carries one of these states, and the wording never upgrades a result it cannot stand behind.
             </p>
             <div className="rounded-2xl border border-rule bg-background p-6">
-              <p className="font-display font-semibold text-ink mb-3">What PatchBay will not claim</p>
+              <p className="font-display font-semibold text-ink mb-3">What trypatchbay will not claim</p>
               <ul className="space-y-2.5 text-[15px] leading-6 text-text-secondary">
                 <li className="flex gap-2.5 items-start"><X size={16} strokeWidth={2} className="text-error shrink-0 mt-1" aria-hidden="true" /> No claim that a patch is correct without your tests passing.</li>
                 <li className="flex gap-2.5 items-start"><X size={16} strokeWidth={2} className="text-error shrink-0 mt-1" aria-hidden="true" /> No automatic merging - review stays with your team.</li>
@@ -644,7 +644,7 @@ export default function HomePage() {
               Straight answers about what exists today.
             </h2>
             <p className="mt-5 text-[15px] leading-7 text-text-secondary">
-              PatchBay is early. These answers describe the product exactly as it stands - what runs, what is planned, and what it will never do.
+              trypatchbay is early. These answers describe the product exactly as it stands - what runs, what is planned, and what it will never do.
             </p>
           </Reveal>
           <Reveal delay={100}>
@@ -663,7 +663,7 @@ export default function HomePage() {
             </h2>
             <div className="relative">
               <p className="text-base leading-8 text-white/75 mb-8">
-                PatchBay is in active development. The verification loop runs today; provider watching and pull-request delivery ship next.
+                trypatchbay is in active development. The verification loop runs today; provider watching and pull-request delivery ship next.
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <a href="/how-it-works" className="pill-light">How it works</a>

@@ -1,16 +1,16 @@
 export default function AboutPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-      <h1 className="text-3xl font-bold mb-8">About PatchBay</h1>
+      <h1 className="text-3xl font-bold mb-8">About trypatchbay</h1>
       <div className="space-y-6 text-text-secondary">
         <p>
-          PatchBay is building the automated maintenance layer between API providers
+          trypatchbay is building the automated maintenance layer between API providers
           and the applications that depend on them.
         </p>
         <p>
           When a third-party API ships a breaking change, most engineering teams discover
           it through a production error, a customer complaint, or hours of manual
-          investigation. PatchBay is built to detect the change, map the affected code,
+          investigation. trypatchbay is built to detect the change, map the affected code,
           generate a fix that is tested before it is proposed, and present it as a reviewable pull request. Today the
           detect-map-fix-prove loop runs locally; watching and pull-request delivery are
           in development.
@@ -24,4 +24,3 @@ export default function AboutPage() {
     </div>
   );
 }
-

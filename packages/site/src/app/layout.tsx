@@ -41,21 +41,21 @@ const DESCRIPTION =
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://trypatchbay.vercel.app'),
-  title: 'PatchBay - Your APIs change. Your code keeps up.',
+  title: 'trypatchbay - Your APIs change. Your code keeps up.',
   description: DESCRIPTION,
   icons: {
     icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }],
   },
   openGraph: {
-    title: 'PatchBay - Your APIs change. Your code keeps up.',
+    title: 'trypatchbay - Your APIs change. Your code keeps up.',
     description: DESCRIPTION,
     url: 'https://trypatchbay.vercel.app',
-    siteName: 'PatchBay',
+    siteName: 'trypatchbay',
     type: 'website',
   },
   twitter: {
     card: 'summary',
-    title: 'PatchBay - Your APIs change. Your code keeps up.',
+    title: 'trypatchbay - Your APIs change. Your code keeps up.',
     description: DESCRIPTION,
   },
 };

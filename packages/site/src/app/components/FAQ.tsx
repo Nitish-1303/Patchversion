@@ -7,7 +7,7 @@ import { EASE, DURATION } from './motion';
 
 const ITEMS = [
   {
-    q: 'What does PatchBay do?',
+    q: 'What does trypatchbay do?',
     a: 'It is being built to watch for breaking changes in the third-party SDKs your code depends on, locate the affected call sites in your repositories, propose a migration patch, run your own test suite against it, and prepare a pull request with the verification evidence attached. Today the locate, patch and test steps run locally on bundled fixtures; watching and pull-request delivery are in development.',
   },
   {
@@ -16,7 +16,7 @@ const ITEMS = [
   },
   {
     q: 'How does verification work?',
-    a: 'On bundled fixtures only, PatchBay reruns the fixture test suite before and after applying a rename-only patch, and saves both outputs locally. There is no verified isolation or live GitHub PR delivery. A patch is never presented as correct without that test evidence.',
+    a: 'On bundled fixtures only, trypatchbay reruns the fixture test suite before and after applying a rename-only patch, and saves both outputs locally. There is no verified isolation or live GitHub PR delivery. A patch is never presented as correct without that test evidence.',
   },
   {
     q: 'Does it auto-merge changes?',
@@ -27,7 +27,7 @@ const ITEMS = [
     a: 'The failure is reported with the full test output, before and after. Failed or inconclusive runs are shown as exactly that - they are never presented as verified.',
   },
   {
-    q: 'Is PatchBay publicly available?',
+    q: 'Is trypatchbay publicly available?',
     a: 'It is in early development by a solo founder. The offline proof loop runs locally; hosted monitoring, the dashboard, and PR delivery are in development. Reach out through the contact page for design-partner conversations.',
   },
   {

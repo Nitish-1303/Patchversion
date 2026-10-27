@@ -27,7 +27,7 @@ export default function ContactForm() {
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({
           access_key: ACCESS_KEY,
-          subject: `PatchBay contact: ${String(data.get('name') || 'new message')}`,
+          subject: `trypatchbay contact: ${String(data.get('name') || 'new message')}`,
           name: data.get('name'),
           email: data.get('email'),
           message: data.get('message'),
@@ -56,7 +56,7 @@ export default function ContactForm() {
         </div>
         <h2 className="font-display text-2xl font-bold text-ink mb-3">Message sent</h2>
         <p className="text-text-secondary max-w-md mx-auto">
-          Thanks for reaching out. Your message landed in the PatchBay inbox and
+          Thanks for reaching out. Your message landed in the trypatchbay inbox and
           you will hear back directly.
         </p>
         <button
@@ -97,7 +97,7 @@ export default function ContactForm() {
           name="message"
           required
           rows={6}
-          placeholder="What would you like to know about PatchBay?"
+          placeholder="What would you like to know about trypatchbay?"
           className={`${fieldClass} resize-y`}
         />
       </div>

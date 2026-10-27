@@ -6,7 +6,7 @@ export default function NotFound() {
         This page does not exist.
       </h1>
       <p className="text-lg text-text-secondary mb-12 max-w-md">
-        The link may be outdated. The docs cover how PatchBay is designed to work.
+        The link may be outdated. The docs cover how trypatchbay is designed to work.
       </p>
       <div className="flex gap-4">
         <a href="/" className="btn-primary">Back to homepage</a>

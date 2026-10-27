@@ -5,7 +5,7 @@ export default function ProductPage() {
       <div className="max-w-3xl mb-16">
         <h1 className="text-4xl font-bold mb-4">Product</h1>
         <p className="text-lg text-text-secondary">
-          PatchBay is designed to automate the maintenance pipeline between API providers and your codebase.
+          trypatchbay is designed to automate the maintenance pipeline between API providers and your codebase.
           Each stage below is labeled with where it actually stands today.
         </p>
       </div>
@@ -41,7 +41,7 @@ export default function ProductPage() {
           <div className="min-w-0">
             <p className="text-text-secondary mb-4">
               Designed to watch the packages and APIs your code depends on: when a new version
-              ships or a documented API shape changes, PatchBay produces a normalized change record
+              ships or a documented API shape changes, trypatchbay produces a normalized change record
               with the source, version, and classification.
             </p>
             <p className="text-text-secondary mb-4">
@@ -81,7 +81,7 @@ export default function ProductPage() {
         <div className="grid md:grid-cols-2 gap-8">
           <div className="min-w-0">
             <p className="text-text-secondary mb-4">
-              Not every version bump breaks your code. PatchBay classifies each change as
+              Not every version bump breaks your code. trypatchbay classifies each change as
               breaking, additive, or informational using semver analysis and release note parsing.
             </p>
             <p className="text-text-secondary">
@@ -125,7 +125,7 @@ export default function ProductPage() {
         <div className="grid md:grid-cols-2 gap-8">
           <div className="min-w-0">
             <p className="text-text-secondary mb-4">
-              Once a breaking change is confirmed, PatchBay maps the call sites it can find in the
+              Once a breaking change is confirmed, trypatchbay maps the call sites it can find in the
               repository that touches the changed package. This uses AST (Abstract Syntax Tree)
               analysis, not text search, so it follows common import and require forms.
             </p>

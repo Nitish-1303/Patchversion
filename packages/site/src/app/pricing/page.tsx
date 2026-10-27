@@ -76,8 +76,8 @@ export default function PricingPage() {
             a="Today the proof loop runs locally against the bundled fixture - verified end to end on a mockpay 1.0.0 to 2.0.0 migration (2 failing to 3/3 passing, runs/latest/proof.json). Live registry and changelog watching, plus OpenAPI spec monitoring, are in development."
           />
           <FaqItem
-            q="Does PatchBay modify my code automatically?"
-            a="No. The design is: PatchBay prepares a proposed fix as a pull request with evidence attached, and your team reviews and merges. Nothing merges automatically. Pull-request delivery itself is in development."
+            q="Does trypatchbay modify my code automatically?"
+            a="No. The design is: trypatchbay prepares a proposed fix as a pull request with evidence attached, and your team reviews and merges. Nothing merges automatically. Pull-request delivery itself is in development."
           />
           <FaqItem
             q="Can I review every proposed patch?"
