@@ -26,7 +26,7 @@ export default function HowItWorksPage() {
           number={2}
           title="Monitor"
           status="development"
-          description="PatchBay is being built to poll the npm registry for new versions of tracked packages and parse changelogs. Today, detection runs on recorded changes fed to the local engine - the same change records the watcher will produce. A prototype ContractProber module exists, but hosted probing is not operational."
+          description="trypatchbay is being built to poll the npm registry for new versions of tracked packages and parse changelogs. Today, detection runs on recorded changes fed to the local engine - the same change records the watcher will produce. A prototype ContractProber module exists, but hosted probing is not operational."
           details={[
             'Registry polling on a configurable schedule',
             'Changelog parsing with normalized change records',
@@ -48,7 +48,7 @@ export default function HowItWorksPage() {
           number={4}
           title="Analyze"
           status="proven"
-          description="For confirmed breaking changes, PatchBay scans the repository using AST analysis to find the import, require, and call expressions that touch the changed package. Coverage is partial: dynamic or indirect use can be missed. Verified locally on the bundled sample repository."
+          description="For confirmed breaking changes, trypatchbay scans the repository using AST analysis to find the import, require, and call expressions that touch the changed package. Coverage is partial: dynamic or indirect use can be missed. Verified locally on the bundled sample repository."
           details={[
             'ts-morph AST parsing (not regex or text search)',
             'Handles named imports, default imports, namespace imports, and require()',
@@ -59,7 +59,7 @@ export default function HowItWorksPage() {
           number={5}
           title="Remediate"
           status="proven"
-          description="PatchBay generates a minimal patch. The only automatic fix today is a deterministic rename of a field or parameter - verified locally on the bundled mockpay migration fixture. LLM-assisted generation for novel breaking changes is planned, not built."
+          description="trypatchbay generates a minimal patch. The only automatic fix today is a deterministic rename of a field or parameter - verified locally on the bundled mockpay migration fixture. LLM-assisted generation for novel breaking changes is planned, not built."
           details={[
             'Deterministic fixes for known patterns (fast, reliable)',
             'LLM-assisted generation for novel breaking changes (planned)',
