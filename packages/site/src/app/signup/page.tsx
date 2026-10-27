@@ -3,7 +3,7 @@ export default function SignupPage() {
   return (
     <div className="min-h-[60vh] flex items-center justify-center px-4">
       <div className="card max-w-md w-full">
-        <h1 className="text-2xl font-bold mb-2">Get started with PatchBay</h1>
+        <h1 className="text-2xl font-bold mb-2">Get started with trypatchbay</h1>
         <p className="text-sm text-text-secondary mb-8">
           Planned signup preview. GitHub authentication, App installation, and repository
           permissions are not implemented. No repository access is requested here.
