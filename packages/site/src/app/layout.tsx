@@ -37,7 +37,7 @@ const inter = localFont({
 });
 
 const DESCRIPTION =
-  'An early prototype for breaking SDK changes: local rename fixes and test proofs on bundled fixtures. Live API watching and GitHub PR delivery are in development.';
+  'Early-stage prototype for breaking SDK changes: local rename fixes and test proofs on bundled fixtures. Live API watching and GitHub PR delivery are in development.';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://trypatchbay.vercel.app'),
