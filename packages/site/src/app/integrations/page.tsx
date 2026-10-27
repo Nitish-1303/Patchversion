@@ -7,7 +7,7 @@ export default function IntegrationsPage() {
     { name: 'GitLab', category: 'Git Platform', purpose: 'Repository access and merge requests', status: 'planned', description: 'Alternative to GitHub for repository monitoring.' },
     { name: 'Stripe', category: 'API Provider', purpose: 'Live API contract monitoring', status: 'planned', description: 'Monitor Stripe API endpoints for behavioral changes.' },
     { name: 'OpenAI', category: 'API Provider', purpose: 'Model API change detection', status: 'planned', description: 'Track OpenAI API updates and deprecation notices.' },
-    { name: 'Generic Webhooks', category: 'CI/CD', purpose: 'Custom CI pipeline integration', status: 'planned', description: 'Trigger PatchBay analysis from your CI/CD pipeline.' },
+    { name: 'Generic Webhooks', category: 'CI/CD', purpose: 'Custom CI pipeline integration', status: 'planned', description: 'Trigger trypatchbay analysis from your CI/CD pipeline.' },
   ];
 
   return (
@@ -15,7 +15,7 @@ export default function IntegrationsPage() {
       <div className="max-w-3xl mb-12">
         <h1 className="text-4xl font-bold mb-4">Integrations</h1>
         <p className="text-lg text-text-secondary">
-          PatchBay is designed to connect to the tools and APIs your team already
+          trypatchbay is designed to connect to the tools and APIs your team already
           uses. All integrations are planned; none are live yet.
         </p>
       </div>
@@ -64,4 +64,3 @@ export default function IntegrationsPage() {
     </div>
   );
 }
-
