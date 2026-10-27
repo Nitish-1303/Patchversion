@@ -3,7 +3,7 @@ export default function OnboardingPage() {
   return (
     <div className="min-h-[60vh] flex items-center justify-center px-4">
       <div className="max-w-2xl w-full">
-        <h1 className="text-3xl font-bold mb-2">Welcome to PatchBay</h1>
+        <h1 className="text-3xl font-bold mb-2">Welcome to trypatchbay</h1>
         <p className="text-text-secondary mb-12">Planned onboarding preview. Repository connection and hosted monitoring are not available.</p>
 
         <div className="space-y-6">
