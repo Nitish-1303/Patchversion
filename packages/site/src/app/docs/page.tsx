@@ -4,7 +4,7 @@ export default function DocsPage() {
       <div className="max-w-3xl mb-12">
         <h1 className="text-4xl font-bold mb-4">Documentation</h1>
         <p className="text-lg text-text-secondary">
-          PatchBay is in development. The homepage demo runs on a controlled local
+          trypatchbay is in development. The homepage demo runs on a controlled local
           fixture, and the GitHub App and CLI are not yet published. These pages
           describe the planned setup and how the system is designed to work.
         </p>
@@ -23,7 +23,7 @@ export default function DocsPage() {
         />
         <DocCard
           title="Security"
-          description="How PatchBay is designed to handle your code, credentials, and data, including what is not yet implemented."
+          description="How trypatchbay is designed to handle your code, credentials, and data, including what is not yet implemented."
           href="/docs/security"
         />
       </div>
@@ -39,4 +39,3 @@ function DocCard({ title, description, href }: { title: string; description: str
     </a>
   );
 }
-
