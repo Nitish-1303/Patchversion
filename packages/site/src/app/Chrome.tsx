@@ -11,7 +11,7 @@ function Logo({ dark }: { dark: boolean }) {
     <a href="/" className="flex items-center gap-2.5 shrink-0">
       <img
         src={dark ? '/patchbay-lockup-navy.svg' : '/patchbay-lockup-on-navy.svg'}
-        alt="PatchBay"
+        alt="trypatchbay"
         className="h-8 w-auto rounded-md"
       />
     </a>
@@ -184,7 +184,7 @@ function Footer() {
           </div>
         </div>
         <div className="border-t border-rule mt-12 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-sm text-text-tertiary">&copy; 2026 PatchBay. All rights reserved.</p>
+          <p className="text-sm text-text-tertiary">&copy; 2026 trypatchbay. All rights reserved.</p>
           <p className="text-sm text-text-tertiary">In active development.</p>
         </div>
       </div>
