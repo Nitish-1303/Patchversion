@@ -7,7 +7,7 @@ const TABS = [
     id: 'detect',
     label: 'Detect',
     title: 'The break, caught at the source.',
-    body: 'PatchBay reads provider changelogs, deprecation notices and version diffs, then decides whether the change actually breaks an API shape your code relies on.',
+    body: 'trypatchbay reads provider changelogs, deprecation notices and version diffs, then decides whether the change actually breaks an API shape your code relies on.',
     status: 'Detection runs on the bundled breaking-change fixture. Live changelog watching in development.',
     panel: (
       <div className="space-y-3">
@@ -61,7 +61,7 @@ const TABS = [
     id: 'prove',
     label: 'Prove',
     title: 'Green tests, or no pull request.',
-    body: 'On bundled fixtures, PatchBay reruns tests against the patched code. Failed or inconclusive runs are not accepted as fixes. Results are local artifacts; no actual PR is opened or submitted.',
+    body: 'On bundled fixtures, trypatchbay reruns tests against the patched code. Failed or inconclusive runs are not accepted as fixes. Results are local artifacts; no actual PR is opened or submitted.',
     status: 'Verified locally on the fixture: 2 failing to 3/3 passing after the patch (runs/latest/proof.json).',
     panel: (
       <div className="rounded-xl bg-white/5 border border-white/10 p-4 font-mono text-[13px] leading-7 overflow-x-auto">
