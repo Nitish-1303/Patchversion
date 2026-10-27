@@ -37,17 +37,17 @@ const inter = localFont({
 });
 
 const DESCRIPTION =
-  'Early-stage prototype. A local proof loop applies a rename fix for a recorded API change and reruns tests on a bundled fixture. Live watching and pull-request delivery are in development.';
+  'Early-stage prototype for breaking SDK changes: local rename fixes and test proofs on bundled fixtures. Live API watching and GitHub PR delivery are in development.';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://trypatchbay.vercel.app'),
-  title: 'trypatchbay - Your APIs change. Your code keeps up.',
+  title: 'trypatchbay | Breaking API Change Detection & Fix PRs',
   description: DESCRIPTION,
   icons: {
     icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }],
   },
   openGraph: {
-    title: 'trypatchbay - Your APIs change. Your code keeps up.',
+    title: 'trypatchbay | Breaking API Change Detection & Fix PRs',
     description: DESCRIPTION,
     url: 'https://trypatchbay.vercel.app',
     siteName: 'trypatchbay',
@@ -55,7 +55,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary',
-    title: 'trypatchbay - Your APIs change. Your code keeps up.',
+    title: 'trypatchbay | Breaking API Change Detection & Fix PRs',
     description: DESCRIPTION,
   },
 };
@@ -65,6 +65,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${manrope.variable} ${inter.variable}`}>
       <body>
         <noscript><style>{`.reveal { opacity: 1 !important; transform: none !important; }`}</style></noscript>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'Organization',
+            name: 'trypatchbay',
+            url: 'https://trypatchbay.vercel.app',
+          }).replace(/</g, '\\u003c') }}
+        />
         <SmoothScroll>
           <Chrome>{children}</Chrome>
         </SmoothScroll>
