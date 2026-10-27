@@ -2,7 +2,7 @@ export default function CompetitorsPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
       <div className="max-w-3xl mb-12">
-        <h1 className="text-4xl font-bold mb-4">How PatchBay compares</h1>
+        <h1 className="text-4xl font-bold mb-4">How trypatchbay compares</h1>
         <p className="text-lg text-text-secondary">
           An honest look at the tools that solve overlapping problems.
           Every claim is sourced from public documentation.
@@ -21,7 +21,7 @@ export default function CompetitorsPage() {
             <thead>
               <tr className="bg-accent-light/50">
                 <th className="text-left p-3 font-medium">Capability</th>
-                <th className="text-left p-3 font-medium">PatchBay</th>
+                <th className="text-left p-3 font-medium">trypatchbay</th>
                 <th className="text-left p-3 font-medium">Patchline</th>
                 <th className="text-left p-3 font-medium">MendAPI</th>
                 <th className="text-left p-3 font-medium">Since.dev</th>
@@ -102,7 +102,7 @@ export default function CompetitorsPage() {
               Does not detect provider-side API changes, map affected code, or generate fixes.
             </p>
             <p className="text-xs text-text-tertiary">
-              Complementary: use Dependabot/Renovate for version hygiene, PatchBay for API compatibility.
+              Complementary: use Dependabot/Renovate for version hygiene, trypatchbay for API compatibility.
             </p>
           </div>
           <div className="card">
@@ -112,7 +112,7 @@ export default function CompetitorsPage() {
               Does not map changes to customer code or generate fixes.
             </p>
             <p className="text-xs text-text-tertiary">
-              Complementary: oasdiff for API providers reviewing their own changes, PatchBay for consumers.
+              Complementary: oasdiff for API providers reviewing their own changes, trypatchbay for consumers.
             </p>
           </div>
         </div>
@@ -120,10 +120,10 @@ export default function CompetitorsPage() {
 
       {/* Honest positioning */}
       <section className="card bg-accent-light/30">
-        <h2 className="text-xl font-bold mb-4">Where PatchBay stands today</h2>
+        <h2 className="text-xl font-bold mb-4">Where trypatchbay stands today</h2>
         <div className="space-y-3 text-sm text-text-secondary">
           <p>
-            PatchBay is in early development. The proof loop (detect, map, patch, verify) runs locally and is verified
+            trypatchbay is in early development. The proof loop (detect, map, patch, verify) runs locally and is verified
             on the bundled mockpay fixture (runs/latest/proof.json). It has not run against a customer repository,
             and watching plus PR delivery are not built yet.
           </p>
@@ -132,7 +132,7 @@ export default function CompetitorsPage() {
             detection today, evaluate them first.
           </p>
           <p>
-            PatchBay&apos;s planned differentiators are: open-source engine, generic OpenAPI
+            trypatchbay&apos;s planned differentiators are: open-source engine, generic OpenAPI
             spec monitoring (not limited to curated providers). These are plans, not demonstrated advantages.
           </p>
         </div>
@@ -140,4 +140,3 @@ export default function CompetitorsPage() {
     </div>
   );
 }
-
