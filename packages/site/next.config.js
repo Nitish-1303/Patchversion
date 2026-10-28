@@ -11,11 +11,10 @@ const securityHeaders = [
 
 const nextConfig = {
   output: 'standalone',
-  transpilePackages: ['@patchversion/shared'],
+  transpilePackages: ['@patchversion/shared', '@patchversion/engine'],
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
   },
 };
 
 module.exports = nextConfig;
-

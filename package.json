@@ -9,9 +9,9 @@
     "packages/shared"
   ],
   "scripts": {
-    "build": "npm run build -w @patchversion/shared && npm run build --workspaces",
-    "test": "npm run build -w @patchversion/shared && npm run test --workspaces",
-    "typecheck": "npm run build -w @patchversion/shared && npm run typecheck --workspaces",
+    "build": "npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run build -w @patchversion/site",
+    "test": "npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run test --workspaces",
+    "typecheck": "npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run typecheck --workspaces",
     "lint": "eslint .",
     "prove": "npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run prove -w @patchversion/engine",
     "prove:real": "npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run prove:real -w @patchversion/engine"

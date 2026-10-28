@@ -3,6 +3,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import ContactForm from '../src/app/components/ContactForm';
 import { WorkflowTabs } from '../src/app/components/Experience';
 import DashboardPage from '../src/app/dashboard/page';
+import SecurityPage from '../src/app/docs/security/page';
 
 let container: HTMLDivElement;
 let root: Root;
@@ -73,6 +74,15 @@ test('dashboard route states that account data is unavailable and loads no fixtu
   expect(container.textContent).toContain('Authentication, repository authorization, and persistent workspace data have not been implemented.');
   expect(container.textContent).toContain('No repository, dependency, validation, activity, or pull request data has been loaded.');
   expect(container.textContent).not.toContain('mockpay');
+});
+
+test('security documentation does not describe unavailable dashboard data as bundled records', () => {
+  render(createElement(SecurityPage));
+
+  expect(container.textContent).toContain(
+    'The dashboard route displays an unavailable state and loads no account, repository, fixture, activity, or pull request data.',
+  );
+  expect(container.textContent).not.toContain('The dashboard uses bundled illustrative data.');
 });
 
 test('contact preview confirms submission is local and stores no message', () => {
