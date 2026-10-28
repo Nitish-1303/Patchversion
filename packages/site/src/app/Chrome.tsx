@@ -113,7 +113,7 @@ function Footer() {
       </div>
       <div className="footer-links content-width">
         <div><h3>Company</h3><Link href="/about">About</Link><Link href="/changelog">Changelog</Link><Link href="/contact">Contact</Link></div>
-        <div><h3>Product</h3><Link href="/product">Overview</Link><Link href="/how-it-works">How it works</Link><Link href="/integrations">Integrations</Link><Link href="/pricing">Pricing</Link></div>
+        <div><h3>Product</h3><Link href="/product">Overview</Link><Link href="/how-it-works">How it works</Link><Link href="/integrations">Integrations</Link><Link href="/pricing">Pricing</Link><span>API Monitoring (planned)</span><span>Impact Analysis (prototype)</span><span>AI Remediation (planned)</span></div>
         <div><h3>Docs</h3><Link href="/docs">Documentation</Link><Link href="/docs/getting-started">Getting started</Link><Link href="/docs/security">Security</Link><Link href="/login">Sign in preview</Link></div>
       </div>
       <div className="footer-bottom content-width">
