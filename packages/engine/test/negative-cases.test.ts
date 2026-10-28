@@ -15,6 +15,7 @@ import { SandboxRunner } from '../src/sandbox/runner';
 import { PatchversionEngine } from '../src/engine';
 import { loadConfig } from '../src/config';
 import { ChangeRecord, ImpactAnalysis } from '@patchversion/shared';
+import { resolveNpmInvocation } from '../src/npm-cli';
 
 jest.setTimeout(120_000);
 
@@ -88,7 +89,8 @@ function makeRepo(name: string, opts: { testJs?: string | null } = {}): string {
   }
   fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify(pkg, null, 2));
   // Install the vendored dependency so the baseline run is real
-  execFileSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: dir, stdio: 'pipe' });
+  const npm = resolveNpmInvocation(['install', '--install-links', '--no-audit', '--no-fund']);
+  execFileSync(npm.command, npm.args, { cwd: dir, stdio: 'pipe', shell: npm.shell });
   return dir;
 }
 

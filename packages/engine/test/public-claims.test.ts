@@ -68,7 +68,7 @@ describe('public claims match implementation', () => {
 
   test('implementation limits the copy relies on still hold', () => {
     const gen = fs.readFileSync(path.join(ROOT, 'packages/engine/src/fix-generator/generator.ts'), 'utf8');
-    expect(gen).toMatch(/TODO: Call Anthropic API/);
+    expect(gen).toMatch(/model integration is intentionally unavailable/);
     const runner = fs.readFileSync(path.join(ROOT, 'packages/engine/src/sandbox/runner.ts'), 'utf8');
     expect(runner).toMatch(/BLOCKED/);
   });

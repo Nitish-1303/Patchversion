@@ -1,5 +1,4 @@
-import { createElement, type ReactNode } from 'react';
-import { act } from 'react-dom/test-utils';
+import { act, createElement, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import ContactForm from '../src/app/components/ContactForm';
 import { WorkflowTabs } from '../src/app/components/Experience';

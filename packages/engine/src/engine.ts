@@ -99,12 +99,8 @@ export class PatchversionEngine {
     // Step 3: Generate fix
     const fixDiff = await this.fixGen.generateFix(repoPath, change, impact);
     if (!fixDiff) {
-      // Can't generate a fix - prepare honest "needs human" issue
-      const issue = this.prBot.prepareUnfixableIssue(
-        change,
-        impact,
-        'No automatic fix could be generated for this breaking change.',
-      );
+      // No automatic fix is available. Keep this local prototype honest by
+      // recording the limitation without presenting a prepared issue as sent.
       this.store.logEvent('unfixable', { changeId: change.id, repoId });
       return null;
     }

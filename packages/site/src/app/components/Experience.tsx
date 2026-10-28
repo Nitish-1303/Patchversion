@@ -37,10 +37,7 @@ export function Reveal({
   useEffect(() => {
     const node = ref.current;
     if (!node) return;
-    if (reduced || !('IntersectionObserver' in window)) {
-      setVisible(true);
-      return;
-    }
+    if (reduced || !('IntersectionObserver' in window)) return;
     const observer = new IntersectionObserver(([entry]) => {
       if (entry.isIntersecting) {
         setVisible(true);
@@ -70,10 +67,7 @@ export function CountUp({ value, suffix = '' }: { value: number; suffix?: string
   useEffect(() => {
     const node = ref.current;
     if (!node) return;
-    if (reduced) {
-      setShown(value);
-      return;
-    }
+    if (reduced || !('IntersectionObserver' in window)) return;
     let frame = 0;
     let startTime = 0;
     let started = false;
@@ -97,7 +91,7 @@ export function CountUp({ value, suffix = '' }: { value: number; suffix?: string
     };
   }, [reduced, value]);
 
-  return <span ref={ref}>{shown}{suffix}</span>;
+  return <span ref={ref}>{reduced ? value : shown}{suffix}</span>;
 }
 
 function useScrollTransform(ref: React.RefObject<HTMLElement>, kind: 'hero' | 'parallax') {
@@ -109,7 +103,7 @@ function useScrollTransform(ref: React.RefObject<HTMLElement>, kind: 'hero' | 'p
       return;
     }
     let frame = 0;
-    let initialScroll = window.scrollY;
+    const initialScroll = window.scrollY;
     let heroStart = window.scrollY + node.getBoundingClientRect().top - window.innerHeight * 0.65;
     const update = () => {
       cancelAnimationFrame(frame);
@@ -169,7 +163,7 @@ export function HeroDashboard() {
         <div className="dashboard-topline"><div><span className="small-label">CHANGE REVIEW</span><h2>mockpay · 1.0 → 2.0</h2></div><span className="status-pill">Local fixture</span></div>
         <div className="dashboard-preview-grid">
           <div className="preview-pane"><span className="small-label">CHANGE</span><h3>Parameter renamed</h3><p><code>source</code> becomes <code>payment_method</code> in a bundled example.</p><div className="preview-rule" /><p className="muted">Example call site · src/createCharge.js</p></div>
-          <div className="preview-pane code-pane"><span className="small-label">ILLUSTRATIVE DIFF</span><div className="diff-line">− source: source,</div><div className="diff-line diff-added">+ payment_method: source,</div><div className="diff-line faded-line">  description: 'Order payment'</div></div>
+          <div className="preview-pane code-pane"><span className="small-label">ILLUSTRATIVE DIFF</span><div className="diff-line">− source: source,</div><div className="diff-line diff-added">+ payment_method: source,</div><div className="diff-line faded-line">  description: &apos;Order payment&apos;</div></div>
           <div className="preview-pane proof-pane"><span className="small-label">LOCAL FIXTURE CHECK</span><h3>Proof stays reviewable</h3><div className="proof-row"><span>Before patch</span><strong>2 failing</strong></div><div className="proof-row"><span>After patch</span><strong>3 / 3 passing</strong></div><p className="muted">Example fixture output · not a live run</p></div>
         </div>
         <div className="dashboard-foot"><span>Local prototype</span><span>Reviewable diff · example test output</span></div>

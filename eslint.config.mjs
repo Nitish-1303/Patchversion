@@ -19,6 +19,19 @@ export default defineConfig([
     },
   },
   {
+    files: [
+      'fixtures/**/*.{js,cjs}',
+      'packages/engine/test/**/*.{js,cjs,ts,tsx}',
+      'packages/shared/test/**/*.{js,cjs,ts,tsx}',
+      'packages/site/test/**/*.{js,cjs,ts,tsx}',
+    ],
+    rules: {
+      // These files intentionally use CommonJS: fixtures model consumer
+      // projects, and Jest uses require() for module isolation in tests.
+      '@typescript-eslint/no-require-imports': 'off',
+    },
+  },
+  {
     files: ['packages/site/src/**/*.{js,jsx,ts,tsx}'],
     languageOptions: {
       globals: globals.browser,
