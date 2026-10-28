@@ -8,6 +8,7 @@ const routes = [
   '/changelog',
   '/competitors',
   '/contact',
+  '/dashboard',
   '/docs',
   '/docs/concepts',
   '/docs/getting-started',

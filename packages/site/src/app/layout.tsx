@@ -3,9 +3,6 @@ import localFont from 'next/font/local';
 import './fonts/fallbacks.css';
 import './globals.css';
 import Chrome from './Chrome';
-import SmoothScroll from './components/SmoothScroll';
-import { Analytics } from '@vercel/analytics/next';
-import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const manrope = localFont({
   src: [
@@ -37,17 +34,17 @@ const inter = localFont({
 });
 
 const DESCRIPTION =
-  'Early-stage prototype for breaking SDK changes: local rename fixes and test proofs on bundled fixtures. Live API watching and GitHub PR delivery are in development.';
+  'Early-stage prototype: trypatchbay is an early local prototype for tracing API changes through code and a testable patch. Live repository watching, sandboxed runs and pull request delivery are in development.';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://trypatchbay.vercel.app'),
-  title: 'trypatchbay | Breaking API Change Detection & Fix PRs',
+  title: 'trypatchbay: API changes, made reviewable',
   description: DESCRIPTION,
   icons: {
     icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }],
   },
   openGraph: {
-    title: 'trypatchbay | Breaking API Change Detection & Fix PRs',
+    title: 'trypatchbay: API changes, made reviewable',
     description: DESCRIPTION,
     url: 'https://trypatchbay.vercel.app',
     siteName: 'trypatchbay',
@@ -55,7 +52,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary',
-    title: 'trypatchbay | Breaking API Change Detection & Fix PRs',
+    title: 'trypatchbay: API changes, made reviewable',
     description: DESCRIPTION,
   },
 };
@@ -67,18 +64,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <noscript><style>{`.reveal { opacity: 1 !important; transform: none !important; }`}</style></noscript>
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify({
-            '@context': 'https://schema.org',
-            '@type': 'Organization',
-            name: 'trypatchbay',
-            url: 'https://trypatchbay.vercel.app',
-          }).replace(/</g, '\\u003c') }}
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'Organization',
+              name: 'trypatchbay',
+              url: 'https://trypatchbay.vercel.app',
+            }).replace(/</g, '\\u003c'),
+          }}
         />
-        <SmoothScroll>
-          <Chrome>{children}</Chrome>
-        </SmoothScroll>
-        <Analytics />
-        <SpeedInsights />
+        <Chrome>{children}</Chrome>
       </body>
     </html>
   );

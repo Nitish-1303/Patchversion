@@ -1,45 +1,16 @@
+import { Reveal } from '../components/Experience';
+import { NavyBand, PageHeading } from '../components/PageSections';
+
+const notes = [
+  { label: 'CURRENT PROTOTYPE', title: 'Local API change proof loop', body: 'A bundled fixture demonstrates an API parameter rename, local call-site mapping, a deterministic patch and a rerun of the fixture tests.' },
+  { label: 'IN DEVELOPMENT', title: 'Live repository watching', body: 'Watching provider releases and connected repositories is not available yet.' },
+  { label: 'IN DEVELOPMENT', title: 'Sandboxed runs and pull request delivery', body: 'Isolated repository execution and creating pull requests are still being built.' },
+];
+
 export default function ChangelogPage() {
-  return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-      <h1 className="text-3xl font-bold mb-4">Changelog</h1>
-      <p className="text-text-secondary mb-8">
-        Release history for trypatchbay. Only shipped changes are listed.
-      </p>
-
-      <div className="space-y-8">
-        <div className="card">
-          <div className="flex items-center gap-3 mb-3">
-            <span className="badge-feature">engine</span>
-            <span className="text-sm text-text-tertiary">2026-10-24</span>
-          </div>
-          <h3 className="font-semibold mb-2">Proof loop verified end to end (bundled fixture)</h3>
-          <ul className="text-sm text-text-secondary space-y-1 list-disc pl-5">
-            <li>mockpay migration (1.0.0 to 2.0.0) reproduced and fixed locally against the bundled fixture</li>
-            <li>Red to green: 2 failing tests in, 3/3 passing after the patch (npm run prove, exit 0)</li>
-            <li>AST call-site mapping verified on the bundled sample repository (fixtures/sample-repo)</li>
-          </ul>
-        </div>
-        <div className="card">
-          <div className="flex items-center gap-3 mb-3">
-            <span className="badge-feature">v0.1.0</span>
-            <span className="text-sm text-text-tertiary">2026-10-23</span>
-          </div>
-          <h3 className="font-semibold mb-2">Initial scaffold</h3>
-          <ul className="text-sm text-text-secondary space-y-1 list-disc pl-5">
-            <li>Core engine scaffold: usage mapper, break detector, local proof loop, fix generator (watcher and PR delivery stubbed)</li>
-            <li>Marketing site: homepage, product, pricing, how-it-works, integrations, competitors</li>
-            <li>Dashboard demo with labeled fixture data</li>
-            <li>13 unit tests passing</li>
-            <li>CI workflow (typecheck + test)</li>
-            <li>Market research and competitor analysis</li>
-            <li>Customer discovery materials</li>
-          </ul>
-        </div>
-      </div>
-
-      <p className="text-sm text-text-tertiary mt-8">
-        This page lists real changes only. No planned or hypothetical releases.
-      </p>
-    </div>
-  );
+  return <>
+    <section className="subpage-hero"><div className="content-width"><PageHeading eyebrow="CHANGELOG" title="Development notes, plainly stated." description="There are no production releases yet. This page summarizes what the prototype contains and what remains in development." /></div></section>
+    <section className="section-block content-width changelog-list">{notes.map((note, index) => <Reveal key={note.title} delay={index * 80}><article className="changelog-entry"><span className="small-label">{note.label}</span><h2>{note.title}</h2><p>{note.body}</p></article></Reveal>)}</section>
+    <NavyBand title="A prototype, not a hosted service." body="The demo dashboard uses bundled example values and has no live events or connected repositories." cta="Explore the demo" href="/dashboard" />
+  </>;
 }
