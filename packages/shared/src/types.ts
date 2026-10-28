@@ -169,3 +169,154 @@ export interface ProveResult {
   /** Human-readable reason, set for unfixable and inconclusive outcomes. */
   reason?: string;
 }
+
+
+// Tenancy and Authentication
+export interface Tenant {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+export interface User {
+  id: string;
+  tenantId: string;
+  email: string;
+  githubUserId?: string;
+  githubLogin?: string;
+  role: 'owner' | 'admin' | 'member';
+  createdAt: string;
+}
+
+export interface Session {
+  id: string;
+  userId: string;
+  tenantId: string;
+  token: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
+// GitHub Installation and Repository
+export interface InstallationRecord {
+  id: string;
+  tenantId: string;
+  githubInstallationId: number;
+  accountLogin: string;
+  accountType: 'User' | 'Organization';
+  status: 'active' | 'suspended' | 'deleted';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RepositoryRecord {
+  id: string;
+  tenantId: string;
+  installationId: string;
+  githubRepoId: number;
+  fullName: string;
+  owner: string;
+  name: string;
+  defaultBranch: string;
+  isPrivate: boolean;
+  status: 'connected' | 'disconnected' | 'revoked';
+  localPath?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Durable Jobs
+export type JobType = 'scan_dependencies' | 'analyze_impact' | 'prove_fix' | 'deliver_pr';
+export type JobStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
+
+export interface JobRecord<TPayload = unknown, TResult = unknown> {
+  id: string;
+  tenantId: string;
+  repositoryId: string;
+  type: JobType;
+  status: JobStatus;
+  payload: TPayload;
+  result?: TResult;
+  error?: string;
+  attempts: number;
+  maxAttempts: number;
+  runAfter: string;
+  lockedAt?: string;
+  lockedBy?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Findings and Candidate Patches
+export interface FindingRecord {
+  id: string;
+  tenantId: string;
+  repositoryId: string;
+  packageName: string;
+  fromVersion: string;
+  toVersion: string;
+  isBreaking: boolean;
+  changeRecord: ChangeRecord;
+  impactAnalysis: ImpactAnalysis;
+  status: 'open' | 'fixing' | 'validated' | 'approved' | 'pr_created' | 'dismissed';
+  createdAt: string;
+}
+
+export interface PatchRecord {
+  id: string;
+  tenantId: string;
+  findingId: string;
+  diffContent: string;
+  diffHash: string; // SHA-256 of normalized diff
+  lockfileUpdates?: string;
+  status: 'generated' | 'validated' | 'rejected';
+  createdAt: string;
+}
+
+export interface ValidationRecord {
+  id: string;
+  tenantId: string;
+  patchId: string;
+  status: 'passed' | 'failed' | 'inconclusive';
+  proof?: ProofArtifact;
+  executionLogs: string;
+  durationMs: number;
+  createdAt: string;
+}
+
+export interface ApprovalRecord {
+  id: string;
+  tenantId: string;
+  patchId: string;
+  approvedByUserId: string;
+  diffHashAtApproval: string;
+  status: 'active' | 'invalidated' | 'used';
+  approvedAt: string;
+  invalidatedAt?: string;
+  invalidationReason?: string;
+}
+
+export interface PullRequestRecord {
+  id: string;
+  tenantId: string;
+  repositoryId: string;
+  findingId: string;
+  patchId: string;
+  approvalId: string;
+  githubPrNumber: number;
+  githubPrUrl: string;
+  branchName: string;
+  commitSha: string;
+  status: 'open' | 'merged' | 'closed';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WebhookDeliveryRecord {
+  id: string;
+  deliveryId: string;
+  event: string;
+  signature: string;
+  processedAt: string;
+  status: 'processed' | 'ignored' | 'failed';
+}

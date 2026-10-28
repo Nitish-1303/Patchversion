@@ -13,6 +13,8 @@
     "test": "jest --config jest.config.cjs --runInBand"
   },
   "dependencies": {
+    "@patchversion/shared": "*",
+    "@patchversion/engine": "*",
     "next": "16.4.3",
     "react": "^18.3.0",
     "react-dom": "^18.3.0"
