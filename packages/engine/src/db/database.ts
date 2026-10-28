@@ -51,6 +51,10 @@ export class PatchversionDatabase {
     this.data = this.loadOrInitialize();
   }
 
+  getDataDir(): string {
+    return path.dirname(this.dbPath);
+  }
+
   private loadOrInitialize(): DatabaseSchema {
     if (fs.existsSync(this.dbPath)) {
       try {

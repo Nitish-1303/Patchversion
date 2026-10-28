@@ -66,7 +66,7 @@ export class WorkflowOrchestrator {
     this.runner = runner ?? new SandboxRunner(loadConfig());
     this.mapper = new UsageMapper();
     this.fixGen = new FixGenerator(process.env.ANTHROPIC_API_KEY ?? null);
-    this.prBot = new PRBot(new StateStore(path.join(process.cwd(), '.patchversion-state')));
+    this.prBot = new PRBot(new StateStore(this.db.getDataDir()));
     this.workerId = options?.workerId ?? `worker_${process.pid}`;
   }
 
