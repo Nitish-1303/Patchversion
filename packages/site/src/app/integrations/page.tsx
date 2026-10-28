@@ -13,7 +13,7 @@ export default function IntegrationsPage() {
       { title: 'Code references', body: 'A repository map would connect an API change to potential call sites.' },
       { title: 'Review evidence', body: 'A proposed patch and test output would help a maintainer evaluate the change.' },
     ]} />
-    <NavyBand title="No account connection is available." body="The integration surface is still a product direction. The current dashboard is an illustrative demo only." cta="Read how it works" href="/how-it-works" />
+    <NavyBand title="No account connection is available." body="The integration surface is still a product direction. No account, provider, or repository data is connected." cta="Read how it works" href="/how-it-works" />
     <SimpleCallout title="Have a provider in mind?" body="Share feedback about which API changes are hardest to keep up with. Contact is a prototype page and does not send a message yet." href="/contact" label="Contact" />
   </>;
 }

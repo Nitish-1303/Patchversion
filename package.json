@@ -12,11 +12,16 @@
     "build": "npm run build -w @patchversion/shared && npm run build --workspaces",
     "test": "npm run build -w @patchversion/shared && npm run test --workspaces",
     "typecheck": "npm run build -w @patchversion/shared && npm run typecheck --workspaces",
-    "lint": "npm run lint --workspaces --if-present",
+    "lint": "eslint .",
     "prove": "npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run prove -w @patchversion/engine",
     "prove:real": "npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run prove:real -w @patchversion/engine"
   },
+  "devDependencies": {
+    "eslint": "^9.0.0",
+    "eslint-config-next": "16.4.3",
+    "globals": "^14.0.0"
+  },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.9.0"
   }
 }

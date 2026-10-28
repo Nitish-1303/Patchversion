@@ -1,7 +1,7 @@
 import { FixGenerator } from '../src/fix-generator/generator';
 import { ChangeRecord, ImpactAnalysis } from '@patchversion/shared';
 import { applyPatch, parsePatch } from 'diff';
-import { execSync } from 'child_process';
+import { spawnSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
@@ -89,14 +89,25 @@ describe('FixGenerator', () => {
       expect(patched).toContain('payment_method: source,');
       expect(patched).not.toContain('source: source,');
 
-      // And with the standard patch(1) tool, when available
-      try {
-        execSync('patch --version', { stdio: 'pipe' });
-        const patchFile = path.join(tmpRoot, 'fix.patch');
-        fs.writeFileSync(patchFile, diff!);
-        execSync(`patch -p1 --dry-run < ${patchFile}`, { cwd: tmpRoot, stdio: 'pipe' });
-      } catch (err) {
-        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+      // Also verify with patch(1) when the executable is available. Avoid a
+      // shell so Windows reports a missing executable as ENOENT instead of
+      // returning the shell's generic nonzero status.
+      const version = spawnSync('patch', ['--version'], { encoding: 'utf8' });
+      if ((version.error as NodeJS.ErrnoException | undefined)?.code !== 'ENOENT') {
+        if (version.error) throw version.error;
+        if (version.status !== 0) {
+          throw new Error(`patch --version exited ${version.status}: ${version.stderr}`);
+        }
+
+        const result = spawnSync('patch', ['-p1', '--dry-run'], {
+          cwd: tmpRoot,
+          input: diff!,
+          encoding: 'utf8',
+        });
+        if (result.error) throw result.error;
+        if (result.status !== 0) {
+          throw new Error(`patch dry-run exited ${result.status}: ${result.stderr}`);
+        }
       }
     });
   }

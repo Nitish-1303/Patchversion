@@ -8,14 +8,12 @@ const MAX_BODY_BYTES = 1024 * 1024;
 /**
  * GitHub App webhook receiver.
  *
- * Handles:
- * - installation.created / installation.deleted (track installs)
- * - installation_repositories.added / .removed (track repos)
- * - push (trigger re-scan on push)
- * - check_suite (for CI integration)
+ * Logs small summaries for installation, installation_repositories, and push
+ * events. Other event types are logged as unhandled; no event triggers work.
  *
- * Deployed as a Vercel serverless function in production;
- * runs as a plain HTTP server locally for development.
+ * Prototype only: this class starts a plain HTTP server for local
+ * development. It is not wired to a Next.js route or deployed webhook
+ * endpoint, and it does not create jobs or process repository changes.
  */
 export class WebhookReceiver {
   private engine: PatchversionEngine;

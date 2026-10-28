@@ -11,6 +11,6 @@ export default function ChangelogPage() {
   return <>
     <section className="subpage-hero"><div className="content-width"><PageHeading eyebrow="CHANGELOG" title="Development notes, plainly stated." description="There are no production releases yet. This page summarizes what the prototype contains and what remains in development." /></div></section>
     <section className="section-block content-width changelog-list">{notes.map((note, index) => <Reveal key={note.title} delay={index * 80}><article className="changelog-entry"><span className="small-label">{note.label}</span><h2>{note.title}</h2><p>{note.body}</p></article></Reveal>)}</section>
-    <NavyBand title="A prototype, not a hosted service." body="The demo dashboard uses bundled example values and has no live events or connected repositories." cta="Explore the demo" href="/dashboard" />
+    <NavyBand title="A prototype, not a hosted service." body="There is no hosted account workflow. The dashboard route loads no fixture, repository, or activity data." cta="Read product status" href="/product" />
   </>;
 }

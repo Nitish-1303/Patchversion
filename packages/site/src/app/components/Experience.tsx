@@ -163,7 +163,7 @@ export function HeroDashboard() {
         <div className="browser-bar">
           <div className="browser-dots" aria-hidden="true"><i /><i /><i /></div>
           <span>trypatchbay · local proof preview</span>
-          <span className="demo-label">ILLUSTRATIVE DEMO</span>
+          <span className="demo-label">BUNDLED FIXTURE · LOCAL RUN</span>
         </div>
         <div className="demo-banner">Bundled fixture only · no live repository watching</div>
         <div className="dashboard-topline"><div><span className="small-label">CHANGE REVIEW</span><h2>mockpay · 1.0 → 2.0</h2></div><span className="status-pill">Local fixture</span></div>
@@ -249,35 +249,6 @@ export function FeatureCarousel({ items }: { items: { title: string; body: strin
       <div className="carousel-controls"><button type="button" aria-label="Previous card" onClick={() => move(active - 1)}>Previous</button><span>{String(active + 1).padStart(2, '0')} / {String(items.length).padStart(2, '0')}</span><button type="button" aria-label="Next card" onClick={() => move(active + 1)}>Next</button></div>
       <div className="carousel-rail" ref={rail} tabIndex={0} onKeyDown={onKeyDown} aria-label="Product capability cards. Use left and right arrow keys.">
         {items.map((item, index) => <article key={item.title} data-card-index={index} className={`carousel-card${active === index ? ' active' : ''}`} onClick={() => move(index)}><span className="small-label">CAPABILITY 0{index + 1}</span><h3>{item.title}</h3><p>{item.body}</p></article>)}
-      </div>
-    </div>
-  );
-}
-
-export function DashboardViewTabs() {
-  const [active, setActive] = useState('Overview');
-  const [showDiff, setShowDiff] = useState(false);
-  const tabs = ['Overview', 'Pull requests', 'APIs', 'Activity'];
-  const diffLines = ['− source: source,', '+ payment_method: source,', '  description: order.label,'];
-  return (
-    <div className="dashboard-app">
-      <div className="demo-banner">ILLUSTRATIVE DEMO · all displayed values describe the bundled fixture only</div>
-      <div className="app-heading"><div><span className="small-label">LOCAL WORKSPACE PREVIEW</span><h1>Overview</h1><p>No repositories connected. This screen is a layout demonstration.</p></div><span className="status-pill">Prototype</span></div>
-      <div className="dashboard-tabs" role="tablist" aria-label="Dashboard views">
-        {tabs.map((tab) => <button key={tab} role="tab" aria-selected={active === tab} type="button" onClick={() => { setActive(tab); setShowDiff(tab === 'Pull requests'); }}>{tab}</button>)}
-      </div>
-      <div className="dashboard-view" key={active}>
-        {active === 'Overview' && <>
-          <div className="stats-grid">
-            <div className="stat-card"><span className="small-label">Fixture call sites</span><strong><CountUp value={2} /></strong><span>in the local sample</span></div>
-            <div className="stat-card"><span className="small-label">Fixture checks</span><strong><CountUp value={3} suffix=" / 3" /></strong><span>after the example patch</span></div>
-            <div className="stat-card"><span className="small-label">Connected repos</span><strong><CountUp value={0} /></strong><span>live connections unavailable</span></div>
-          </div>
-          <div className="dashboard-columns"><section className="app-card"><span className="small-label">EXAMPLE CHANGE</span><h2>mockpay · 1.0 → 2.0</h2><p>A bundled fixture changes <code>source</code> to <code>payment_method</code>.</p><div className="table-row"><span>src/createCharge.js</span><span>Example call site</span></div><div className="table-row"><span>Local proof</span><span>Fixture output only</span></div></section><section className="app-card"><span className="small-label">WHAT IS AVAILABLE</span><h2>Local proof loop</h2><p>The repository contains a fixture-based migration proof. Live watching, sandboxing and PR delivery remain in development.</p><a className="text-link" href="/how-it-works">How the prototype works</a></section></div>
-        </>}
-        {active === 'Pull requests' && <section className="app-card"><span className="small-label">PULL REQUEST VIEW</span><h2>No pull requests are connected</h2><p>Pull request delivery is in development. This fixture shows the shape of a reviewable change only.</p><button className="text-link-button" type="button" onClick={() => setShowDiff((value) => !value)} aria-expanded={showDiff}>View illustrative diff</button>{showDiff && <div className="diff-list" key="diff">{diffLines.map((line, index) => <div className="diff-line reveal-diff" style={{ animationDelay: `${index * 120}ms` }} key={line}>{line}</div>)}</div>}</section>}
-        {active === 'APIs' && <section className="app-card"><span className="small-label">APIS VIEW</span><h2>No APIs are being watched</h2><p>Examples only. These names describe APIs it could watch after integrations are built; no provider is currently connected.</p><div className="api-name-list"><span>Stripe</span><span>OpenAI</span><span>Twilio</span></div><a className="text-link" href="/integrations">Integration status</a></section>}
-        {active === 'Activity' && <section className="app-card"><span className="small-label">ACTIVITY VIEW</span><h2>Example fixture timeline</h2><div className="activity-list"><p><span>Change recorded</span><span>Bundled mockpay example</span></p><p><span>Call site mapped</span><span>Local sample only</span></p><p><span>Fixture check completed</span><span>Example output</span></p></div><p className="muted">No live repository activity is collected.</p></section>}
       </div>
     </div>
   );

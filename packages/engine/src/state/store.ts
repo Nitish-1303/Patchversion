@@ -10,9 +10,9 @@ import {
 } from '@patchversion/shared';
 
 /**
- * File-backed state store. Every detection, decision, proof, and failure
- * is recorded durably. This is the raw material for the public dataset
- * and failure-rate page (M10).
+ * Local JSON state for the prototype. Records can survive process restarts
+ * when the filesystem persists, but this store has no tenant isolation,
+ * database transactions, hosted durability, or production backup policy.
  */
 export class StateStore {
   private stateDir: string;

@@ -1,6 +1,9 @@
 # Current Status
 
-**Last updated:** 2026-10-26 (public-claims review; historical proof dates retained)
+**Last updated:** 2026-10-28 (repository completion review; historical proof dates retained)
+
+See [the product completion audit](product-completion-audit.md) for the current
+feature matrix, release decision, and verified blockers.
 
 ## What exists
 

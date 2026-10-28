@@ -9,7 +9,7 @@ import {
 import { StateStore } from '../state/store';
 
 /**
- * PR Bot: prepares evidence-backed pull requests.
+ * PR Bot: prepares local text artifacts for a proposed pull request.
  *
  * Every PR carries:
  * - What changed upstream (with source link)
@@ -19,10 +19,7 @@ import { StateStore } from '../state/store';
  * - Coverage honesty block: "verified N of M; these K unverifiable"
  * - Confidence and what was NOT verified
  *
- * Silence by default: no PR unless there is a verified fix or a
- * verified unfixable break needing a human.
- *
- * Auto-closes superseded PRs for the same package.
+ * Nothing is submitted to GitHub, and superseded PRs are not closed.
  */
 export class PRBot {
   private store: StateStore;
@@ -33,7 +30,7 @@ export class PRBot {
 
   /**
    * Prepare a PR from a verified proof.
-   * Returns the PreparedPR ready for GitHub API submission.
+   * Returns the PreparedPR artifact only; it does not call the GitHub API.
    */
   preparePR(
     change: ChangeRecord,

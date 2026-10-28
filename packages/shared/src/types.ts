@@ -1,4 +1,4 @@
-// Core domain types for Patchversion
+// Core domain types for trypatchbay
 
 /** A normalized record of a detected change in a tracked package or API. */
 export interface ChangeRecord {

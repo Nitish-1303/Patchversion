@@ -1,4 +1,4 @@
-# Patchversion
+# trypatchbay
 
 **Proof you can read. Results we publish.**
 
@@ -48,6 +48,8 @@ fixtures/    # Test fixtures for validation
 ```
 
 ## Setup
+
+Node.js 20.9 or later is required. Continuous integration currently uses Node.js 24.
 
 ```bash
 npm install

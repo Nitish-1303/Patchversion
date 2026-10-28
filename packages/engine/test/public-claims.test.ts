@@ -124,7 +124,7 @@ describe('planned setup is not presented as a configuration-only feature', () =>
   });
   test('login, security, and footer preserve prototype limits', () => {
     expect(read('packages/site/src/app/login/page.tsx')).toContain('does not enable');
-    expect(read('packages/site/src/app/login/page.tsx')).toContain('authentication in this prototype');
+    expect(read('packages/site/src/app/login/page.tsx')).toContain('Authentication and account-backed workspaces are not implemented');
     expect(read('packages/site/src/app/docs/security/page.tsx')).toContain('bundled fixture trees only');
     expect(read('packages/site/src/app/Chrome.tsx')).toContain('API Monitoring (planned)');
     expect(read('packages/site/src/app/Chrome.tsx')).toContain('Impact Analysis (prototype)');
