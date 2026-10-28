@@ -1,4 +1,5 @@
 import path from 'path';
+import os from 'os';
 
 // Capture once so tests that temporarily simulate NODE_ENV=production do not
 // disable their explicitly test-only fixture policy overrides mid-process.
@@ -72,7 +73,7 @@ export function loadConfig(overrides?: Partial<EngineConfig>): EngineConfig {
   }
 
   const config: EngineConfig = {
-    stateDir: overrides?.stateDir ?? path.join(process.cwd(), '.patchversion-state'),
+    stateDir: overrides?.stateDir ?? (process.env.PATCHVERSION_STATE_DIR || (process.env.VERCEL ? path.join(os.tmpdir(), '.patchversion-state') : path.join(process.cwd(), '.patchversion-state'))),
     sandboxMode,
     requireIsolation: overrides?.requireIsolation ?? true,
     trustedFixtureDirs: overrides?.trustedFixtureDirs ?? [path.join(repoRoot(), 'fixtures')],
