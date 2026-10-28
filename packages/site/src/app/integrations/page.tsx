@@ -1,66 +1,19 @@
+import { ApiMarquee, Reveal } from '../components/Experience';
+import { FeatureGrid, NavyBand, PageHeading, SimpleCallout } from '../components/PageSections';
+
+const examples = ['Stripe', 'OpenAI', 'Twilio', 'Shopify', 'GitHub', 'PostgreSQL'];
+
 export default function IntegrationsPage() {
-  const integrations = [
-    { name: 'GitHub', category: 'Git Platform', purpose: 'Repository access, PR creation, webhook events', status: 'planned', description: 'Connect repositories for monitoring, impact analysis, and automated PR creation.' },
-    { name: 'npm Registry', category: 'API Provider', purpose: 'Package version tracking and changelog parsing', status: 'planned', description: 'Monitor npm packages for new releases and breaking changes.' },
-    { name: 'OpenAPI', category: 'API Provider', purpose: 'Spec-based change detection', status: 'planned', description: 'Register OpenAPI specifications as monitoring sources.' },
-    { name: 'Slack', category: 'Notifications', purpose: 'Team alerts for detected changes', status: 'planned', description: 'Send notifications when breaking changes affect your repositories.' },
-    { name: 'GitLab', category: 'Git Platform', purpose: 'Repository access and merge requests', status: 'planned', description: 'Alternative to GitHub for repository monitoring.' },
-    { name: 'Stripe', category: 'API Provider', purpose: 'Live API contract monitoring', status: 'planned', description: 'Monitor Stripe API endpoints for behavioral changes.' },
-    { name: 'OpenAI', category: 'API Provider', purpose: 'Model API change detection', status: 'planned', description: 'Track OpenAI API updates and deprecation notices.' },
-    { name: 'Generic Webhooks', category: 'CI/CD', purpose: 'Custom CI pipeline integration', status: 'planned', description: 'Trigger trypatchbay analysis from your CI/CD pipeline.' },
-  ];
-
-  return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-      <div className="max-w-3xl mb-12">
-        <h1 className="text-4xl font-bold mb-4">Integrations</h1>
-        <p className="text-lg text-text-secondary">
-          trypatchbay is designed to connect to the tools and APIs your team already
-          uses. All integrations are planned; none are live yet.
-        </p>
-      </div>
-
-      {/* Filter placeholder - functional when client-side */}
-      <div className="flex flex-wrap gap-2 mb-8">
-        {['All', 'API Providers', 'Git Platforms', 'CI/CD', 'Notifications', 'Monitoring'].map(cat => (
-          <button
-            key={cat}
-            className={`px-3 py-1.5 text-sm rounded-md border transition-colors ${
-              cat === 'All'
-                ? 'border-accent text-accent bg-accent-light'
-                : 'border-rule text-text-secondary hover:border-accent hover:text-accent'
-            }`}
-          >
-            {cat}
-          </button>
-        ))}
-      </div>
-
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {integrations.map(int => (
-          <div key={int.name} className="card flex flex-col">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold">{int.name}</h3>
-              <span className={`badge ${int.status === 'available' ? 'badge-success' : 'badge'}`}
-                style={int.status === 'planned' ? { background: '#F3F4F6', color: '#6B7280' } : undefined}
-              >
-                {int.status === 'available' ? 'Available' : 'Planned'}
-              </span>
-            </div>
-            <p className="text-xs text-text-tertiary mb-2">{int.category}</p>
-            <p className="text-sm text-text-secondary flex-1">{int.description}</p>
-            <div className="mt-4 pt-4 rule-t">
-              {int.status === 'available' ? (
-                <a href="/docs/getting-started" className="text-sm text-accent font-medium hover:underline">
-                  Setup instructions &rarr;
-                </a>
-              ) : (
-                <span className="text-sm text-text-tertiary">Coming soon</span>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+  return <>
+    <section className="subpage-hero"><div className="content-width"><PageHeading eyebrow="INTEGRATIONS" title="APIs it can watch, eventually." description="These names are examples of APIs the product could cover in the future. No providers are connected, watched or endorsed by trypatchbay today." /></div></section>
+    <ApiMarquee />
+    <section className="section-block content-width"><PageHeading eyebrow="EXAMPLES ONLY" title="Names, not integrations." description="There are no live provider connections in this prototype. The examples below show the scope the product is designed to address." /><div className="feature-grid integration-list">{examples.slice(0, 3).map((name, index) => <Reveal key={name} delay={index * 80}><article className="feature-card"><span className="small-label">API IT COULD WATCH · EXAMPLE</span><h3>{name}</h3><p>Example provider name only. Integration and change watching are in development.</p></article></Reveal>)}</div><div className="feature-grid integration-list integration-list-lower">{examples.slice(3).map((name, index) => <Reveal key={name} delay={index * 80}><article className="feature-card"><span className="small-label">API IT COULD WATCH · EXAMPLE</span><h3>{name}</h3><p>Example provider name only. Integration and change watching are in development.</p></article></Reveal>)}</div></section>
+    <FeatureGrid eyebrow="WHAT AN INTEGRATION WOULD NEED" title="Useful context before a change reaches code." description="The intended workflow starts from provider release information and matches it to dependency and API usage. None of these sources are connected yet." cards={[
+      { title: 'Release context', body: 'Provider changelogs and version changes would establish what changed.' },
+      { title: 'Code references', body: 'A repository map would connect an API change to potential call sites.' },
+      { title: 'Review evidence', body: 'A proposed patch and test output would help a maintainer evaluate the change.' },
+    ]} />
+    <NavyBand title="No account connection is available." body="The integration surface is still a product direction. The current dashboard is an illustrative demo only." cta="Read how it works" href="/how-it-works" />
+    <SimpleCallout title="Have a provider in mind?" body="Share feedback about which API changes are hardest to keep up with. Contact is a prototype page and does not send a message yet." href="/contact" label="Contact" />
+  </>;
 }
