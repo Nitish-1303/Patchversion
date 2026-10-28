@@ -25,6 +25,12 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@patchversion/engine": [
+        "../engine/src/index.ts"
+      ],
+      "@patchversion/engine/*": [
+        "../engine/src/*"
       ]
     }
   },

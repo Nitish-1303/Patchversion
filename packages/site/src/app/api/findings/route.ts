@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthContext, getDatabase } from '@/app/api/backend';
+import { FindingRecord } from '@patchversion/shared';
 
 export async function GET(request: NextRequest) {
   const auth = getAuthContext(request);
@@ -13,7 +14,7 @@ export async function GET(request: NextRequest) {
   const db = getDatabase();
   const findings = db.listFindings(auth.tenant.id, repositoryId);
 
-  const enriched = findings.map(finding => {
+  const enriched = findings.map((finding: FindingRecord) => {
     const patch = db.getPatchByFinding(auth.tenant.id, finding.id);
     const validation = patch ? db.getValidationByPatch(auth.tenant.id, patch.id) : null;
     const approval = patch ? db.getActiveApproval(auth.tenant.id, patch.id) : null;

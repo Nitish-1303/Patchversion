@@ -262,6 +262,22 @@ export class IsolatedRunner {
     const startMs = Date.now();
 
     try {
+      // Step 1: Ensure dependencies are installed for baseline run
+      const pkgJsonPath = path.join(workDir, 'package.json');
+      if (fs.existsSync(pkgJsonPath)) {
+        try {
+          const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
+          const deps = Object.keys(pkg.dependencies ?? {});
+          const needsInstall = deps.length > 0 && !fs.existsSync(path.join(workDir, 'node_modules', deps[0]));
+          if (needsInstall) {
+            const initArgs = ['install', '--install-links', '--no-audit', '--no-fund'];
+            if (!this.policy.allowNetwork) initArgs.push('--prefer-offline');
+            const npmInit = resolveNpmInvocation(initArgs);
+            await this.executeCommand(npmInit.command, npmInit.args, workDir, npmInit.shell);
+          }
+        } catch { /* proceed to test */ }
+      }
+
       // Step 1: Baseline test run
       const npmTest = resolveNpmInvocation(['test']);
       const baselineRes = await this.executeCommand(npmTest.command, npmTest.args, workDir, npmTest.shell);
@@ -282,17 +298,22 @@ export class IsolatedRunner {
       }
 
       // Step 2: Bump to breaking version
-      const pkgJsonPath = path.join(workDir, 'package.json');
       if (fs.existsSync(pkgJsonPath)) {
         const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
+        const offlinePath = change.offlineVersions?.[change.toVersion];
+        const spec = offlinePath ? `file:${offlinePath}` : change.toVersion;
         if (pkg.dependencies && pkg.dependencies[change.packageName]) {
-          pkg.dependencies[change.packageName] = change.toVersion;
-          fs.writeFileSync(pkgJsonPath, JSON.stringify(pkg, null, 2), 'utf8');
+          pkg.dependencies[change.packageName] = spec;
+        } else if (pkg.devDependencies && pkg.devDependencies[change.packageName]) {
+          pkg.devDependencies[change.packageName] = spec;
         }
+        fs.writeFileSync(pkgJsonPath, JSON.stringify(pkg, null, 2), 'utf8');
       }
 
+      this.removeInstalledDependency(workDir, change.packageName);
+
       // If offline version is provided, install from offline bundle, else npm install
-      const installArgs = ['install', '--no-audit', '--no-fund'];
+      const installArgs = ['install', '--install-links', '--no-audit', '--no-fund'];
       if (!this.policy.allowNetwork) {
         installArgs.push('--prefer-offline');
       }
@@ -425,6 +446,29 @@ export class IsolatedRunner {
       return { success: true, changedFiles };
     } catch (err) {
       return { success: false, changedFiles: [], error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+
+  private removeInstalledDependency(workDir: string, packageName: string): void {
+    const installedPath = path.resolve(workDir, 'node_modules', ...packageName.split('/'));
+    try {
+      if (fs.existsSync(installedPath)) {
+        fs.rmSync(installedPath, { recursive: true, force: true });
+      }
+    } catch { /* ignore */ }
+
+    const lockPath = path.join(workDir, 'package-lock.json');
+    if (fs.existsSync(lockPath)) {
+      try {
+        const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
+        if (lock.packages && lock.packages[`node_modules/${packageName}`]) {
+          delete lock.packages[`node_modules/${packageName}`];
+        }
+        if (lock.dependencies && lock.dependencies[packageName]) {
+          delete lock.dependencies[packageName];
+        }
+        fs.writeFileSync(lockPath, JSON.stringify(lock, null, 2));
+      } catch { /* ignore */ }
     }
   }
 }

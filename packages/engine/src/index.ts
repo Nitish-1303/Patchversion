@@ -1,6 +1,6 @@
 export { PatchversionEngine } from './engine';
 export { WebhookReceiver } from './webhook-receiver';
-export { EngineConfig, loadConfig } from './config';
+export { type EngineConfig, loadConfig } from './config';
 export { StateStore } from './state/store';
 export { NpmWatcher } from './watcher/npm-watcher';
 export { ContractProber } from './probes/contract-probe';

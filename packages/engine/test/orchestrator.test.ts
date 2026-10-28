@@ -16,6 +16,18 @@ describe('WorkflowOrchestrator - Complete End-to-End Vertical Slice', () => {
   let userId: string;
   let repoId: string;
 
+  beforeAll(() => {
+    const fixtureRepoPath = path.resolve(__dirname, '../../../fixtures/sample-repo');
+    const pkg = JSON.parse(fs.readFileSync(path.join(fixtureRepoPath, 'package.json'), 'utf-8'));
+    const firstDep = Object.keys(pkg.dependencies ?? {})[0];
+    if (!firstDep || !fs.existsSync(path.join(fixtureRepoPath, 'node_modules', firstDep))) {
+      const { resolveNpmInvocation } = require('../src/npm-cli');
+      const { execFileSync } = require('child_process');
+      const npm = resolveNpmInvocation(['install', '--install-links', '--no-audit', '--no-fund']);
+      execFileSync(npm.command, npm.args, { cwd: fixtureRepoPath, stdio: 'pipe', shell: npm.shell });
+    }
+  });
+
   beforeEach(() => {
     tmpDir = path.join(os.tmpdir(), `test-orch-${crypto.randomBytes(6).toString('hex')}`);
     db = new PatchversionDatabase(tmpDir);
