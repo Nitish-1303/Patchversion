@@ -26,6 +26,12 @@
       "@/*": [
         "./src/*"
       ],
+      "@patchversion/shared": [
+        "../shared/src/index.ts"
+      ],
+      "@patchversion/shared/*": [
+        "../shared/src/*"
+      ],
       "@patchversion/engine": [
         "../engine/src/index.ts"
       ],
