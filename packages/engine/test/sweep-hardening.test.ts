@@ -93,7 +93,6 @@ describe('contract prober', () => {
 });
 
 describe('webhook receiver authentication', () => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { WebhookReceiver } = require('../src/webhook-receiver');
   const { PatchversionEngine } = require('../src/engine');
   const crypto = require('crypto');
@@ -159,7 +158,6 @@ describe('webhook receiver authentication', () => {
 });
 
 describe('usage mapper repository isolation', () => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { UsageMapper } = require('../src/usage-map/mapper');
 
   function makeRepo(name: string, chargeContent: string | null): string {

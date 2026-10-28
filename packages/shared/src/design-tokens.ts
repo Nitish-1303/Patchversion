@@ -1,31 +1,30 @@
-// Design tokens: Patchversion original identity
-// Clean, professional, developer-focused. Linear/Stripe/Vercel-inspired clarity.
+// Shared light palette for the trypatchbay site and dashboard.
 
 export const colors = {
-  background: '#FAFAF9',      // warm white
-  surface: '#FFFFFF',          // card surfaces
-  ink: '#111827',             // near-black, high contrast
-  accent: '#4F46E5',          // indigo-600
-  accentLight: '#EEF2FF',     // indigo-50 for backgrounds
-  accentMuted: '#C7D2FE',     // indigo-200
-  border: '#E5E7EB',          // gray-200, subtle borders
-  borderStrong: '#D1D5DB',    // gray-300
-  textSecondary: '#6B7280',   // gray-500
-  textTertiary: '#9CA3AF',    // gray-400
-  success: '#059669',         // emerald-600
-  successBg: '#ECFDF5',       // emerald-50
-  error: '#DC2626',           // red-600
-  errorBg: '#FEF2F2',         // red-50
-  warning: '#D97706',         // amber-600
-  warningBg: '#FFFBEB',       // amber-50
-  codeBg: '#1E1E2E',          // dark code blocks
-  codeText: '#E2E8F0',        // light code text
+  background: '#F7F7FC',
+  surface: '#FFFFFF',
+  ink: '#141A39',
+  accent: '#252B50',
+  accentLight: '#E4E5F4',
+  accentMuted: '#CFD1E8',
+  border: '#DFE1EF',
+  borderStrong: '#CFD1E8',
+  textSecondary: '#4E5471',
+  textTertiary: '#4E5471',
+  success: '#252B50',
+  successBg: '#E4E5F4',
+  error: '#141A39',
+  errorBg: '#E4E5F4',
+  warning: '#252B50',
+  warningBg: '#EFEFF9',
+  codeBg: '#141A39',
+  codeText: '#F7F7FC',
 } as const;
 
 export const typography = {
-  displayFont: 'Inter, system-ui, -apple-system, sans-serif',
-  bodyFont: 'Inter, system-ui, -apple-system, sans-serif',
-  monoFont: '"JetBrains Mono", "Fira Code", Consolas, monospace',
+  displayFont: 'Manrope, Arial, sans-serif',
+  bodyFont: 'Inter, Arial, sans-serif',
+  monoFont: 'ui-monospace, SFMono-Regular, Consolas, monospace',
   tagline: 'Your APIs change. Your code adapts.',
 } as const;
 

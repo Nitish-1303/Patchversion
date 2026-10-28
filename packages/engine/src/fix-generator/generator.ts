@@ -38,7 +38,7 @@ export class FixGenerator {
 
     // Fall back to LLM-assisted generation
     if (this.apiKey) {
-      return this.generateWithLLM(repoPath, change, impact);
+      return this.generateWithLLM();
     }
 
     return null;
@@ -221,53 +221,9 @@ export class FixGenerator {
    * LLM-assisted fix generation.
    * Sends the failing code and change description to the model.
    */
-  private async generateWithLLM(
-    repoPath: string,
-    change: ChangeRecord,
-    impact: ImpactAnalysis,
-  ): Promise<string | null> {
-    // Build the prompt from affected call sites
-    const siteContexts = impact.affectedCallSites.map((site: CallSite) => {
-      const fullPath = path.join(repoPath, site.filePath);
-      if (!fs.existsSync(fullPath)) return null;
-      const lines = fs.readFileSync(fullPath, 'utf-8').split('\n');
-      const start = Math.max(0, site.line - 5);
-      const end = Math.min(lines.length, site.line + 5);
-      return {
-        file: site.filePath,
-        line: site.line,
-        context: lines.slice(start, end).join('\n'),
-        callExpression: site.callExpression,
-      };
-    }).filter(Boolean);
-
-    if (siteContexts.length === 0) return null;
-
-    const prompt = this.buildFixPrompt(change, siteContexts);
-
-    // TODO: Call Anthropic API when key is available
-    // For now, return null - the deterministic path handles known patterns
+  private async generateWithLLM(): Promise<string | null> {
+    // The model integration is intentionally unavailable. A configured key
+    // must never be mistaken for evidence that a generated patch exists.
     return null;
-  }
-
-  private buildFixPrompt(change: ChangeRecord, contexts: unknown[]): string {
-    return [
-      `Package "${change.packageName}" released ${change.toVersion} with breaking changes.`,
-      `Release notes: ${change.rawNotes}`,
-      ``,
-      `The following call sites are affected:`,
-      ...contexts.map((c: any) => [
-        ``,
-        `File: ${c.file} (line ${c.line})`,
-        `Call: ${c.callExpression}`,
-        `Context:`,
-        '```',
-        c.context,
-        '```',
-      ].join('\n')),
-      ``,
-      `Generate a minimal unified diff that fixes these call sites for the new version.`,
-      `Only change what is necessary. Do not refactor.`,
-    ].join('\n');
   }
 }

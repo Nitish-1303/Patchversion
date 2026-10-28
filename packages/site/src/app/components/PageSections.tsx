@@ -73,7 +73,7 @@ export function NavyBand({
   title,
   body,
   cta = 'Explore the prototype',
-  href = '/dashboard',
+  href = '/product',
 }: {
   eyebrow?: string;
   title: string;
@@ -108,6 +108,7 @@ export function MarketingPage({
   splits,
   bandTitle,
   bandBody,
+  bandHref,
   callout,
 }: {
   eyebrow: string;
@@ -117,6 +118,7 @@ export function MarketingPage({
   splits?: { eyebrow: string; title: string; body: string; caption: string; lines?: string[] }[];
   bandTitle?: string;
   bandBody?: string;
+  bandHref?: string;
   callout?: { title: string; body: string };
 }) {
   return (
@@ -126,7 +128,7 @@ export function MarketingPage({
       </section>
       <FeatureGrid eyebrow="WHAT IT DOES" title="A careful loop, built around evidence." description="The current product is a local prototype. Each card describes the intended shape of the workflow, with availability called out plainly." cards={cards} />
       {splits?.map((split, index) => <SplitSection key={split.title} {...split} reverse={index % 2 === 1} />)}
-      {bandTitle && bandBody && <NavyBand title={bandTitle} body={bandBody} />}
+      {bandTitle && bandBody && <NavyBand title={bandTitle} body={bandBody} href={bandHref} />}
       {callout && <SimpleCallout {...callout} />}
     </>
   );

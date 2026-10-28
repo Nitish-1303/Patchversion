@@ -60,11 +60,11 @@ export default function HomePage() {
       </section>
 
       <NavyBand
-        eyebrow="ILLUSTRATIVE DEMO"
+        eyebrow="LOCAL FIXTURE PROOF"
         title="A calmer way to inspect an API change."
-        body="Open the dashboard preview to explore the local fixture screens. Every value there is labeled as example output; no repositories are connected."
-        cta="Open the demo"
-        href="/dashboard"
+        body="The bundled fixture demonstrates one recorded migration locally. Account-backed dashboard access is unavailable while authentication and persistent storage are in development."
+        cta="Read how it works"
+        href="/how-it-works"
       />
 
       <FeatureGrid
@@ -78,7 +78,7 @@ export default function HomePage() {
         <PageHeading eyebrow="COMMON QUESTIONS" title="A few useful details." description="The current prototype is intentionally small and local." />
         <div className="faq-list">
           <details><summary>Does trypatchbay watch APIs today?</summary><p>No. Live repository and provider watching is in development. The current proof loop starts from a bundled recorded fixture.</p></details>
-          <details><summary>Does the dashboard show live data?</summary><p>No. It is an illustrative demo with fixture examples. There are no connected repositories or live events.</p></details>
+          <details><summary>Does the dashboard show account data?</summary><p>No. Authentication and persistent application data are not implemented, so the dashboard route loads no repository, activity, or pull request data.</p></details>
           <details><summary>Does trypatchbay open pull requests?</summary><p>No. Pull request delivery and sandboxed runs are in development. The local prototype prepares proof artifacts for the bundled fixture.</p></details>
         </div>
         <Reveal className="faq-link"><Link href="/docs">Read the prototype docs</Link></Reveal>

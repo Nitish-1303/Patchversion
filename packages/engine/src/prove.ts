@@ -6,6 +6,7 @@ import { ChangeRecord } from '@patchversion/shared';
 import { writeArtifacts } from './proof-output';
 import { loadConfig } from './config';
 import { resolveTrustedFixture } from './fixture-admission';
+import { resolveNpmInvocation } from './npm-cli';
 
 /**
  * prove: run the full pipeline against a repository we control.
@@ -55,8 +56,10 @@ export async function main(targetPath = fixtureRepo): Promise<void> {
   const firstDep = Object.keys(pkg.dependencies ?? {})[0];
   if (!firstDep || !fs.existsSync(path.join(fixtureRepo, 'node_modules', firstDep))) {
     log('Installing fixture dependencies...');
-    execFileSync('npm', ['install', '--no-audit', '--no-fund'], {
+    const npm = resolveNpmInvocation(['install', '--install-links', '--no-audit', '--no-fund']);
+    execFileSync(npm.command, npm.args, {
       cwd: fixtureRepo, stdio: 'pipe', timeout: 300_000,
+      shell: npm.shell,
     });
   }
 

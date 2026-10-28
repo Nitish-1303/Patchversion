@@ -13,9 +13,9 @@ const LINKS = [
   { label: 'Docs', href: '/docs' },
 ];
 
-function Wordmark() {
+function Wordmark({ onClick }: { onClick?: () => void } = {}) {
   return (
-    <Link href="/" className="wordmark" aria-label="trypatchbay home">
+    <Link href="/" className="wordmark" aria-label="trypatchbay home" onClick={onClick}>
       <Image src="/favicon.svg" alt="" width={32} height={32} priority />
       <span>trypatchbay</span>
     </Link>
@@ -59,21 +59,21 @@ function Header() {
     };
   }, []);
 
-  useEffect(() => setMenuOpen(false), [pathname]);
+  const closeMenu = () => setMenuOpen(false);
 
   return (
     <>
       <header className={`site-header${scrolled ? ' is-scrolled' : ''}`}>
         <nav className="nav-wrap" aria-label="Main navigation">
-          <Wordmark />
+          <Wordmark onClick={closeMenu} />
           <div className="nav-links">
             {LINKS.map((link) => (
-              <Link key={link.href} href={link.href} aria-current={pathname === link.href ? 'page' : undefined}>
+              <Link key={link.href} href={link.href} aria-current={pathname === link.href ? 'page' : undefined} onClick={closeMenu}>
                 {link.label}
               </Link>
             ))}
           </div>
-          <Link href="/contact" className="pill-button pill-button-dark nav-cta">Talk to us</Link>
+          <Link href="/contact" className="pill-button pill-button-dark nav-cta" onClick={closeMenu}>Talk to us</Link>
           <button
             className="menu-toggle"
             type="button"
@@ -86,8 +86,8 @@ function Header() {
         </nav>
         {menuOpen && (
           <div className="mobile-nav" id="mobile-nav">
-            {LINKS.map((link) => <Link key={link.href} href={link.href}>{link.label}</Link>)}
-            <Link href="/contact">Talk to us</Link>
+            {LINKS.map((link) => <Link key={link.href} href={link.href} onClick={closeMenu}>{link.label}</Link>)}
+            <Link href="/contact" onClick={closeMenu}>Talk to us</Link>
           </div>
         )}
       </header>

@@ -1,4 +1,4 @@
-# Technical Architecture
+# trypatchbay technical architecture
 
 **Status:** Prototype implementation and intended architecture, distinguished below.
 Today the end-to-end loop runs locally on bundled fixtures with no isolation.
@@ -10,9 +10,10 @@ GitHub App authentication, and PR delivery are not implemented.
 - **Language:** TypeScript (strict)
 - **Monorepo:** npm workspaces
 - **Engine:** Node.js, ts-morph (AST), Jest (testing)
-- **Site:** Next.js 14 (App Router), Tailwind CSS
+- **Site:** Next.js 16.4.3 (App Router), React 18, Tailwind CSS
 - **State:** File-backed store (to be replaced with PostgreSQL for production)
-- **CI:** GitHub Actions (typecheck + test on push/PR)
+- **Runtime baseline:** Node.js 20.9 or newer; CI uses Node.js 24
+- **CI:** GitHub Actions (lint, typecheck, tests, fixture proof, and build on push/PR)
 
 ## Components
 

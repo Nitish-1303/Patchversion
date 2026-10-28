@@ -5,6 +5,7 @@ import fs from 'fs';
 import crypto from 'crypto';
 import { ProofArtifact, TestResult, UnverifiableSite, ImpactAnalysis, ChangeRecord, ProveResult } from '@patchversion/shared';
 import { EngineConfig } from '../config';
+import { resolveNpmInvocation } from '../npm-cli';
 
 /** Environment passed to repo code under test: the minimum npm needs.
  *  Deliberately does NOT inherit process.env - secrets must not leak
@@ -19,7 +20,55 @@ function minimalEnv(): NodeJS.ProcessEnv {
     NODE_ENV: 'test',
   };
   if (process.env.npm_config_cache) env.npm_config_cache = process.env.npm_config_cache;
+  if (process.platform === 'win32') {
+    const windowsEnvironment = {
+      SystemRoot: process.env.SystemRoot ?? process.env.SYSTEMROOT,
+      WINDIR: process.env.WINDIR,
+      ComSpec: process.env.ComSpec ?? process.env.COMSPEC,
+      TEMP: process.env.TEMP,
+      TMP: process.env.TMP,
+    };
+    for (const [name, value] of Object.entries(windowsEnvironment)) {
+      if (value) env[name] = value;
+    }
+  }
   return env;
+}
+
+function getCommandOutput(error: unknown): string {
+  if (error && typeof error === 'object') {
+    const details = error as { stderr?: unknown; stdout?: unknown };
+    const output = details.stderr ?? details.stdout;
+    if (Buffer.isBuffer(output)) return output.toString();
+    if (typeof output === 'string') return output;
+  }
+  return error instanceof Error ? error.message : String(error);
+}
+
+function removeInstalledDependency(workDir: string, packageName: string): void {
+  if (!/^(?:@[a-z0-9](?:[a-z0-9._~-]*[a-z0-9])?\/)?[a-z0-9](?:[a-z0-9._~-]*[a-z0-9])?$/i.test(packageName)) {
+    throw new Error(`unsupported npm package name: ${packageName}`);
+  }
+
+  const workRoot = path.resolve(workDir);
+  const installedPath = path.resolve(workRoot, 'node_modules', ...packageName.split('/'));
+  if (!installedPath.startsWith(`${workRoot}${path.sep}`)) {
+    throw new Error('dependency path escapes the sandbox working directory');
+  }
+  fs.rmSync(installedPath, { recursive: true, force: true });
+
+  const lockPath = path.join(workRoot, 'package-lock.json');
+  if (!fs.existsSync(lockPath)) return;
+  const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8')) as Record<string, unknown>;
+  const packages = lock.packages;
+  if (packages && typeof packages === 'object' && !Array.isArray(packages)) {
+    delete (packages as Record<string, unknown>)[`node_modules/${packageName}`];
+  }
+  const dependencies = lock.dependencies;
+  if (dependencies && typeof dependencies === 'object' && !Array.isArray(dependencies)) {
+    delete (dependencies as Record<string, unknown>)[packageName];
+  }
+  fs.writeFileSync(lockPath, JSON.stringify(lock, null, 2));
 }
 
 /**
@@ -248,20 +297,10 @@ export class SandboxRunner {
    * reporting only.
    */
   private async runTests(workDir: string): Promise<TestResult> {
-    const command = this.detectTestCommand(workDir);
-    return this.runTestsLocal(workDir, command);
+    return this.runTestsLocal(workDir);
   }
 
-  private detectTestCommand(workDir: string): string {
-    const pkgPath = path.join(workDir, 'package.json');
-    if (fs.existsSync(pkgPath)) {
-      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
-      if (pkg.scripts?.test) return 'npm test';
-    }
-    return 'npm test'; // npm exits nonzero when no test script exists
-  }
-
-  private async runTestsLocal(workDir: string, command: string): Promise<TestResult> {
+  private async runTestsLocal(workDir: string): Promise<TestResult> {
     return new Promise((resolve) => {
       let output = '';
       let settled = false;
@@ -281,26 +320,53 @@ export class SandboxRunner {
         }
       };
 
-      const proc: ChildProcess = spawn('sh', ['-c', command], {
+      const npm = resolveNpmInvocation(['test']);
+      const isWindows = process.platform === 'win32';
+      const proc: ChildProcess = spawn(npm.command, npm.args, {
         cwd: workDir,
         env: minimalEnv(),
         stdio: ['ignore', 'pipe', 'pipe'],
-        // Own process group so the timeout kills the whole tree
-        // (sh -> npm -> test runner), not just the shell.
-        detached: true,
+        // Own a process group on POSIX. On Windows, taskkill below terminates
+        // the full npm/test process tree by PID.
+        detached: !isWindows,
+        shell: npm.shell,
+        windowsHide: true,
       });
 
       const timer = setTimeout(() => {
         timedOut = true;
         try {
-          if (proc.pid) process.kill(-proc.pid, 'SIGTERM');
+          if (proc.pid && isWindows) {
+            execFileSync('taskkill.exe', ['/PID', String(proc.pid), '/T', '/F'], {
+              stdio: 'ignore',
+              timeout: KILL_GRACE_MS,
+            });
+          } else if (proc.pid) {
+            process.kill(-proc.pid, 'SIGTERM');
+          }
         } catch { /* already gone */ }
-        const killer = setTimeout(() => {
-          try {
-            if (proc.pid) process.kill(-proc.pid, 'SIGKILL');
-          } catch { /* already gone */ }
-        }, KILL_GRACE_MS);
-        killer.unref();
+        if (isWindows) {
+          // Shell process trees do not always emit `close` after a timeout
+          // on Windows. Close the pipes and settle the proof explicitly so
+          // the caller cannot hang indefinitely.
+          try { proc.kill(); } catch { /* already gone */ }
+          proc.stdout?.destroy();
+          proc.stderr?.destroy();
+          proc.unref();
+          const parsed = this.parseTestOutput(output);
+          done({
+            ...parsed,
+            output: (output + '\n[TIMEOUT]').slice(-5000),
+            exitCode: 124,
+          });
+        } else {
+          const killer = setTimeout(() => {
+            try {
+              if (proc.pid) process.kill(-proc.pid, 'SIGKILL');
+            } catch { /* already gone */ }
+          }, KILL_GRACE_MS);
+          killer.unref();
+        }
       }, this.config.sandboxTimeoutMs);
 
       proc.stdout?.on('data', append);
@@ -367,18 +433,21 @@ export class SandboxRunner {
     }
 
     fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
+    removeInstalledDependency(workDir, change.packageName);
 
     // Reinstall. A failure here means the red/green runs would prove
     // nothing, so it aborts the loop instead of being swallowed.
     try {
-      execFileSync('npm', ['install', '--prefer-offline', '--no-audit', '--no-fund'], {
+      const npm = resolveNpmInvocation(['install', '--install-links', '--prefer-offline', '--no-audit', '--no-fund']);
+      execFileSync(npm.command, npm.args, {
         cwd: workDir,
         timeout: 120_000,
         stdio: 'pipe',
         env: minimalEnv(),
+        shell: npm.shell,
       });
-    } catch (err: any) {
-      const tail = (err?.stderr?.toString() ?? err?.stdout?.toString() ?? String(err)).slice(-500);
+    } catch (err: unknown) {
+      const tail = getCommandOutput(err).slice(-500);
       throw new Error(`npm install after bump to ${change.toVersion} failed: ${tail}`);
     }
   }

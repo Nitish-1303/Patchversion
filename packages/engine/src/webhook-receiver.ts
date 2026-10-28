@@ -5,17 +5,26 @@ import { PatchversionEngine } from './engine';
 /** Maximum accepted webhook payload size: 1 MB of raw bytes. */
 const MAX_BODY_BYTES = 1024 * 1024;
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function stringProperty(value: unknown, key: string): string | undefined {
+  const property = asRecord(value)?.[key];
+  return typeof property === 'string' ? property : undefined;
+}
+
 /**
  * GitHub App webhook receiver.
  *
- * Handles:
- * - installation.created / installation.deleted (track installs)
- * - installation_repositories.added / .removed (track repos)
- * - push (trigger re-scan on push)
- * - check_suite (for CI integration)
+ * Logs small summaries for installation, installation_repositories, and push
+ * events. Other event types are logged as unhandled; no event triggers work.
  *
- * Deployed as a Vercel serverless function in production;
- * runs as a plain HTTP server locally for development.
+ * Prototype only: this class starts a plain HTTP server for local
+ * development. It is not wired to a Next.js route or deployed webhook
+ * endpoint, and it does not create jobs or process repository changes.
  */
 export class WebhookReceiver {
   private engine: PatchversionEngine;
@@ -82,10 +91,11 @@ export class WebhookReceiver {
         const event = req.headers['x-github-event'] as string;
         try {
           // Decode for JSON parsing only after the signature has been verified.
-          const payload = JSON.parse(rawBody.toString('utf8'));
+          const payload = asRecord(JSON.parse(rawBody.toString('utf8')));
+          if (!payload) throw new Error('Webhook payload must be a JSON object');
           this.handleEvent(event, payload);
           res.writeHead(200).end('OK');
-        } catch (err) {
+        } catch {
           res.writeHead(400).end('Invalid payload');
         }
       });
@@ -124,21 +134,21 @@ export class WebhookReceiver {
       case 'installation':
         store.logEvent('installation', {
           action: payload.action,
-          account: (payload.installation as any)?.account?.login,
+          account: stringProperty(asRecord(payload.installation)?.account, 'login'),
         });
         break;
 
       case 'installation_repositories':
         store.logEvent('installation_repos', {
           action: payload.action,
-          added: ((payload.repositories_added as any[]) ?? []).length,
-          removed: ((payload.repositories_removed as any[]) ?? []).length,
+          added: Array.isArray(payload.repositories_added) ? payload.repositories_added.length : 0,
+          removed: Array.isArray(payload.repositories_removed) ? payload.repositories_removed.length : 0,
         });
         break;
 
       case 'push':
         store.logEvent('push', {
-          repo: (payload.repository as any)?.full_name,
+          repo: stringProperty(payload.repository, 'full_name'),
           ref: payload.ref,
         });
         break;

@@ -11,6 +11,6 @@ export default function HowItWorksPage() {
       { title: 'Fixture proof', body: 'The bundled tests can be rerun against the proposed fixture patch. Sandboxing is not implemented.' },
     ]} />
     <SplitSection eyebrow="A HUMAN REVIEW STAYS CENTRAL" title="Evidence is there to support a decision." body="The intended product prepares a change for a person to inspect. The current local prototype does not open a pull request or make changes in a user's repository." caption="Review-first interface concept" lines={['Change context visible', 'Proposed diff inspectable', 'Human review remains required']} />
-    <NavyBand title="Explore the illustrative screens." body="See the dashboard layout with sample fixture values. No accounts or repository connections are available." cta="Open dashboard preview" href="/dashboard" />
+    <NavyBand title="Account-backed access is still in development." body="Authentication, repository authorization and persisted workspace data are not available. The dashboard route shows this limitation without loading sample account data." cta="Read getting started" href="/docs/getting-started" />
   </>;
 }

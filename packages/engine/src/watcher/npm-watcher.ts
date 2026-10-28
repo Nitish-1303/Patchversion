@@ -1,5 +1,5 @@
 import https from 'https';
-import { ChangeRecord, ChangeClassification } from '@patchversion/shared';
+import { ChangeRecord } from '@patchversion/shared';
 import { StateStore } from '../state/store';
 import { classifyChange } from '../break-detector/classifier';
 
@@ -149,7 +149,7 @@ export class NpmWatcher {
         res.on('end', () => {
           try {
             resolve(JSON.parse(data));
-          } catch (e) {
+          } catch {
             reject(new Error(`Failed to parse registry response for ${packageName}`));
           }
         });
