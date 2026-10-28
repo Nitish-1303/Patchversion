@@ -23,7 +23,9 @@ formal security assessment.
   work, or access GitHub.
 - The engine has no hosted worker or isolated execution boundary. Its local
   child process has no isolation; an admission gate only permits the bundled
-  fixtures. Docker execution remains blocked as unverified.
+  fixtures. Docker execution remains blocked as unverified. Runtime config
+  rejects attempts to disable this gate or replace trusted fixture roots
+  outside the test runtime; this is a configuration safeguard, not isolation.
 - The `/dashboard` route displays an unavailable state and loads no account,
   repository, fixture, activity, or pull request data. The homepage contains a
   separately labeled bundled-fixture example; neither surface is connected to

@@ -1,5 +1,9 @@
 import path from 'path';
 
+// Capture once so tests that temporarily simulate NODE_ENV=production do not
+// disable their explicitly test-only fixture policy overrides mid-process.
+const allowTestExecutionPolicyOverrides = process.env.NODE_ENV === 'test';
+
 export interface EngineConfig {
   /** Root directory for state persistence */
   stateDir: string;
@@ -51,6 +55,14 @@ function repoRoot(): string {
 }
 
 export function loadConfig(overrides?: Partial<EngineConfig>): EngineConfig {
+  const relaxesExecutionPolicy =
+    overrides?.requireIsolation === false || overrides?.trustedFixtureDirs !== undefined;
+  if (!allowTestExecutionPolicyOverrides && relaxesExecutionPolicy) {
+    throw new Error(
+      'The local execution policy can only be relaxed in the test runtime (NODE_ENV=test).',
+    );
+  }
+
   const sandboxMode = overrides?.sandboxMode ?? 'local';
   if (sandboxMode === 'docker') {
     throw new Error(
