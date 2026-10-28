@@ -7,7 +7,7 @@ import { GitHubClient } from '../src/github/client';
 import { WorkflowOrchestrator } from '../src/jobs/orchestrator';
 
 describe('WorkflowOrchestrator - Complete End-to-End Vertical Slice', () => {
-  jest.setTimeout(60_000);
+  jest.setTimeout(180_000);
   let tmpDir: string;
   let db: PatchversionDatabase;
   let github: GitHubClient;

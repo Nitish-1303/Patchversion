@@ -15,6 +15,7 @@ import {
   PullRequestRecord,
   WebhookDeliveryRecord,
   JobType,
+  WatchTargetRecord,
 } from '@patchversion/shared';
 
 export interface DatabaseSchema {
@@ -31,6 +32,8 @@ export interface DatabaseSchema {
   approvals: Record<string, ApprovalRecord>;
   pullRequests: Record<string, PullRequestRecord>;
   webhookDeliveries: Record<string, WebhookDeliveryRecord>;
+  watchTargets?: Record<string, WatchTargetRecord>;
+  revokedSessionIds?: Record<string, string>;
 }
 
 const CURRENT_SCHEMA_VERSION = 1;
@@ -82,16 +85,28 @@ export class PatchversionDatabase {
       approvals: {},
       pullRequests: {},
       webhookDeliveries: {},
+      watchTargets: {},
+      revokedSessionIds: {},
     };
     this.persist(initial);
     return initial;
   }
 
   private migrate(schema: DatabaseSchema): DatabaseSchema {
-    // Migration framework
+    let dirty = false;
+    if (!schema.watchTargets) {
+      schema.watchTargets = {};
+      dirty = true;
+    }
+    if (!schema.revokedSessionIds) {
+      schema.revokedSessionIds = {};
+      dirty = true;
+    }
     if (schema.schemaVersion < CURRENT_SCHEMA_VERSION) {
-      // Future migrations applied here
       schema.schemaVersion = CURRENT_SCHEMA_VERSION;
+      dirty = true;
+    }
+    if (dirty) {
       this.persist(schema);
     }
     return schema;
@@ -111,14 +126,14 @@ export class PatchversionDatabase {
 
   // --- Tenants & Users ---
 
-  createTenant(name: string): Tenant {
-    const id = `tenant_${crypto.randomUUID()}`;
+  createTenant(name: string, id?: string): Tenant {
+    const tenantId = id || `tenant_${crypto.randomUUID()}`;
     const tenant: Tenant = {
-      id,
+      id: tenantId,
       name,
       createdAt: new Date().toISOString(),
     };
-    this.data.tenants[id] = tenant;
+    this.data.tenants[tenantId] = tenant;
     this.save();
     return tenant;
   }
@@ -127,13 +142,20 @@ export class PatchversionDatabase {
     return this.data.tenants[id] ?? null;
   }
 
-  createUser(tenantId: string, email: string, role: 'owner' | 'admin' | 'member' = 'member', githubLogin?: string, githubUserId?: string): User {
+  createUser(
+    tenantId: string,
+    email: string,
+    role: 'owner' | 'admin' | 'member' = 'member',
+    githubLogin?: string,
+    githubUserId?: string,
+    id?: string,
+  ): User {
     if (!this.data.tenants[tenantId]) {
       throw new Error(`Tenant ${tenantId} does not exist`);
     }
-    const id = `user_${crypto.randomUUID()}`;
+    const userId = id || `user_${crypto.randomUUID()}`;
     const user: User = {
-      id,
+      id: userId,
       tenantId,
       email,
       role,
@@ -141,7 +163,7 @@ export class PatchversionDatabase {
       githubUserId,
       createdAt: new Date().toISOString(),
     };
-    this.data.users[id] = user;
+    this.data.users[userId] = user;
     this.save();
     return user;
   }
@@ -160,10 +182,21 @@ export class PatchversionDatabase {
     const user = this.getUser(userId);
     if (!user) throw new Error(`User ${userId} does not exist`);
 
-    const token = crypto.randomBytes(32).toString('hex');
     const id = `sess_${crypto.randomUUID()}`;
     const now = new Date();
     const expiresAt = new Date(now.getTime() + expiresInHours * 3600 * 1000).toISOString();
+    const secret = process.env.PATCHVERSION_SESSION_SECRET || 'patchversion-serverless-shared-secret-v1';
+    const body = Buffer.from(
+      JSON.stringify({
+        id,
+        userId,
+        tenantId: user.tenantId,
+        expiresAt,
+        createdAt: now.toISOString(),
+      }),
+    ).toString('base64url');
+    const sig = crypto.createHmac('sha256', secret).update(body).digest('base64url');
+    const token = `v1.${body}.${sig}`;
 
     const session: Session = {
       id,
@@ -180,6 +213,40 @@ export class PatchversionDatabase {
   }
 
   getSession(token: string): Session | null {
+    if (token.startsWith('v1.')) {
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        const [, body, sig] = parts;
+        const secret = process.env.PATCHVERSION_SESSION_SECRET || 'patchversion-serverless-shared-secret-v1';
+        const expectedSig = crypto.createHmac('sha256', secret).update(body).digest('base64url');
+        const sigBuf = Buffer.from(sig);
+        const expectedBuf = Buffer.from(expectedSig);
+        if (sigBuf.length === expectedBuf.length && crypto.timingSafeEqual(sigBuf, expectedBuf)) {
+          try {
+            const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
+            if (new Date(payload.expiresAt).getTime() < Date.now()) {
+              return null;
+            }
+            if (this.data.revokedSessionIds && this.data.revokedSessionIds[payload.id]) {
+              return null;
+            }
+            return {
+              id: payload.id,
+              userId: payload.userId,
+              tenantId: payload.tenantId,
+              token,
+              expiresAt: payload.expiresAt,
+              createdAt: payload.createdAt,
+            };
+          } catch {
+            return null;
+          }
+        } else {
+          return null;
+        }
+      }
+    }
+
     const session = this.data.sessions[token];
     if (!session) return null;
     if (new Date(session.expiresAt).getTime() < Date.now()) {
@@ -191,8 +258,27 @@ export class PatchversionDatabase {
   }
 
   revokeSession(token: string): boolean {
+    let revoked = false;
+    if (token.startsWith('v1.')) {
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        try {
+          const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+          if (!this.data.revokedSessionIds) {
+            this.data.revokedSessionIds = {};
+          }
+          this.data.revokedSessionIds[payload.id] = new Date().toISOString();
+          revoked = true;
+        } catch {
+          // ignore parse error on invalid token
+        }
+      }
+    }
     if (this.data.sessions[token]) {
       delete this.data.sessions[token];
+      revoked = true;
+    }
+    if (revoked) {
       this.save();
       return true;
     }
@@ -633,6 +719,9 @@ export class PatchversionDatabase {
       githubPrUrl: string;
       branchName: string;
       commitSha: string;
+      isDraft?: boolean;
+      isSimulation?: boolean;
+      deliveryBlockedReason?: string;
     },
   ): PullRequestRecord {
     // Check if PR for this patch or finding already exists (Duplicate prevention)
@@ -711,5 +800,65 @@ export class PatchversionDatabase {
 
   isWebhookProcessed(deliveryId: string): boolean {
     return Boolean(this.data.webhookDeliveries[deliveryId]);
+  }
+
+  // --- Package Watch Targets ---
+
+  listWatchTargets(tenantId: string): WatchTargetRecord[] {
+    if (!this.data.watchTargets) {
+      this.data.watchTargets = {};
+    }
+    return Object.values(this.data.watchTargets).filter(t => t.tenantId === tenantId);
+  }
+
+  getWatchTarget(tenantId: string, packageName: string): WatchTargetRecord | null {
+    if (!this.data.watchTargets) {
+      this.data.watchTargets = {};
+    }
+    const key = `${tenantId}:${packageName}`;
+    return this.data.watchTargets[key] ?? null;
+  }
+
+  saveWatchTarget(
+    tenantId: string,
+    target: Omit<WatchTargetRecord, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>,
+  ): WatchTargetRecord {
+    if (!this.data.watchTargets) {
+      this.data.watchTargets = {};
+    }
+    const key = `${tenantId}:${target.packageName}`;
+    const now = new Date().toISOString();
+    const existing = this.data.watchTargets[key];
+    const record: WatchTargetRecord = {
+      id: existing ? existing.id : `wt_${crypto.randomUUID()}`,
+      tenantId,
+      ...target,
+      createdAt: existing ? existing.createdAt : now,
+      updatedAt: now,
+    };
+    this.data.watchTargets[key] = record;
+    this.save();
+    return record;
+  }
+
+  updateWatchTarget(
+    tenantId: string,
+    packageName: string,
+    updates: Partial<WatchTargetRecord>,
+  ): WatchTargetRecord | null {
+    if (!this.data.watchTargets) {
+      this.data.watchTargets = {};
+    }
+    const key = `${tenantId}:${packageName}`;
+    const existing = this.data.watchTargets[key];
+    if (!existing) return null;
+    const updated: WatchTargetRecord = {
+      ...existing,
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
+    this.data.watchTargets[key] = updated;
+    this.save();
+    return updated;
   }
 }

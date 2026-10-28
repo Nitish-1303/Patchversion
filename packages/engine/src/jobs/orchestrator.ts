@@ -288,6 +288,9 @@ export class WorkflowOrchestrator {
       githubPrUrl: createdPr.htmlUrl,
       branchName: createdPr.branch,
       commitSha: createdPr.commitSha,
+      isDraft: createdPr.isDraft ?? true,
+      isSimulation: createdPr.isSimulation ?? false,
+      deliveryBlockedReason: createdPr.deliveryBlockedReason,
     });
 
     return prRecord;

@@ -23,12 +23,15 @@ interface Repository {
 }
 
 interface MonitoredPackage {
+  id?: string;
   packageName: string;
   ecosystem: string;
   currentVersion: string;
   latestVersion: string;
   lastCheckedAt: string;
   status: 'up_to_date' | 'upgrade_available' | 'error';
+  isDemo?: boolean;
+  source?: string;
   notes?: string;
   lastError?: string;
 }
@@ -62,11 +65,22 @@ interface Finding {
     githubPrUrl: string;
     branchName: string;
     status: string;
+    isDraft?: boolean;
+    isSimulation?: boolean;
+    deliveryBlockedReason?: string;
   };
 }
 
+const NPM_PACKAGE_REGEX = /^(?:@[a-z0-9-*~][a-z0-9-*._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/;
+
 export default function DashboardPage() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(false);
+  const [sessionToken, setSessionToken] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('patchversion_token');
+    }
+    return null;
+  });
   const [user, setUser] = useState<UserInfo | null>(null);
   const [tenant, setTenant] = useState<TenantInfo | null>(null);
   const [repositories, setRepositories] = useState<Repository[]>([]);
@@ -78,23 +92,54 @@ export default function DashboardPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [packages, setPackages] = useState<MonitoredPackage[]>([]);
   const [checkingPackage, setCheckingPackage] = useState<string | null>(null);
+  const [newPackageInput, setNewPackageInput] = useState('');
+  const [addingPackage, setAddingPackage] = useState(false);
+
+  /**
+   * Unified authenticated fetch wrapper sending both same-origin cookies and Authorization Bearer header.
+   */
+  const authFetch = useCallback(async (url: string, options: RequestInit = {}): Promise<Response> => {
+    const headers = new Headers(options.headers || {});
+    const token = sessionToken || (typeof window !== 'undefined' ? sessionStorage.getItem('patchversion_token') : null);
+    if (token && !headers.has('Authorization')) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+
+    const res = await fetch(url, {
+      ...options,
+      credentials: 'same-origin',
+      headers,
+    });
+
+    if (res.status === 401) {
+      setAuthenticated(false);
+      setUser(null);
+      setTenant(null);
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('patchversion_token');
+      }
+      setActionError('Session expired or unauthorized. Please sign in again.');
+    }
+
+    return res;
+  }, [sessionToken]);
 
   const loadPackages = useCallback(async () => {
     if (typeof fetch === 'undefined') return;
     try {
-      const res = await fetch('/api/packages');
+      const res = await authFetch('/api/packages');
       if (res.ok) {
         const data = await res.json();
         setPackages(data.packages || []);
       }
     } catch { /* ignore */ }
-  }, []);
+  }, [authFetch]);
 
   const handleCheckPackage = async (packageName: string) => {
     setCheckingPackage(packageName);
     setActionError(null);
     try {
-      const res = await fetch('/api/packages', {
+      const res = await authFetch('/api/packages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ packageName }),
@@ -113,21 +158,54 @@ export default function DashboardPage() {
     }
   };
 
+  const handleAddPackage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const pkg = newPackageInput.trim();
+    if (!pkg) return;
+
+    if (!NPM_PACKAGE_REGEX.test(pkg)) {
+      setActionError(`Invalid package name '${pkg}'. Must conform to npm naming rules.`);
+      return;
+    }
+
+    setAddingPackage(true);
+    setActionError(null);
+    try {
+      const res = await authFetch('/api/packages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ packageName: pkg, currentVersion: '1.0.0' }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setActionMessage(`Monitored package '${pkg}' registered. Latest: ${data.package?.latestVersion}`);
+        setNewPackageInput('');
+        await loadPackages();
+      } else {
+        setActionError(data.error || 'Failed to add package');
+      }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setAddingPackage(false);
+    }
+  };
+
   const loadFindings = useCallback(async (repoId: string) => {
     if (typeof fetch === 'undefined') return;
     try {
-      const res = await fetch(`/api/findings?repositoryId=${repoId}`);
+      const res = await authFetch(`/api/findings?repositoryId=${repoId}`);
       if (res.ok) {
         const data = await res.json();
         setFindings(data.findings || []);
       }
     } catch { /* ignore */ }
-  }, []);
+  }, [authFetch]);
 
   const loadRepositories = useCallback(async () => {
     if (typeof fetch === 'undefined') return;
     try {
-      const res = await fetch('/api/repos');
+      const res = await authFetch('/api/repos');
       if (res.ok) {
         const data = await res.json();
         setRepositories(data.repositories || []);
@@ -138,12 +216,16 @@ export default function DashboardPage() {
         }
       }
     } catch { /* ignore */ }
-  }, [loadFindings]);
+  }, [authFetch, loadFindings]);
 
-  // Check existing session
+  // Check existing session on mount
   useEffect(() => {
     if (typeof fetch === 'undefined') return;
-    fetch('/api/auth')
+    const token = typeof window !== 'undefined' ? sessionStorage.getItem('patchversion_token') : null;
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    fetch('/api/auth', { credentials: 'same-origin', headers })
       .then(res => res.ok ? res.json() : null)
       .then(data => {
         if (data?.authenticated) {
@@ -165,12 +247,19 @@ export default function DashboardPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'developer@trypatchbay.dev' }),
+        credentials: 'same-origin',
       });
       const data = await res.json();
       if (res.ok && data.authenticated) {
         setAuthenticated(true);
         setUser(data.user);
         setTenant(data.tenant);
+        if (data.token) {
+          setSessionToken(data.token);
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('patchversion_token', data.token);
+          }
+        }
         await loadRepositories();
         await loadPackages();
         setActionMessage('Authenticated successfully with TryPatchBay developer session.');
@@ -184,11 +273,27 @@ export default function DashboardPage() {
     }
   };
 
+  const handleLogout = async () => {
+    setLoading(true);
+    try {
+      await authFetch('/api/auth', { method: 'DELETE' });
+    } catch { /* ignore */ }
+    setAuthenticated(false);
+    setUser(null);
+    setTenant(null);
+    setSessionToken(null);
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('patchversion_token');
+    }
+    setActionMessage('Signed out successfully.');
+    setLoading(false);
+  };
+
   const handleConnectRepo = async () => {
     setLoading(true);
     setActionError(null);
     try {
-      const res = await fetch('/api/repos', {
+      const res = await authFetch('/api/repos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -215,7 +320,7 @@ export default function DashboardPage() {
     setActionError(null);
     setActionMessage('Scanning repository dependencies and validating candidate fixes...');
     try {
-      const res = await fetch('/api/scan', {
+      const res = await authFetch('/api/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ repositoryId: selectedRepo.id }),
@@ -238,7 +343,7 @@ export default function DashboardPage() {
     setLoading(true);
     setActionError(null);
     try {
-      const res = await fetch('/api/approvals', {
+      const res = await authFetch('/api/approvals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ patchId, diffHash }),
@@ -260,16 +365,21 @@ export default function DashboardPage() {
   const handleDeliverPR = async (patchId: string) => {
     setLoading(true);
     setActionError(null);
-    setActionMessage('Delivering genuine pull request to GitHub...');
+    setActionMessage('Delivering pull request...');
     try {
-      const res = await fetch('/api/pull-requests', {
+      const res = await authFetch('/api/pull-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ patchId }),
       });
       const data = await res.json();
       if (res.ok) {
-        setActionMessage(`Pull Request created successfully! PR #${data.pullRequest.githubPrNumber}: ${data.pullRequest.githubPrUrl}`);
+        const pr = data.pullRequest;
+        if (pr.isSimulation) {
+          setActionMessage(`Pull Request prepared locally (Demo simulation): PR #${pr.githubPrNumber}`);
+        } else {
+          setActionMessage(`Pull Request created successfully! PR #${pr.githubPrNumber}: ${pr.githubPrUrl}`);
+        }
         if (selectedRepo) await loadFindings(selectedRepo.id);
       } else {
         setActionError(data.error || 'PR creation failed');
@@ -310,7 +420,24 @@ export default function DashboardPage() {
       <div className="browser-bar">
         <div className="browser-dots" aria-hidden="true"><i /><i /><i /></div>
         <span>trypatchbay · workspace dashboard</span>
-        <span className="status-pill">{tenant?.name ?? 'Connected Workspace'}</span>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span className="status-pill">{tenant?.name ?? 'Connected Workspace'}</span>
+          <button
+            type="button"
+            onClick={handleLogout}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#64748b',
+              fontSize: '10px',
+              cursor: 'pointer',
+              textDecoration: 'underline',
+              padding: '0 4px',
+            }}
+          >
+            Sign out
+          </button>
+        </div>
       </div>
 
       <div className="app-heading">
@@ -318,7 +445,7 @@ export default function DashboardPage() {
           <span className="small-label">AUTHENTICATED DEVELOPER WORKSPACE</span>
           <h1>{selectedRepo ? selectedRepo.fullName : 'Connected Repositories'}</h1>
           <p>
-            Signed in as <strong>{user?.email}</strong>. Connected to real persistent state store.
+            Signed in as <strong>{user?.email}</strong>. Connected to persistent state store.
           </p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
@@ -381,7 +508,7 @@ export default function DashboardPage() {
               <div className="stat-card">
                 <span className="small-label">Delivered PRs</span>
                 <strong>{findings.filter(f => f.pullRequest).length}</strong>
-                <span>created on GitHub</span>
+                <span>created or prepared</span>
               </div>
             </div>
 
@@ -420,7 +547,7 @@ export default function DashboardPage() {
                     </div>
                   )}
 
-                  <div style={{ marginTop: '16px', display: 'flex', gap: '8px' }}>
+                  <div style={{ marginTop: '16px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                     {primaryFinding.patch && !primaryFinding.approval && primaryFinding.validation?.status === 'passed' && (
                       <button
                         type="button"
@@ -439,20 +566,27 @@ export default function DashboardPage() {
                         onClick={() => handleDeliverPR(primaryFinding.patch!.id)}
                         disabled={loading}
                       >
-                        Create GitHub Pull Request
+                        Create Draft Pull Request
                       </button>
                     )}
 
                     {primaryFinding.pullRequest && (
-                      <a
-                        href={primaryFinding.pullRequest.githubPrUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="pill-button"
-                        style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}
-                      >
-                        View PR #{primaryFinding.pullRequest.githubPrNumber} on GitHub →
-                      </a>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <a
+                          href={primaryFinding.pullRequest.githubPrUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="pill-button"
+                          style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}
+                        >
+                          View PR #{primaryFinding.pullRequest.githubPrNumber} →
+                        </a>
+                        {primaryFinding.pullRequest.isSimulation && (
+                          <span style={{ fontSize: '10px', color: '#b45309', fontWeight: 600 }}>
+                            [Demo Mode: Prepared Locally]
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
                 </section>
@@ -508,19 +642,43 @@ export default function DashboardPage() {
             {findings.filter(f => f.pullRequest).length > 0 ? (
               <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {findings.filter(f => f.pullRequest).map(f => (
-                  <div key={f.id} className="table-row" style={{ padding: '12px', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
-                    <div>
-                      <strong>Fix: {f.packageName} {f.fromVersion} → {f.toVersion}</strong>
-                      <div style={{ fontSize: '10px', color: '#64748b' }}>Branch: {f.pullRequest?.branchName}</div>
+                  <div key={f.id} className="table-row" style={{ padding: '12px', border: '1px solid #e2e8f0', borderRadius: '6px', flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
+                    <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <strong>Fix: {f.packageName} {f.fromVersion} → {f.toVersion}</strong>
+                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>Branch: <code>{f.pullRequest?.branchName}</code></div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {f.pullRequest?.isDraft && (
+                          <span style={{ fontSize: '9px', padding: '2px 6px', borderRadius: '4px', background: '#f1f5f9', color: '#475569', fontWeight: 700 }}>
+                            DRAFT
+                          </span>
+                        )}
+                        {f.pullRequest?.isSimulation ? (
+                          <span style={{ fontSize: '9px', padding: '2px 6px', borderRadius: '4px', background: '#fef3c7', color: '#92400e', fontWeight: 700 }}>
+                            LOCAL SIMULATION
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '9px', padding: '2px 6px', borderRadius: '4px', background: '#dcfce7', color: '#166534', fontWeight: 700 }}>
+                            LIVE GITHUB PR
+                          </span>
+                        )}
+                        <a
+                          href={f.pullRequest?.githubPrUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-link"
+                          style={{ marginLeft: '6px' }}
+                        >
+                          PR #{f.pullRequest?.githubPrNumber} →
+                        </a>
+                      </div>
                     </div>
-                    <a
-                      href={f.pullRequest?.githubPrUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-link"
-                    >
-                      PR #{f.pullRequest?.githubPrNumber} →
-                    </a>
+                    {f.pullRequest?.deliveryBlockedReason && (
+                      <div style={{ fontSize: '11px', color: '#b45309', background: '#fffbeb', padding: '4px 8px', borderRadius: '4px', width: '100%' }}>
+                        Notice: {f.pullRequest.deliveryBlockedReason}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -535,11 +693,37 @@ export default function DashboardPage() {
             <span className="small-label">MONITORED DEPENDENCIES</span>
             <h2>Monitored Upstream Libraries</h2>
             <p>Authoritative package version observations tracked across repository manifests.</p>
-            <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+
+            <form onSubmit={handleAddPackage} style={{ marginTop: '14px', marginBottom: '16px', display: 'flex', gap: '8px' }}>
+              <input
+                type="text"
+                placeholder="Add package name (e.g. express, lodash, @types/node)..."
+                value={newPackageInput}
+                onChange={e => setNewPackageInput(e.target.value)}
+                style={{
+                  flex: 1,
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '6px',
+                  outline: 'none',
+                }}
+              />
+              <button
+                type="submit"
+                className="pill-button pill-button-dark"
+                disabled={addingPackage || !newPackageInput.trim()}
+                style={{ fontSize: '11px', padding: '6px 14px' }}
+              >
+                {addingPackage ? 'Querying...' : 'Add & Check'}
+              </button>
+            </form>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {packages.map(pkg => (
                 <div key={pkg.packageName} className="table-row" style={{ padding: '12px', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
                   <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                       <strong style={{ fontSize: '13px' }}>{pkg.packageName}</strong>
                       <span style={{
                         fontSize: '9px',
@@ -551,12 +735,21 @@ export default function DashboardPage() {
                       }}>
                         {pkg.status === 'upgrade_available' ? 'UPGRADE AVAILABLE' : pkg.status === 'error' ? 'RATE LIMIT / ERROR' : 'UP TO DATE'}
                       </span>
+                      {pkg.isDemo ? (
+                        <span style={{ fontSize: '9px', padding: '2px 6px', borderRadius: '4px', background: '#f1f5f9', color: '#475569', fontWeight: 600 }}>
+                          DEMO FIXTURE
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: '9px', padding: '2px 6px', borderRadius: '4px', background: '#f8fafc', color: '#64748b', fontWeight: 600 }}>
+                          NPM REGISTRY
+                        </span>
+                      )}
                     </div>
-                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
                       Observed: <code>{pkg.currentVersion}</code> → Latest: <code>{pkg.latestVersion}</code> · Last checked: {new Date(pkg.lastCheckedAt).toLocaleTimeString()}
                     </div>
-                    {pkg.notes && <div style={{ fontSize: '10px', color: '#475569', marginTop: '4px' }}>{pkg.notes}</div>}
-                    {pkg.lastError && <div style={{ fontSize: '10px', color: '#dc2626', marginTop: '4px' }}>Error: {pkg.lastError}</div>}
+                    {pkg.notes && <div style={{ fontSize: '11px', color: '#475569', marginTop: '4px' }}>{pkg.notes}</div>}
+                    {pkg.lastError && <div style={{ fontSize: '11px', color: '#dc2626', marginTop: '4px' }}>Error: {pkg.lastError}</div>}
                   </div>
                   <div>
                     <button
@@ -564,13 +757,16 @@ export default function DashboardPage() {
                       className="pill-button"
                       onClick={() => handleCheckPackage(pkg.packageName)}
                       disabled={checkingPackage === pkg.packageName}
-                      style={{ fontSize: '10px', padding: '4px 10px' }}
+                      style={{ fontSize: '11px', padding: '4px 10px' }}
                     >
                       {checkingPackage === pkg.packageName ? 'Checking...' : 'Check Registry'}
                     </button>
                   </div>
                 </div>
               ))}
+            </div>
+            <div style={{ marginTop: '12px', fontSize: '10px', color: '#94a3b8' }}>
+              State persistence: Serverless container storage (/tmp) with idempotent demo seed and stateless HMAC session tokens.
             </div>
           </section>
         )}
@@ -587,7 +783,7 @@ export default function DashboardPage() {
                   <p><span>Regression detected</span><span>{f.packageName} {f.fromVersion} → {f.toVersion}</span></p>
                   {f.validation && <p><span>Isolated proof</span><span>Status: {f.validation.status}</span></p>}
                   {f.approval && <p><span>Human approval granted</span><span>Hash: {f.patch?.diffHash.slice(0, 8)}</span></p>}
-                  {f.pullRequest && <p><span>PR Delivered</span><span>#{f.pullRequest.githubPrNumber}</span></p>}
+                  {f.pullRequest && <p><span>PR Delivered</span><span>#{f.pullRequest.githubPrNumber} {f.pullRequest.isSimulation ? '(Local simulation)' : ''}</span></p>}
                 </React.Fragment>
               ))}
             </div>

@@ -1,47 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthContext } from '@/app/api/backend';
+import { getAuthContext, getDatabase } from '@/app/api/backend';
+import { WatchTargetRecord } from '@patchversion/shared';
 
-export interface MonitoredPackage {
-  packageName: string;
-  ecosystem: 'npm' | 'pypi' | 'remote-api';
-  currentVersion: string;
-  latestVersion: string;
-  lastCheckedAt: string;
-  status: 'up_to_date' | 'upgrade_available' | 'error';
-  notes?: string;
-  lastError?: string;
+// Official npm package name validation rules
+// - Max 214 chars, no leading . or _, lowercase/URL-safe, optional scope @org/pkg
+const NPM_PACKAGE_NAME_REGEX = /^(?:@[a-z0-9-*~][a-z0-9-*._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/;
+
+export function isValidPackageName(name: string): boolean {
+  if (!name || typeof name !== 'string') return false;
+  const trimmed = name.trim();
+  if (trimmed.length === 0 || trimmed.length > 214) return false;
+  if (trimmed.startsWith('.') || trimmed.startsWith('_')) return false;
+  return NPM_PACKAGE_NAME_REGEX.test(trimmed);
 }
-
-// In-memory / tenant-scoped cache of monitored packages
-const monitoredPackages: MonitoredPackage[] = [
-  {
-    packageName: 'mockpay',
-    ecosystem: 'npm',
-    currentVersion: '1.0.0',
-    latestVersion: '2.0.0',
-    lastCheckedAt: new Date().toISOString(),
-    status: 'upgrade_available',
-    notes: "BREAKING CHANGE: 'source' renamed to 'payment_method' in charges.create",
-  },
-  {
-    packageName: 'lodash',
-    ecosystem: 'npm',
-    currentVersion: '3.10.1',
-    latestVersion: '4.17.21',
-    lastCheckedAt: new Date().toISOString(),
-    status: 'upgrade_available',
-    notes: "BREAKING CHANGE: Renamed '_.contains' to '_.includes'",
-  },
-  {
-    packageName: 'stripe',
-    ecosystem: 'npm',
-    currentVersion: '14.25.0',
-    latestVersion: '14.25.0',
-    lastCheckedAt: new Date().toISOString(),
-    status: 'up_to_date',
-    notes: 'Monitored manifest dependency; no breaking changes detected',
-  },
-];
 
 export async function GET(request: NextRequest) {
   const auth = getAuthContext(request);
@@ -49,7 +20,55 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  return NextResponse.json({ packages: monitoredPackages });
+  const db = getDatabase();
+  let packages = db.listWatchTargets(auth.tenant.id);
+
+  if (packages.length === 0) {
+    const defaultTargets: Omit<WatchTargetRecord, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>[] = [
+      {
+        packageName: 'mockpay',
+        ecosystem: 'npm',
+        currentVersion: '1.0.0',
+        latestVersion: '2.0.0',
+        lastCheckedAt: new Date().toISOString(),
+        status: 'upgrade_available',
+        isDemo: true,
+        notes: "BREAKING CHANGE: 'source' renamed to 'payment_method' in charges.create (Demo fixture)",
+        source: 'fixture-demo',
+      },
+      {
+        packageName: 'lodash',
+        ecosystem: 'npm',
+        currentVersion: '3.10.1',
+        latestVersion: '4.17.21',
+        lastCheckedAt: new Date().toISOString(),
+        status: 'upgrade_available',
+        isDemo: false,
+        notes: "BREAKING CHANGE: Renamed '_.contains' to '_.includes'",
+        source: 'registry',
+      },
+      {
+        packageName: 'stripe',
+        ecosystem: 'npm',
+        currentVersion: '14.25.0',
+        latestVersion: '14.25.0',
+        lastCheckedAt: new Date().toISOString(),
+        status: 'up_to_date',
+        isDemo: false,
+        notes: 'Monitored manifest dependency; no breaking changes detected',
+        source: 'registry',
+      },
+    ];
+    for (const dt of defaultTargets) {
+      db.saveWatchTarget(auth.tenant.id, dt);
+    }
+    packages = db.listWatchTargets(auth.tenant.id);
+  }
+
+  return NextResponse.json({
+    packages,
+    persistence: process.env.PATCHVERSION_STATE_DIR ? 'configured-storage' : 'transient (ephemeral serverless /tmp)',
+  });
 }
 
 export async function POST(request: NextRequest) {
@@ -59,55 +78,121 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json().catch(() => ({}));
-  const packageName = body.packageName;
+  const rawPackageName = body.packageName;
 
-  if (!packageName) {
+  if (typeof rawPackageName !== 'string' || !rawPackageName.trim()) {
     return NextResponse.json({ error: 'packageName is required' }, { status: 400 });
   }
 
-  const pkg = monitoredPackages.find(p => p.packageName === packageName);
-  if (!pkg) {
-    return NextResponse.json({ error: `Package ${packageName} not found in monitored list` }, { status: 404 });
+  const packageName = rawPackageName.trim();
+  if (!isValidPackageName(packageName)) {
+    return NextResponse.json({
+      error: `Invalid package name '${packageName}'. Must conform to npm package naming rules (1-214 chars, URL-safe, lowercase, optional @scope/).`,
+    }, { status: 400 });
   }
 
+  const db = getDatabase();
+  let pkg = db.getWatchTarget(auth.tenant.id, packageName);
+
+  if (!pkg) {
+    pkg = db.saveWatchTarget(auth.tenant.id, {
+      packageName,
+      ecosystem: (body.ecosystem as 'npm' | 'pypi' | 'remote-api') || 'npm',
+      currentVersion: typeof body.currentVersion === 'string' ? body.currentVersion : '1.0.0',
+      latestVersion: 'unknown',
+      lastCheckedAt: new Date().toISOString(),
+      status: 'up_to_date',
+      source: packageName === 'mockpay' ? 'fixture-demo' : 'registry',
+      isDemo: packageName === 'mockpay',
+    });
+  }
+
+  if (packageName === 'mockpay') {
+    // Local demo fixture observation
+    const updated = db.updateWatchTarget(auth.tenant.id, packageName, {
+      lastCheckedAt: new Date().toISOString(),
+      latestVersion: '2.0.0',
+      status: 'upgrade_available',
+      lastError: undefined,
+      isDemo: true,
+      source: 'fixture-demo',
+      notes: "Demo SDK fixture for Stripe breaking change scenario",
+    });
+
+    return NextResponse.json({
+      success: true,
+      package: updated,
+      persistence: process.env.PATCHVERSION_STATE_DIR ? 'configured-storage' : 'transient (ephemeral serverless /tmp)',
+    });
+  }
+
+  // Authoritative external registry check with bounded 5000ms timeout
   try {
-    if (packageName === 'mockpay') {
-      // Local fixture registry observation
-      pkg.lastCheckedAt = new Date().toISOString();
-      pkg.latestVersion = '2.0.0';
-      pkg.status = 'upgrade_available';
-      pkg.lastError = undefined;
-    } else {
-      // Query authoritative npm registry with timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-      const res = await fetch(`https://registry.npmjs.org/${packageName}/latest`, {
-        signal: controller.signal,
-        headers: { 'User-Agent': 'TryPatchBay-Watcher' },
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const encodedPkg = packageName.startsWith('@')
+      ? `@${encodeURIComponent(packageName.slice(1))}`
+      : encodeURIComponent(packageName);
+
+    const res = await fetch(`https://registry.npmjs.org/${encodedPkg}/latest`, {
+      signal: controller.signal,
+      headers: { 'User-Agent': 'TryPatchBay-Watcher' },
+    });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      const errorMsg = res.status === 404
+        ? `Package '${packageName}' was not found in npm registry (HTTP 404)`
+        : `npm registry returned HTTP ${res.status}`;
+      const updated = db.updateWatchTarget(auth.tenant.id, packageName, {
+        lastCheckedAt: new Date().toISOString(),
+        status: 'error',
+        lastError: errorMsg,
+        source: 'registry',
       });
-      clearTimeout(timeoutId);
 
-      if (!res.ok) {
-        throw new Error(`npm registry returned HTTP ${res.status}`);
-      }
-
-      const data = await res.json() as { version: string };
-      pkg.lastCheckedAt = new Date().toISOString();
-      pkg.latestVersion = data.version;
-      pkg.status = pkg.currentVersion === data.version ? 'up_to_date' : 'upgrade_available';
-      pkg.lastError = undefined;
+      return NextResponse.json({
+        success: false,
+        package: updated,
+        error: errorMsg,
+        persistence: process.env.PATCHVERSION_STATE_DIR ? 'configured-storage' : 'transient (ephemeral serverless /tmp)',
+      }, { status: res.status === 404 ? 404 : 502 });
     }
 
-    return NextResponse.json({ success: true, package: pkg });
+    const data = (await res.json()) as { version: string };
+    const latestVersion = data.version || 'unknown';
+    const status = pkg.currentVersion === latestVersion ? 'up_to_date' : 'upgrade_available';
+    const updated = db.updateWatchTarget(auth.tenant.id, packageName, {
+      lastCheckedAt: new Date().toISOString(),
+      latestVersion,
+      status,
+      lastError: undefined,
+      source: 'registry',
+    });
+
+    return NextResponse.json({
+      success: true,
+      package: updated,
+      persistence: process.env.PATCHVERSION_STATE_DIR ? 'configured-storage' : 'transient (ephemeral serverless /tmp)',
+    });
   } catch (err) {
-    pkg.lastCheckedAt = new Date().toISOString();
-    pkg.status = 'error';
-    pkg.lastError = err instanceof Error ? err.message : String(err);
+    const isAbort = err instanceof Error && (err.name === 'AbortError' || err.message.includes('aborted'));
+    const errorMsg = isAbort
+      ? 'Registry request timed out after 5000ms'
+      : err instanceof Error ? err.message : String(err);
+
+    const updated = db.updateWatchTarget(auth.tenant.id, packageName, {
+      lastCheckedAt: new Date().toISOString(),
+      status: 'error',
+      lastError: errorMsg,
+      source: 'registry',
+    });
 
     return NextResponse.json({
       success: false,
-      package: pkg,
-      error: pkg.lastError,
-    });
+      package: updated,
+      error: errorMsg,
+      persistence: process.env.PATCHVERSION_STATE_DIR ? 'configured-storage' : 'transient (ephemeral serverless /tmp)',
+    }, { status: 504 });
   }
 }
