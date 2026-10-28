@@ -1,7 +1,7 @@
 # trypatchbay product completion audit
 
-**Reviewed:** 2026-10-28  
-**Source baseline:** `f200ce7` (`origin/main`)  
+**Reviewed:** 2026-10-28
+**Source baseline:** `7c471eb` (`main`, merged PR #20)
 **Release decision:** Not ready for production use
 
 This matrix records behavior verified in the repository. A module or screen is
@@ -9,7 +9,9 @@ not treated as evidence that the hosted capability exists.
 
 | Capability | Current status | Evidence and limitation |
 | --- | --- | --- |
-| Public website and documentation | Implemented | Next.js App Router pages exist. The marketing site is deployed; this task does not verify its current deployment. |
+| Public website and documentation | Implemented (page delivery only) | Vercel production deployment `dpl_HXJ3RgDT2MCv9KQCWFZnXMUsffdk` is READY for main commit `7c471eb`. The homepage and `/dashboard` return HTTP 200; the dashboard displays its unavailable state. This does not verify a backend workflow. |
+| Current main CI | Passed | GitHub Actions run `40646311978` on `7c471eb` passed typecheck (including audit and lint), tests, fixture proof, and build. It does not verify hosted authentication, repository access, or isolated customer execution. |
+| Required main checks | Missing | GitHub reports `main` is not protected and has no required status checks. The successful CI run is not enforced as a merge gate. |
 | Homepage fixture illustration | Implemented as a labeled local example | It describes the bundled fixture workflow. It is not an account workflow or live repository result. |
 | Dashboard account data | Unavailable | Authentication and persistent account state do not exist. This change makes `/dashboard` state that explicitly and loads no fixture, repository, activity, or pull request records. |
 | Sign-in and onboarding | Unavailable | Routes explain that authentication, GitHub installation, and repository authorization are not implemented. |
@@ -47,6 +49,13 @@ not treated as evidence that the hosted capability exists.
   GitHub behavior as if it were deployed.
 - Align shared color and typography tokens with the existing light navy and
   lavender site palette.
+
+## Current candidate changes (not yet merged)
+
+- Reject configuration that disables the fixture-only execution gate or
+  replaces trusted fixture roots outside the test runtime. This does not add
+  an isolation boundary.
+- Correct the security page's dashboard statement and add regression coverage.
 
 ## Remaining release blockers
 
