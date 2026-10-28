@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthContext, getDatabase } from '@/app/api/backend';
+import { getAuthContext, getDatabase, getStorageModeInfo } from '@/app/api/backend';
 import { WatchTargetRecord } from '@patchversion/shared';
 
 // Official npm package name validation rules
@@ -68,6 +68,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     packages,
     persistence: process.env.PATCHVERSION_STATE_DIR ? 'configured-storage' : 'transient (ephemeral serverless /tmp)',
+    storage: getStorageModeInfo(),
   });
 }
 

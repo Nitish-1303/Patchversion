@@ -34,6 +34,37 @@ function resolveDataDir(): string {
   }
 }
 
+export function getStorageModeInfo(): {
+  mode: 'configured-durable' | 'transient-serverless-tmp' | 'local-workspace';
+  path: string;
+  isDurable: boolean;
+  guaranteeNotice: string;
+} {
+  if (process.env.PATCHVERSION_STATE_DIR) {
+    return {
+      mode: 'configured-durable',
+      path: process.env.PATCHVERSION_STATE_DIR,
+      isDurable: true,
+      guaranteeNotice: 'State is written to the configured persistent state directory.',
+    };
+  }
+  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    return {
+      mode: 'transient-serverless-tmp',
+      path: path.join(os.tmpdir(), '.patchversion-state'),
+      isDurable: false,
+      guaranteeNotice:
+        'Ephemeral container storage (/tmp). State does not survive across serverless microVM recycling without an external database. Deterministic demo seed ensures evaluation continuity only.',
+    };
+  }
+  return {
+    mode: 'local-workspace',
+    path: path.join(process.cwd(), '.patchversion-state'),
+    isDurable: true,
+    guaranteeNotice: 'Local development file storage.',
+  };
+}
+
 export function getDatabase(): PatchversionDatabase {
   if (!dbInstance) {
     const dataDir = resolveDataDir();

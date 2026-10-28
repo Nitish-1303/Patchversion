@@ -178,6 +178,27 @@ export class PatchversionDatabase {
 
   // --- Sessions & Auth ---
 
+  private getSessionSigningSecret(): string {
+    const secret = process.env.PATCHVERSION_SESSION_SECRET;
+    if (secret && secret.trim().length >= 32) {
+      return secret.trim();
+    }
+    if (secret && secret.trim().length > 0) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(
+          'SECURITY VIOLATION: PATCHVERSION_SESSION_SECRET must be at least 32 characters long in production environments.'
+        );
+      }
+      return secret.trim();
+    }
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        'SECURITY VIOLATION: PATCHVERSION_SESSION_SECRET is required in production environments. Refusing to use fallback secret.'
+      );
+    }
+    return 'patchversion-serverless-dev-secret-v1';
+  }
+
   createSession(userId: string, expiresInHours = 24): Session {
     const user = this.getUser(userId);
     if (!user) throw new Error(`User ${userId} does not exist`);
@@ -185,7 +206,7 @@ export class PatchversionDatabase {
     const id = `sess_${crypto.randomUUID()}`;
     const now = new Date();
     const expiresAt = new Date(now.getTime() + expiresInHours * 3600 * 1000).toISOString();
-    const secret = process.env.PATCHVERSION_SESSION_SECRET || 'patchversion-serverless-shared-secret-v1';
+    const secret = this.getSessionSigningSecret();
     const body = Buffer.from(
       JSON.stringify({
         id,
@@ -217,12 +238,12 @@ export class PatchversionDatabase {
       const parts = token.split('.');
       if (parts.length === 3) {
         const [, body, sig] = parts;
-        const secret = process.env.PATCHVERSION_SESSION_SECRET || 'patchversion-serverless-shared-secret-v1';
-        const expectedSig = crypto.createHmac('sha256', secret).update(body).digest('base64url');
-        const sigBuf = Buffer.from(sig);
-        const expectedBuf = Buffer.from(expectedSig);
-        if (sigBuf.length === expectedBuf.length && crypto.timingSafeEqual(sigBuf, expectedBuf)) {
-          try {
+        try {
+          const secret = this.getSessionSigningSecret();
+          const expectedSig = crypto.createHmac('sha256', secret).update(body).digest('base64url');
+          const sigBuf = Buffer.from(sig);
+          const expectedBuf = Buffer.from(expectedSig);
+          if (sigBuf.length === expectedBuf.length && crypto.timingSafeEqual(sigBuf, expectedBuf)) {
             const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
             if (new Date(payload.expiresAt).getTime() < Date.now()) {
               return null;
@@ -238,10 +259,10 @@ export class PatchversionDatabase {
               expiresAt: payload.expiresAt,
               createdAt: payload.createdAt,
             };
-          } catch {
+          } else {
             return null;
           }
-        } else {
+        } catch {
           return null;
         }
       }

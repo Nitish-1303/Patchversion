@@ -766,7 +766,7 @@ export default function DashboardPage() {
               ))}
             </div>
             <div style={{ marginTop: '12px', fontSize: '10px', color: '#94a3b8' }}>
-              State persistence: Serverless container storage (/tmp) with idempotent demo seed and stateless HMAC session tokens.
+              Storage Mode: Ephemeral container filesystem (/tmp). Monitored packages and session tokens are stateless or seeded idempotently. Cross-instance persistence requires external database infrastructure (PostgreSQL/Redis).
             </div>
           </section>
         )}

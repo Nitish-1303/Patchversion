@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthContext, getDatabase } from '@/app/api/backend';
+import { getAuthContext, getDatabase, getStorageModeInfo } from '@/app/api/backend';
 
 export async function GET(request: NextRequest) {
   const auth = getAuthContext(request);
@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
 
   const db = getDatabase();
   const repos = db.listRepositories(auth.tenant.id);
-  return NextResponse.json({ repositories: repos });
+  return NextResponse.json({ repositories: repos, storage: getStorageModeInfo() });
 }
 
 export async function POST(request: NextRequest) {
