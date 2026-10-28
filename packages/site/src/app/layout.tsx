@@ -34,17 +34,17 @@ const inter = localFont({
 });
 
 const DESCRIPTION =
-  'trypatchbay is an early local prototype for tracing API changes through code and a testable patch. Live repository watching, sandboxed runs and pull request delivery are in development.';
+  'Early-stage prototype: trypatchbay is an early local prototype for tracing API changes through code and a testable patch. Live repository watching, sandboxed runs and pull request delivery are in development.';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://trypatchbay.vercel.app'),
-  title: 'trypatchbay — API changes, made reviewable',
+  title: 'trypatchbay: API changes, made reviewable',
   description: DESCRIPTION,
   icons: {
     icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }],
   },
   openGraph: {
-    title: 'trypatchbay — API changes, made reviewable',
+    title: 'trypatchbay: API changes, made reviewable',
     description: DESCRIPTION,
     url: 'https://trypatchbay.vercel.app',
     siteName: 'trypatchbay',
@@ -52,7 +52,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary',
-    title: 'trypatchbay — API changes, made reviewable',
+    title: 'trypatchbay: API changes, made reviewable',
     description: DESCRIPTION,
   },
 };
