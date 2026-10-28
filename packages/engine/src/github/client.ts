@@ -27,6 +27,9 @@ export interface CreatedPullRequest {
   title: string;
   body: string;
   state: 'open' | 'closed';
+  isDraft?: boolean;
+  isSimulation?: boolean;
+  deliveryBlockedReason?: string;
 }
 
 /**
@@ -43,6 +46,10 @@ export class GitHubClient {
 
   constructor(config?: GitHubAppConfig | null) {
     this.config = config ?? null;
+  }
+
+  isConfigured(): boolean {
+    return Boolean(this.config?.appId && this.config?.privateKey);
   }
 
   /**
@@ -251,6 +258,9 @@ export class GitHubClient {
         title,
         body,
         state: 'open',
+        isDraft: true,
+        isSimulation: true,
+        deliveryBlockedReason: 'Real GitHub delivery blocked: GITHUB_APP_ID and GITHUB_APP_PRIVATE_KEY are not configured.',
       };
       this.mockPullRequests.set(prKey, mockPr);
       return mockPr;
@@ -269,6 +279,7 @@ export class GitHubClient {
         body,
         head: headBranch,
         base: baseBranch,
+        draft: true,
       }),
     });
 

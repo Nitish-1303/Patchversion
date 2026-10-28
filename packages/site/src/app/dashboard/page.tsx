@@ -22,6 +22,17 @@ interface Repository {
   status: string;
 }
 
+interface MonitoredPackage {
+  packageName: string;
+  ecosystem: string;
+  currentVersion: string;
+  latestVersion: string;
+  lastCheckedAt: string;
+  status: 'up_to_date' | 'upgrade_available' | 'error';
+  notes?: string;
+  lastError?: string;
+}
+
 interface Finding {
   id: string;
   packageName: string;
@@ -65,6 +76,42 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [packages, setPackages] = useState<MonitoredPackage[]>([]);
+  const [checkingPackage, setCheckingPackage] = useState<string | null>(null);
+
+  const loadPackages = useCallback(async () => {
+    if (typeof fetch === 'undefined') return;
+    try {
+      const res = await fetch('/api/packages');
+      if (res.ok) {
+        const data = await res.json();
+        setPackages(data.packages || []);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  const handleCheckPackage = async (packageName: string) => {
+    setCheckingPackage(packageName);
+    setActionError(null);
+    try {
+      const res = await fetch('/api/packages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ packageName }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setActionMessage(`Package ${packageName} checked: latest version is ${data.package?.latestVersion} (${data.package?.status})`);
+        await loadPackages();
+      } else {
+        setActionError(data.error || 'Failed to check package');
+      }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setCheckingPackage(null);
+    }
+  };
 
   const loadFindings = useCallback(async (repoId: string) => {
     if (typeof fetch === 'undefined') return;
@@ -104,10 +151,11 @@ export default function DashboardPage() {
           setUser(data.user);
           setTenant(data.tenant);
           loadRepositories();
+          loadPackages();
         }
       })
       .catch(() => {});
-  }, [loadRepositories]);
+  }, [loadRepositories, loadPackages]);
 
   const handleLogin = async () => {
     setLoading(true);
@@ -124,6 +172,7 @@ export default function DashboardPage() {
         setUser(data.user);
         setTenant(data.tenant);
         await loadRepositories();
+        await loadPackages();
         setActionMessage('Authenticated successfully with TryPatchBay developer session.');
       } else {
         setActionError(data.error || 'Login failed');
@@ -485,19 +534,43 @@ export default function DashboardPage() {
           <section className="app-card">
             <span className="small-label">MONITORED DEPENDENCIES</span>
             <h2>Monitored Upstream Libraries</h2>
-            <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div className="table-row">
-                <span>mockpay</span>
-                <span>Active Watch (v1.0.0 → v2.0.0)</span>
-              </div>
-              <div className="table-row">
-                <span>stripe</span>
-                <span>Supported Manifest</span>
-              </div>
-              <div className="table-row">
-                <span>openai</span>
-                <span>Supported Manifest</span>
-              </div>
+            <p>Authoritative package version observations tracked across repository manifests.</p>
+            <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {packages.map(pkg => (
+                <div key={pkg.packageName} className="table-row" style={{ padding: '12px', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <strong style={{ fontSize: '13px' }}>{pkg.packageName}</strong>
+                      <span style={{
+                        fontSize: '9px',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        fontWeight: 700,
+                        background: pkg.status === 'upgrade_available' ? '#fef3c7' : pkg.status === 'error' ? '#fee2e2' : '#dcfce7',
+                        color: pkg.status === 'upgrade_available' ? '#92400e' : pkg.status === 'error' ? '#991b1b' : '#166534',
+                      }}>
+                        {pkg.status === 'upgrade_available' ? 'UPGRADE AVAILABLE' : pkg.status === 'error' ? 'RATE LIMIT / ERROR' : 'UP TO DATE'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                      Observed: <code>{pkg.currentVersion}</code> → Latest: <code>{pkg.latestVersion}</code> · Last checked: {new Date(pkg.lastCheckedAt).toLocaleTimeString()}
+                    </div>
+                    {pkg.notes && <div style={{ fontSize: '10px', color: '#475569', marginTop: '4px' }}>{pkg.notes}</div>}
+                    {pkg.lastError && <div style={{ fontSize: '10px', color: '#dc2626', marginTop: '4px' }}>Error: {pkg.lastError}</div>}
+                  </div>
+                  <div>
+                    <button
+                      type="button"
+                      className="pill-button"
+                      onClick={() => handleCheckPackage(pkg.packageName)}
+                      disabled={checkingPackage === pkg.packageName}
+                      style={{ fontSize: '10px', padding: '4px 10px' }}
+                    >
+                      {checkingPackage === pkg.packageName ? 'Checking...' : 'Check Registry'}
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </section>
         )}
