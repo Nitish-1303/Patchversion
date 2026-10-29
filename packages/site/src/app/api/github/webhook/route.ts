@@ -29,24 +29,39 @@ export async function POST(request: NextRequest) {
   }
 
   // Deduplication check: reject replayed deliveries
-  const isNew = db.recordWebhookDelivery(deliveryId, event, signature ?? '');
+  const isNew = await db.recordWebhookDelivery(deliveryId, event, signature ?? '');
   if (!isNew) {
     return NextResponse.json({ message: 'Delivery already processed' }, { status: 200 });
   }
 
+  let payload: Record<string, unknown>;
   try {
-    const payload = JSON.parse(rawBody.toString('utf8'));
+    payload = JSON.parse(rawBody.toString('utf8'));
+  } catch {
+    return NextResponse.json({ error: 'Malformed JSON payload' }, { status: 400 });
+  }
+
+  try {
     // Process event
     if (event === 'installation' && payload.action === 'deleted') {
-      const inst = db.getInstallationByGithubId(payload.installation.id);
-      if (inst) {
-        inst.status = 'deleted';
-        inst.updatedAt = new Date().toISOString();
+      const instPayload = payload.installation as { id?: number | string } | undefined;
+      const githubInstallationId = instPayload?.id;
+      if (typeof githubInstallationId === 'number' || typeof githubInstallationId === 'string') {
+        const numericId = Number(githubInstallationId);
+        const inst = await db.getInstallationByGithubId(numericId);
+        if (inst) {
+          // Verify tenant identity and persist tombstone status
+          await db.updateInstallationStatus(inst.tenantId, numericId, 'deleted');
+        }
       }
     }
 
     return NextResponse.json({ status: 'accepted', deliveryId, event });
-  } catch {
-    return NextResponse.json({ error: 'Malformed JSON payload' }, { status: 400 });
+  } catch (err) {
+    console.error('[webhook] Processing error:', err);
+    return NextResponse.json(
+      { error: `Webhook processing failed: ${err instanceof Error ? err.message : String(err)}` },
+      { status: 500 },
+    );
   }
 }

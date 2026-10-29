@@ -3,7 +3,7 @@ import { getAuthContext, getDatabase } from '@/app/api/backend';
 import { FindingRecord } from '@patchversion/shared';
 
 export async function GET(request: NextRequest) {
-  const auth = getAuthContext(request);
+  const auth = await getAuthContext(request);
   if (!auth) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -12,22 +12,24 @@ export async function GET(request: NextRequest) {
   const repositoryId = searchParams.get('repositoryId') ?? undefined;
 
   const db = getDatabase();
-  const findings = db.listFindings(auth.tenant.id, repositoryId);
+  const findings = await db.listFindings(auth.tenant.id, repositoryId);
 
-  const enriched = findings.map((finding: FindingRecord) => {
-    const patch = db.getPatchByFinding(auth.tenant.id, finding.id);
-    const validation = patch ? db.getValidationByPatch(auth.tenant.id, patch.id) : null;
-    const approval = patch ? db.getActiveApproval(auth.tenant.id, patch.id) : null;
-    const pr = db.getPullRequestByFinding(auth.tenant.id, finding.id);
+  const enriched = await Promise.all(
+    findings.map(async (finding: FindingRecord) => {
+      const patch = await db.getPatchByFinding(auth.tenant.id, finding.id);
+      const validation = patch ? await db.getValidationByPatch(auth.tenant.id, patch.id) : null;
+      const approval = patch ? await db.getActiveApproval(auth.tenant.id, patch.id) : null;
+      const pr = await db.getPullRequestByFinding(auth.tenant.id, finding.id);
 
-    return {
-      ...finding,
-      patch,
-      validation,
-      approval,
-      pullRequest: pr,
-    };
-  });
+      return {
+        ...finding,
+        patch,
+        validation,
+        approval,
+        pullRequest: pr,
+      };
+    }),
+  );
 
   return NextResponse.json({ findings: enriched });
 }

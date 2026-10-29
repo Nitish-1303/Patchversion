@@ -18,7 +18,7 @@ Updates 1 call site to work with mockpay@2.0.0.
 
 ### Changed files
 
-- `src/createCharge.js` (1 call site updated)
+- `src\createCharge.js` (1 call site updated)
 
 ## Proof
 
@@ -36,13 +36,13 @@ The fix updated all 1 affected call sites, and the full test suite is green afte
 
 The following call sites could not be verified by the test suite:
 
-- `src/createCharge.js:14` - Uses the changed package but does not intersect this change; not individually verified
+- `src\createCharge.js:14` - Uses the changed package but does not intersect this change; not individually verified
 
 ### Confidence
 
 - Change classification confidence: 95%
 - Sandbox type: local-process
-- Proof generated: 2026-10-24T09:30:56.257Z
+- Proof generated: 2026-10-29T14:33:00.375Z
 
 ---
 *Prepared by Patchversion. Not submitted to GitHub. Proof recorded from local execution.*

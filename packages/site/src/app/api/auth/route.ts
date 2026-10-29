@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthContext, getDatabase, ensureDemoTenantAndUser } from '@/app/api/backend';
 
 export async function GET(request: NextRequest) {
-  const auth = getAuthContext(request);
+  const auth = await getAuthContext(request);
   if (!auth) {
     return NextResponse.json({ authenticated: false }, { status: 401 });
   }
@@ -20,14 +20,14 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   const email = typeof body.email === 'string' ? body.email.trim() : 'developer@trypatchbay.dev';
 
-  let user = db.getUserByEmail(email);
+  let user = await db.getUserByEmail(email);
   if (!user) {
-    const demo = ensureDemoTenantAndUser();
+    const demo = await ensureDemoTenantAndUser();
     user = demo.user;
   }
 
-  const session = db.createSession(user.id);
-  const tenant = db.getTenant(user.tenantId)!;
+  const session = await db.createSession(user.id);
+  const tenant = (await db.getTenant(user.tenantId))!;
 
   const response = NextResponse.json({
     authenticated: true,
@@ -50,9 +50,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const auth = getAuthContext(request);
+  const auth = await getAuthContext(request);
   if (auth) {
-    getDatabase().revokeSession(auth.session.token);
+    await getDatabase().revokeSession(auth.session.token);
   }
 
   const response = NextResponse.json({ authenticated: false });

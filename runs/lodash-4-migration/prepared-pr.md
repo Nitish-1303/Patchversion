@@ -18,7 +18,7 @@ Updates 1 call site to work with lodash@4.17.21.
 
 ### Changed files
 
-- `src/membership.js` (1 call site updated)
+- `src\membership.js` (1 call site updated)
 
 ## Proof
 
@@ -36,13 +36,13 @@ The fix updated all 1 affected call sites, and the full test suite is green afte
 
 The following call sites could not be verified by the test suite:
 
-- `src/membership.js:10` - Uses the changed package but does not intersect this change; not individually verified
+- `src\membership.js:10` - Uses the changed package but does not intersect this change; not individually verified
 
 ### Confidence
 
 - Change classification confidence: 90%
 - Sandbox type: local-process
-- Proof generated: 2026-10-24T09:31:04.806Z
+- Proof generated: 2026-10-29T14:33:50.094Z
 
 ---
 *Prepared by Patchversion. Not submitted to GitHub. Proof recorded from local execution.*

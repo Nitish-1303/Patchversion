@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthContext, getOrchestrator } from '@/app/api/backend';
 
 export async function GET(request: NextRequest) {
-  const auth = getAuthContext(request);
+  const auth = await getAuthContext(request);
   if (!auth) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -11,12 +11,12 @@ export async function GET(request: NextRequest) {
   const repositoryId = searchParams.get('repositoryId') ?? undefined;
 
   const db = getOrchestrator().getDb();
-  const prs = db.listPullRequests(auth.tenant.id, repositoryId);
+  const prs = await db.listPullRequests(auth.tenant.id, repositoryId);
   return NextResponse.json({ pullRequests: prs });
 }
 
 export async function POST(request: NextRequest) {
-  const auth = getAuthContext(request);
+  const auth = await getAuthContext(request);
   if (!auth) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }

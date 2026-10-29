@@ -44,6 +44,57 @@ export const EXCLUDED_PATTERNS = [
   /^.*secret.*$/i,
 ];
 
+/**
+ * Resolves and validates a fixture path strictly against the server-side trusted fixture allowlist.
+ * Prevents directory traversal ('..'), symlink escape, and arbitrary local directory execution.
+ */
+export function resolvePermittedFixturePath(repoRoot: string, fixtureSubpath: string): string | null {
+  if (!fixtureSubpath || typeof fixtureSubpath !== 'string') return null;
+
+  if (fixtureSubpath.includes('\0')) {
+    return null;
+  }
+
+  const fixturesRoot = path.resolve(repoRoot, 'fixtures');
+  const allowedRoots = [
+    path.resolve(repoRoot, 'fixtures/sample-repo'),
+    path.resolve(repoRoot, 'fixtures/lodash-repo'),
+  ];
+
+  try {
+    let fullPath: string;
+    if (path.isAbsolute(fixtureSubpath)) {
+      fullPath = path.normalize(fixtureSubpath);
+    } else {
+      if (fixtureSubpath.includes('..')) {
+        return null;
+      }
+      fullPath = path.resolve(repoRoot, fixtureSubpath);
+    }
+
+    if (!fs.existsSync(fullPath)) return null;
+
+    const realPath = fs.realpathSync(fullPath);
+    const realFixturesRoot = fs.realpathSync(fixturesRoot);
+    if (!realPath.startsWith(realFixturesRoot + path.sep)) {
+      return null;
+    }
+
+    const matchesAllowed = allowedRoots.some(allowed => {
+      if (!fs.existsSync(allowed)) return false;
+      return realPath === fs.realpathSync(allowed);
+    });
+
+    if (!matchesAllowed) {
+      return null;
+    }
+
+    return realPath;
+  } catch {
+    return null;
+  }
+}
+
 export function isSecretOrExcluded(filename: string): boolean {
   return EXCLUDED_PATTERNS.some(pattern => pattern.test(filename));
 }
@@ -345,7 +396,7 @@ export class IsolatedRunner {
           coverageTotal: impact.affectedCallSites.length,
           unverifiable: [],
           producedAt: new Date().toISOString(),
-          sandboxType: 'docker-isolated',
+          sandboxType: 'local-process',
           durationMs: Date.now() - startMs,
         };
         return {
@@ -397,7 +448,7 @@ export class IsolatedRunner {
         coverageTotal: impact.affectedCallSites.length,
         unverifiable: [],
         producedAt: new Date().toISOString(),
-        sandboxType: 'docker-isolated',
+        sandboxType: 'local-process',
         durationMs: Date.now() - startMs,
       };
 

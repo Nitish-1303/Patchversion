@@ -10,11 +10,14 @@
     "typecheck": "tsc --noEmit",
     "start": "node dist/index.js",
     "prove": "node dist/prove.js",
-    "prove:real": "node dist/prove.js fixtures/lodash-repo fixtures/real-migration/lodash-change-record.json runs/lodash-4-migration acme/membership"
+    "prove:real": "node dist/prove.js fixtures/lodash-repo fixtures/real-migration/lodash-change-record.json runs/lodash-4-migration acme/membership",
+    "readiness": "node dist/readiness/cli.js"
   },
   "dependencies": {
     "@patchversion/shared": "*",
+    "@types/pg": "8.23.1",
     "diff": "^9.0.0",
+    "pg": "8.23.1",
     "semver": "^7.6.0",
     "ts-morph": "^22.0.0"
   },

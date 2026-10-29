@@ -52,29 +52,33 @@ npm run prove:real
 
 ---
 
-## 2:30 – 4:00: Interactive Dashboard Walkthrough
+## 2:30 – 4:00: Interactive Dashboard Walkthrough (Dual-Mode Verification)
 
-Open the web dashboard:
+Open the web dashboard at `http://localhost:3000/dashboard` (or deployed preview URL):
 
-1. Open `http://localhost:3000/dashboard` (or deployed preview URL).
-2. **Initial State:** Click **Sign in with Developer Session**.
+1. **Authentication:** Click **Sign in with Developer Session**.
    - Authenticates server-side session with secure cookie (`developer@trypatchbay.dev`).
-3. **Overview Tab:**
-   - **Connected Repository:** `patchbay-demo/checkout-service`.
+2. **Mode A — Real Authorized Repository Integration Test (`Nitish-1303/CipherBill`):**
+   - Click **Connect CipherBill** (or select it from the Active Repository switcher).
+   - Note the visual badge: `[LIVE GITHUB APP]` (Installation ID `176251721`).
+   - Click **Scan Repository**:
+     - The engine connects to GitHub, fetches the actual `package.json` manifest for `Nitish-1303/CipherBill`, and parses all dependencies.
+     - **Honest Finding Reporting:** Because CipherBill currently has zero breaking upgrades among its dependencies, the dashboard honestly reports:
+       > *"Scan complete: 0 breaking regressions detected in Nitish-1303/CipherBill. Repository dependencies are up to date."*
+     - Candidate findings, validated patches, and delivered PRs remain strictly at 0.
+3. **Mode B — Controlled Fixture Proof Demonstration (`patchbay-demo/checkout-service`):**
+   - Switch Active Repository to `patchbay-demo/checkout-service`.
+   - Note the visual badge: `[DEMO FIXTURE]`.
    - **Regression Card:** Shows `mockpay 1.0.0` $\to$ `2.0.0` with green `PASSED` badge.
    - **Execution Logs:** Expand to review the exact Baseline $\to$ Red $\to$ Green proof transcript.
-4. **Diff Review:**
+4. **Diff Review & Cryptographic Approval:**
    - Inspect the candidate diff: `- source: token` $\to$ `+ payment_method: token`.
-   - Note the SHA-256 diff fingerprint.
-5. **Cryptographic Approval:**
-   - Click **Approve Diff (`e8f19a0b...`)**.
-   - Note the status transition from `validated` $\to$ `approved`.
-6. **PR Delivery:**
-   - Click **Create GitHub Pull Request**.
-   - Displays the created Pull Request with evidence markdown and branch reference.
-7. **APIs / Monitoring Tab:**
+   - Click **Approve Diff (`e8f19a0b...`)** $\to$ status transitions from `validated` $\to$ `approved`.
+5. **PR Delivery Gate:**
+   - Click **Create Draft Pull Request** $\to$ prepared PR with proof artifact and branch name.
+6. **APIs / Monitoring Tab:**
    - Switch to **APIs** tab.
-   - Show monitored dependencies (`mockpay`, `lodash`, `stripe`).
+   - Shows monitored dependencies (`mockpay`, `lodash`, `stripe`).
    - Click **Check Registry** on `stripe` or `lodash` $\to$ demonstrates live authoritative npm registry query and timestamp update.
 
 ---

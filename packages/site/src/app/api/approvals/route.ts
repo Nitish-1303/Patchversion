@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthContext, getOrchestrator } from '@/app/api/backend';
 
 export async function POST(request: NextRequest) {
-  const auth = getAuthContext(request);
+  const auth = await getAuthContext(request);
   if (!auth) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
   const orchestrator = getOrchestrator();
 
   try {
-    const approval = orchestrator.approvePatch(auth.tenant.id, patchId, auth.user.id, diffHash);
+    const approval = await orchestrator.approvePatch(auth.tenant.id, patchId, auth.user.id, diffHash);
     return NextResponse.json({ success: true, approval });
   } catch (err) {
     return NextResponse.json(
