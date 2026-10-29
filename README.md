@@ -1,4 +1,7 @@
-# trypatchbay
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://trypatchbay.vercel.app/patchbay-lockup-on-navy.svg">
+  <img alt="trypatchbay" src="https://trypatchbay.vercel.app/patchbay-lockup-navy.svg" height="48">
+</picture>
 
 **Proof you can read. Results we publish.**
 
@@ -12,7 +15,7 @@ Early prototype development. Verified today, reproducible from this repo:
   2 failing tests to 3/3 passing (`npm run prove`; artifacts in `runs/latest/`).
 - Real package migration loop: lodash 3.10.1 -> 4.17.21 (`npm run prove:real`; artifacts in `runs/lodash-4-migration/`).
 - Engine & workspace test suites: 192 automated unit, integration, and security tests (`npm test`).
-- Hosted prototype dashboard deployed at https://trypatchbay.vercel.app with server-side authentication, session validation, and package monitoring.
+- Marketing site deployed at https://trypatchbay.vercel.app. The hosted dashboard fails closed by design: authentication, repository authorization, and persistent workspace data are not implemented yet.
 
 In progress and integration boundaries:
 - Live GitHub App repository discovery and manifest scanning against authorized repositories (such as `Nitish-1303/CipherBill`) are enabled in Preview.
