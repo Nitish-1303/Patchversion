@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { SocialButtons, SocialIcon } from './components/SocialIcons';
+import { SocialButtons } from './components/SocialIcons';
 
 const LINKS = [
   { label: 'Product', href: '/product' },
@@ -75,16 +75,6 @@ function Header() {
             ))}
           </div>
           <div className="nav-actions">
-            <a
-              href="https://github.com/Nitish-1303/Patchversion"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="nav-social-btn"
-              aria-label="GitHub repository"
-              title="GitHub repository"
-            >
-              <SocialIcon name="github" size={20} />
-            </a>
             <Link href="/contact" className="pill-button pill-button-dark nav-cta" onClick={closeMenu}>
               Talk to us
             </Link>
@@ -102,14 +92,6 @@ function Header() {
         {menuOpen && (
           <div className="mobile-nav" id="mobile-nav">
             {LINKS.map((link) => <Link key={link.href} href={link.href} onClick={closeMenu}>{link.label}</Link>)}
-            <a
-              href="https://github.com/Nitish-1303/Patchversion"
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={closeMenu}
-            >
-              GitHub repository
-            </a>
             <Link href="/contact" onClick={closeMenu}>Talk to us</Link>
           </div>
         )}
@@ -129,7 +111,7 @@ function Footer() {
           <p className="footer-small">Repository watching, sandboxed runs and pull request delivery are in development.</p>
           <SocialButtons
             className="footer-social-row"
-            platforms={['github', 'x', 'discord', 'linkedin', 'slack', 'youtube']}
+            platforms={['x', 'discord', 'linkedin', 'slack', 'youtube']}
           />
         </div>
         <div className="footer-newsletter">
@@ -164,7 +146,6 @@ function Footer() {
         </div>
         <div>
           <h3>Community</h3>
-          <a href="https://github.com/Nitish-1303/Patchversion" target="_blank" rel="noopener noreferrer">GitHub</a>
           <a href="https://x.com/trypatchbay" target="_blank" rel="noopener noreferrer">X (Twitter)</a>
           <a href="https://discord.gg/trypatchbay" target="_blank" rel="noopener noreferrer">Discord</a>
           <a href="https://linkedin.com/company/trypatchbay" target="_blank" rel="noopener noreferrer">LinkedIn</a>
@@ -176,7 +157,7 @@ function Footer() {
         <span>© 2026 trypatchbay. All rights reserved.</span>
         <SocialButtons
           size={14}
-          platforms={['github', 'x', 'discord', 'linkedin']}
+          platforms={['x', 'discord', 'linkedin']}
           className="footer-bottom-social"
         />
         <span>Early local prototype · no live repository connections</span>

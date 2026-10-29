@@ -12,13 +12,6 @@ export interface SocialLinkItem {
 
 export const SOCIAL_LINKS: SocialLinkItem[] = [
   {
-    name: 'github',
-    label: 'GitHub',
-    href: 'https://github.com/Nitish-1303/Patchversion',
-    handle: 'Nitish-1303/Patchversion',
-    description: 'Star our repository, inspect source code, or report issues.',
-  },
-  {
     name: 'x',
     label: 'X (formerly Twitter)',
     href: 'https://x.com/trypatchbay',
@@ -151,7 +144,7 @@ export function SocialIcon({
 }
 
 export function SocialButtons({
-  platforms = ['github', 'x', 'discord', 'linkedin', 'slack'],
+  platforms = ['x', 'discord', 'linkedin', 'slack'],
   size = 18,
   className = '',
 }: {

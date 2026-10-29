@@ -41,7 +41,7 @@ describe('SocialIcons Component (Figma Community 839558611085349133)', () => {
   });
 
   test('SocialButtons renders external links with security attributes and accessible labels', () => {
-    render(createElement(SocialButtons, { platforms: ['github', 'x', 'discord'] }));
+    render(createElement(SocialButtons, { platforms: ['x', 'discord', 'linkedin'] }));
     const links = container.querySelectorAll('a');
     expect(links).toHaveLength(3);
 
@@ -52,6 +52,10 @@ describe('SocialIcons Component (Figma Community 839558611085349133)', () => {
       expect(link.getAttribute('aria-label')).toBeTruthy();
       expect(link.querySelector('svg')).not.toBeNull();
     }
+  });
+
+  test('social link registry excludes the removed repository URL', () => {
+    expect(SOCIAL_LINKS.some((item) => item.href === 'https://github.com/Nitish-1303/Patchversion')).toBe(false);
   });
 
   test('SocialCommunityGrid renders all community channels with titles and descriptions', () => {
