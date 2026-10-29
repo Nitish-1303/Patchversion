@@ -125,10 +125,9 @@ describeLive('PostgreSQL Real Database Live Integration', () => {
     const repeat = await store.updateInstallationStatus(tenant.id, 20002, 'deleted');
     expect(repeat).toBe(true);
 
-    // Stale reactivation is rejected
-    await expect(
-      store.updateInstallationStatus(tenant.id, 20002, 'active'),
-    ).rejects.toThrow(/Cannot reactivate deleted installation/);
+    // Stale reactivation is rejected (out-of-order events cannot resurrect deleted installation)
+    const reactivated = await store.updateInstallationStatus(tenant.id, 20002, 'active');
+    expect(reactivated).toBe(false);
   });
 
   test('4. Transaction rollback on error preserves state integrity', async () => {
@@ -166,26 +165,64 @@ describeLive('PostgreSQL Real Database Live Integration', () => {
 
   test('5. Delivery claim lease acquisition, expiration, and duplicate claim handling', async () => {
     const tenant = await store.createTenant('Claim Tenant');
-    const patchId = `patch_claim_${Date.now()}`;
+    const inst = await store.saveInstallation(tenant.id, 99991, 'claim-org');
+    const repo = await store.saveRepository(tenant.id, inst.id, {
+      githubRepoId: 99001,
+      fullName: 'claim-org/app',
+      owner: 'claim-org',
+      name: 'app',
+      defaultBranch: 'main',
+      isPrivate: false,
+    });
+    const mockChange = {
+      id: 'chg_live_1',
+      packageName: 'lodash',
+      ecosystem: 'npm' as const,
+      fromVersion: '3.10.1',
+      toVersion: '4.17.21',
+      detectedAt: new Date().toISOString(),
+      source: 'registry' as const,
+      sourceUrl: 'https://example.com',
+      rawNotes: 'Breaking',
+      classification: { isBreaking: true, confidence: 1.0, reason: 'api' },
+      severity: 'breaking' as const,
+    };
+    const finding = await store.saveFinding(tenant.id, repo.id, {
+      packageName: 'lodash',
+      fromVersion: '3.10.1',
+      toVersion: '4.17.21',
+      isBreaking: true,
+      status: 'open',
+      changeRecord: mockChange,
+      impactAnalysis: {
+        changeId: 'chg_live_1',
+        repoId: repo.id,
+        affectedCallSites: [],
+        unaffectedCallSites: [],
+        coveragePercent: 100,
+        analyzedAt: new Date().toISOString(),
+      },
+    });
+    const patch = await store.savePatch(tenant.id, finding.id, '--- diff\n+++ diff');
     const worker1 = 'worker_node_1';
     const worker2 = 'worker_node_2';
 
     // Worker 1 acquires claim
-    const claim1 = await store.claimDelivery(tenant.id, patchId, worker1, 1);
+    const claim1 = await store.claimDelivery(tenant.id, patch.id, worker1, 1);
     expect(claim1).toBe(true);
 
     // Worker 2 attempts concurrent claim on unexpired lease
-    const claim2 = await store.claimDelivery(tenant.id, patchId, worker2, 1);
+    const claim2 = await store.claimDelivery(tenant.id, patch.id, worker2, 1);
     expect(claim2).toBe(false);
 
-    const record = await store.getDeliveryClaim(patchId);
+    const record = await store.getDeliveryClaim(patch.id);
     expect(record?.workerId).toBe(worker1);
 
     // Wait for lease expiry (1s)
     await new Promise(r => setTimeout(r, 1100));
 
     // Worker 2 can now acquire expired claim
-    const claim3 = await store.claimDelivery(tenant.id, patchId, worker2, 1);
+    const claim3 = await store.claimDelivery(tenant.id, patch.id, worker2, 1);
     expect(claim3).toBe(true);
   });
 });

@@ -352,7 +352,7 @@ export class PostgresStore implements IPersistenceStore {
       );
       if (existing.rows.length > 0 && existing.rows[0].tenant_id !== tenantId) {
         throw new Error(
-          `Cross-tenant violation: GitHub installation ${githubInstallationId} is already owned by tenant ${existing.rows[0].tenant_id}`,
+          `Cross-tenant collision: GitHub installation ${githubInstallationId} is already owned by tenant ${existing.rows[0].tenant_id}`,
         );
       }
 
@@ -519,7 +519,7 @@ export class PostgresStore implements IPersistenceStore {
       );
       if (existing.rows.length > 0 && existing.rows[0].tenant_id !== tenantId) {
         throw new Error(
-          `Cross-tenant violation: GitHub repository ID ${data.githubRepoId} is already owned by tenant ${existing.rows[0].tenant_id}`,
+          `Cross-tenant collision: GitHub repository ID ${data.githubRepoId} is already owned by tenant ${existing.rows[0].tenant_id}`,
         );
       }
 
