@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { BrandIcon } from '../components/BrandIcons';
 
 interface UserInfo {
   id: string;
@@ -514,7 +515,13 @@ export default function DashboardPage() {
                   border: `1px solid ${selectedRepo.isDemo || selectedRepo.fullName === 'patchbay-demo/checkout-service' ? '#fcd34d' : '#86efac'}`,
                 }}
               >
-                {selectedRepo.isDemo || selectedRepo.fullName === 'patchbay-demo/checkout-service' ? 'DEMO FIXTURE' : 'LIVE GITHUB APP'}
+                {selectedRepo.isDemo || selectedRepo.fullName === 'patchbay-demo/checkout-service' ? (
+                  'DEMO FIXTURE'
+                ) : (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <BrandIcon name="github" size={12} /> LIVE GITHUB APP
+                  </span>
+                )}
               </span>
             )}
           </div>
@@ -559,7 +566,9 @@ export default function DashboardPage() {
               disabled={loading}
               title="Connect the live repository configured in GitHub App"
             >
-              Connect CipherBill
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <BrandIcon name="github" size={14} /> Connect CipherBill
+              </span>
             </button>
           )}
           <button
@@ -637,7 +646,9 @@ export default function DashboardPage() {
                     onClick={() => handleConnectSpecificRepo('Nitish-1303/CipherBill')}
                     disabled={loading}
                   >
-                    Connect CipherBill (Live GitHub App)
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <BrandIcon name="github" size={14} /> Connect CipherBill
+              </span> (Live GitHub App)
                   </button>
                   <button
                     type="button"
@@ -760,7 +771,9 @@ export default function DashboardPage() {
         {activeTab === 'Pull requests' && (
           <section className="app-card">
             <span className="small-label">PULL REQUESTS</span>
-            <h2>Delivered GitHub Pull Requests</h2>
+            <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <BrandIcon name="github" size={22} /> Delivered GitHub Pull Requests
+            </h2>
             {findings.filter(f => f.pullRequest).length > 0 ? (
               <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {findings.filter(f => f.pullRequest).map(f => (
@@ -781,8 +794,8 @@ export default function DashboardPage() {
                             LOCAL SIMULATION
                           </span>
                         ) : (
-                          <span style={{ fontSize: '9px', padding: '2px 6px', borderRadius: '4px', background: '#dcfce7', color: '#166534', fontWeight: 700 }}>
-                            LIVE GITHUB PR
+                          <span style={{ fontSize: '9px', padding: '2px 6px', borderRadius: '4px', background: '#dcfce7', color: '#166534', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <BrandIcon name="github" size={11} /> LIVE GITHUB PR
                           </span>
                         )}
                         <a

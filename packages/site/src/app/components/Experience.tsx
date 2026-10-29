@@ -9,6 +9,8 @@ import {
   useState,
 } from 'react';
 
+import { BrandIcon } from './BrandIcons';
+
 export function useReducedMotionPreference() {
   const [reduced, setReduced] = useState(false);
   useEffect(() => {
@@ -173,13 +175,22 @@ export function HeroDashboard() {
 }
 
 export function ApiMarquee() {
-  const names = ['Stripe', 'OpenAI', 'Twilio', 'PostgreSQL', 'GitHub', 'Shopify'];
+  const names = ['PostgreSQL', 'GitHub', 'Shopify', 'Stripe', 'OpenAI', 'Twilio'];
   const items = [...names, ...names];
   return (
     <section className="marquee-section" aria-label="Examples of APIs it can watch">
       <p className="small-label marquee-label">APIs IT CAN WATCH · EXAMPLES ONLY · NO LIVE INTEGRATIONS</p>
       <div className="marquee-clip" tabIndex={0} aria-label="Hover or focus to pause the API name strip">
-        <div className="marquee-track">{items.map((name, index) => <span key={`${name}-${index}`}>{name}</span>)}</div>
+        <div className="marquee-track">
+          {items.map((name, index) => (
+            <div key={`${name}-${index}`} className="marquee-brand-item">
+              <span className="marquee-brand-icon" aria-hidden="true">
+                <BrandIcon name={name} size={22} useBrandColor />
+              </span>
+              <span className="marquee-brand-name">{name}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );
