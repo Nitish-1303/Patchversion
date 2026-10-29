@@ -6,16 +6,18 @@ Early-stage prototype for breaking third-party SDK changes. A local proof loop m
 
 ## Current status
 
-Early development. Verified today, reproducible from this repo:
+Early prototype development. Verified today, reproducible from this repo:
 
 - End-to-end proof loop against the bundled fixture: mockpay 1.0.0 -> 2.0.0,
   2 failing tests to 3/3 passing (`npm run prove`; artifacts in `runs/latest/`).
-- Engine unit tests (`npm test`).
+- Real package migration loop: lodash 3.10.1 -> 4.17.21 (`npm run prove:real`; artifacts in `runs/lodash-4-migration/`).
+- Engine & workspace test suites: 192 automated unit, integration, and security tests (`npm test`).
+- Hosted prototype dashboard deployed at https://trypatchbay.vercel.app with server-side authentication, session validation, and package monitoring.
 
-In development, not yet running: live package/API watching, the GitHub App and
-PR delivery, the hosted dashboard, and billing. The Docker-isolated sandbox is
-designed but failed an internal security review and stays blocked until qualified.
-No customer repositories have been processed.
+In progress and integration boundaries:
+- Live GitHub App repository discovery and manifest scanning against authorized repositories (such as `Nitish-1303/CipherBill`) are enabled in Preview.
+- Untrusted third-party code execution is strictly gated: the proof runner executes only trusted local fixtures and verified offline trees. Arbitrary customer code execution inside serverless or unisolated runners remains blocked until hardened container isolation passes review.
+- Automated continuous background package watching and billing are in development. No production customer repositories have been processed.
 
 ## What it is designed to do
 

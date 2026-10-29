@@ -324,7 +324,7 @@ describe('Tenant Isolation & Cross-Tenant Security', () => {
 
   test('savePullRequest preserves simulation and draft metadata', () => {
     const tenant = db.createTenant('Acme');
-    db.createUser(tenant.id, 'alice@acme.com');
+    const user = db.createUser(tenant.id, 'alice@acme.com');
     const inst = db.saveInstallation(tenant.id, 1, 'acme');
     const repo = db.saveRepository(tenant.id, inst.id, {
       githubRepoId: 100,
@@ -335,11 +335,53 @@ describe('Tenant Isolation & Cross-Tenant Security', () => {
       isPrivate: false,
     });
 
+    const finding = db.saveFinding(tenant.id, repo.id, {
+      packageName: 'mockpay',
+      fromVersion: '1.0.0',
+      toVersion: '2.0.0',
+      isBreaking: true,
+      status: 'open',
+      changeRecord: {
+        id: 'cr_1',
+        packageName: 'mockpay',
+        ecosystem: 'npm',
+        fromVersion: '1.0.0',
+        toVersion: '2.0.0',
+        detectedAt: new Date().toISOString(),
+        source: 'registry',
+        sourceUrl: 'https://registry.npmjs.org/mockpay',
+        rawNotes: 'Breaking change',
+        classification: {
+          isBreaking: true,
+          confidence: 1.0,
+          affectedExports: [],
+          reason: 'Breaking change',
+        },
+        severity: 'breaking',
+      },
+      impactAnalysis: {
+        changeId: 'cr_1',
+        repoId: repo.id,
+        affectedCallSites: [],
+        unaffectedCallSites: [],
+        potentialCallSites: [],
+        coveragePercent: 100,
+        analyzedAt: new Date().toISOString(),
+      },
+    });
+    const patch = db.savePatch(tenant.id, finding.id, 'diff content');
+    db.saveValidation(tenant.id, patch.id, {
+      status: 'passed',
+      executionLogs: 'baseline ok',
+      durationMs: 120,
+    });
+    const approval = db.approvePatch(tenant.id, patch.id, user.id, patch.diffHash);
+
     const pr = db.savePullRequest(tenant.id, {
       repositoryId: repo.id,
-      findingId: 'finding_1',
-      patchId: 'patch_1',
-      approvalId: 'appr_1',
+      findingId: finding.id,
+      patchId: patch.id,
+      approvalId: approval.id,
       githubPrNumber: 42,
       githubPrUrl: 'https://github.com/acme/service/pull/42',
       branchName: 'patchversion/mockpay-2.0.0',
@@ -356,5 +398,48 @@ describe('Tenant Isolation & Cross-Tenant Security', () => {
     const retrieved = db.getPullRequest(tenant.id, pr.id);
     expect(retrieved?.isDraft).toBe(true);
     expect(retrieved?.isSimulation).toBe(true);
+  });
+
+  test('verifyWebhookSignature validates genuine HMAC and rejects invalid signatures', () => {
+    const crypto = require('crypto');
+    const secret = 'webhook-test-secret-12345';
+    const client = new GitHubClient({
+      appId: '123',
+      privateKey: 'dummy',
+      webhookSecret: secret,
+    });
+
+    const body = Buffer.from(JSON.stringify({ action: 'ping', zen: 'Keep it logically awesome.' }), 'utf8');
+    const validSig = 'sha256=' + crypto.createHmac('sha256', secret).update(body).digest('hex');
+    const invalidSig = 'sha256=' + 'a'.repeat(64);
+
+    expect(client.verifyWebhookSignature(body, validSig)).toBe(true);
+    expect(client.verifyWebhookSignature(body, invalidSig)).toBe(false);
+    expect(client.verifyWebhookSignature(body, undefined)).toBe(false);
+    expect(client.verifyWebhookSignature(body, 'invalid_prefix')).toBe(false);
+    expect(client.verifyWebhookSignature(body, 'sha256=short')).toBe(false);
+    expect(client.verifyWebhookSignature(body, 'sha256=' + 'z'.repeat(64))).toBe(false);
+  });
+
+  test('verifyWebhookSignature fails closed when secret is absent or empty', () => {
+    const client = new GitHubClient({
+      appId: '123',
+      privateKey: 'dummy',
+      webhookSecret: '',
+    });
+    const body = Buffer.from('{"hello":"world"}', 'utf8');
+    const validShapeSig = 'sha256=' + 'a'.repeat(64);
+
+    const prevEnv = process.env.NODE_ENV;
+    try {
+      process.env.NODE_ENV = 'production';
+      expect(client.verifyWebhookSignature(body, validShapeSig)).toBe(false);
+
+      process.env.NODE_ENV = 'development';
+      // Fails closed in all environments without secret
+      expect(client.verifyWebhookSignature(body, validShapeSig)).toBe(false);
+    } finally {
+      process.env.NODE_ENV = prevEnv;
+    }
   });
 });

@@ -140,7 +140,9 @@ export class PatchversionEngine {
   /** Whether this repo may execute under the current sandbox policy. */
   private isRepoExecutionAllowed(repoPath: string): boolean {
     if (!this.config.requireIsolation) return true;
-    if (this.config.sandboxMode !== 'local') return true; // non-local modes carry their own gates
+    // Local mode carries NO isolation; only trusted fixtures may execute.
+    // If any non-local mode is ever configured without a verified isolation provider, fail closed.
+    if (this.config.sandboxMode !== 'local') return false;
     return resolveTrustedFixture(repoPath, this.config.trustedFixtureDirs) !== null;
   }
 

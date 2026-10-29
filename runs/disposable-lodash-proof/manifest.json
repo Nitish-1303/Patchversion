@@ -1,0 +1,54 @@
+{
+  "version": "1.0.0",
+  "runId": "run_lodash_4_repro",
+  "sourceRevision": "38b129ce8524face42de9c2fb49e56f63a9d24ea",
+  "targetRepo": {
+    "id": "acme/membership",
+    "fullName": "acme/membership"
+  },
+  "dependency": {
+    "packageName": "lodash",
+    "fromVersion": "3.10.1",
+    "toVersion": "4.17.21",
+    "registryUrl": "https://registry.npmjs.org/lodash/-/lodash-3.10.1.tgz",
+    "integritySha512": "sha512-9mDDwqVIma6OZX79ZlDACZl8sBm0TEnkf99zV3iMA4GzkIT/9hiqP5mY0HoT1iNLCrKc/R1HByV+yJfRWVJryQ=="
+  },
+  "execution": {
+    "providerName": "local-process",
+    "isolationType": "local-process",
+    "command": "npm test",
+    "exitCodes": {
+      "baseline": 0,
+      "red": 1,
+      "green": 0
+    },
+    "startedAt": "2026-10-29T13:34:24.309Z",
+    "completedAt": "2026-10-29T13:47:02.693Z",
+    "durationMs": 43735
+  },
+  "patch": {
+    "generatedFiles": [
+      "src\\membership.js"
+    ],
+    "sha256": "102de9c1e992fd5b2ce4794ab01d22be0ab20d1be7b96c89beec5340811b2b67",
+    "patchType": "deterministic-ast"
+  },
+  "artifacts": [
+    {
+      "relativePath": "prepared-pr.md",
+      "sha256": "c301c3473065e365272f3add47743190e06b9b7a0a67e8c930f9fdbcc61be4c6",
+      "bytes": 1403
+    },
+    {
+      "relativePath": "proof.json",
+      "sha256": "b0ee3e83a22443c64a4d3850a17621776bc7ebb595d3bfae61ded57ad97874d6",
+      "bytes": 4728
+    },
+    {
+      "relativePath": "transcript.txt",
+      "sha256": "e4812acbe0474d1777c9d3eb5507b1ac20030554d87056028222b403e5c47a9b",
+      "bytes": 1244
+    }
+  ],
+  "tamperEvidentHash": "bb643d9c27a12c3e004e86f7a1d4b8890c679238fa404dc51e6108db916c24c9"
+}

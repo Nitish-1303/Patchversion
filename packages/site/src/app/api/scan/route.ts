@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthContext, getOrchestrator } from '@/app/api/backend';
+import { getAuthContext, getOrchestrator, DEMO_REPO_ID, ensureDemoTenantAndUser } from '@/app/api/backend';
 
 export async function POST(request: NextRequest) {
-  const auth = getAuthContext(request);
+  const auth = await getAuthContext(request);
   if (!auth) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -16,7 +16,12 @@ export async function POST(request: NextRequest) {
   const orchestrator = getOrchestrator();
   const db = orchestrator.getDb();
 
-  const repo = db.getRepository(auth.tenant.id, repositoryId);
+  let repo = await db.getRepository(auth.tenant.id, repositoryId);
+  if (!repo && (repositoryId === DEMO_REPO_ID || repositoryId === 'patchbay-demo/checkout-service')) {
+    await ensureDemoTenantAndUser();
+    repo = await db.getRepository(auth.tenant.id, repositoryId);
+  }
+
   if (!repo) {
     return NextResponse.json({ error: 'Repository not found for tenant' }, { status: 404 });
   }
@@ -46,6 +51,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       repositoryId: repo.id,
+      repositoryFullName: repo.fullName,
       findingsCount: findings.length,
       results,
     });

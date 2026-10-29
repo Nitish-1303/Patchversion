@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 interface UserInfo {
   id: string;
@@ -20,6 +20,7 @@ interface Repository {
   name: string;
   defaultBranch: string;
   status: string;
+  isDemo?: boolean;
 }
 
 interface MonitoredPackage {
@@ -94,6 +95,7 @@ export default function DashboardPage() {
   const [checkingPackage, setCheckingPackage] = useState<string | null>(null);
   const [newPackageInput, setNewPackageInput] = useState('');
   const [addingPackage, setAddingPackage] = useState(false);
+  const activeRepoIdRef = useRef<string | null>(null);
 
   /**
    * Unified authenticated fetch wrapper sending both same-origin cookies and Authorization Bearer header.
@@ -193,11 +195,15 @@ export default function DashboardPage() {
 
   const loadFindings = useCallback(async (repoId: string) => {
     if (typeof fetch === 'undefined') return;
+    activeRepoIdRef.current = repoId;
     try {
       const res = await authFetch(`/api/findings?repositoryId=${repoId}`);
       if (res.ok) {
         const data = await res.json();
-        setFindings(data.findings || []);
+        // Prevent stale responses from overwriting findings if active repo changed
+        if (activeRepoIdRef.current === repoId) {
+          setFindings(data.findings || []);
+        }
       }
     } catch { /* ignore */ }
   }, [authFetch]);
@@ -208,15 +214,33 @@ export default function DashboardPage() {
       const res = await authFetch('/api/repos');
       if (res.ok) {
         const data = await res.json();
-        setRepositories(data.repositories || []);
-        if (data.repositories?.length > 0) {
-          const defaultRepo = data.repositories[0];
-          setSelectedRepo(defaultRepo);
-          loadFindings(defaultRepo.id);
+        const list: Repository[] = data.repositories || [];
+        setRepositories(list);
+        if (list.length > 0) {
+          setSelectedRepo(prev => {
+            if (prev && list.some(r => r.id === prev.id)) {
+              return prev;
+            }
+            const liveRepo = list.find(r => !r.isDemo && r.fullName !== 'patchbay-demo/checkout-service');
+            return liveRepo ?? list[0];
+          });
         }
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setActionError(errData.error || 'Failed to load repositories');
       }
-    } catch { /* ignore */ }
-  }, [authFetch, loadFindings]);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : String(err));
+    }
+  }, [authFetch]);
+
+  // Synchronize findings when selected repository changes
+  useEffect(() => {
+    if (selectedRepo?.id) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      loadFindings(selectedRepo.id);
+    }
+  }, [selectedRepo?.id, loadFindings]);
 
   // Check existing session on mount
   useEffect(() => {
@@ -314,6 +338,35 @@ export default function DashboardPage() {
     }
   };
 
+  const handleConnectSpecificRepo = async (fullName: string) => {
+    setLoading(true);
+    setActionError(null);
+    const [owner, name] = fullName.split('/');
+    try {
+      const res = await authFetch('/api/repos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName,
+          owner: owner || 'Nitish-1303',
+          name: name || fullName,
+          defaultBranch: 'main',
+        }),
+      });
+      if (res.ok) {
+        setActionMessage(`Repository '${fullName}' connected successfully.`);
+        await loadRepositories();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setActionError(data.error || 'Failed to connect repository');
+      }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleScan = async () => {
     if (!selectedRepo) return;
     setLoading(true);
@@ -327,7 +380,11 @@ export default function DashboardPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        setActionMessage(`Scan complete: ${data.findingsCount} regression candidate(s) analyzed and validated.`);
+        if (data.findingsCount === 0) {
+          setActionMessage(`Scan complete: 0 breaking regressions detected in ${selectedRepo.fullName}. Repository dependencies are up to date.`);
+        } else {
+          setActionMessage(`Scan complete: ${data.findingsCount} regression candidate(s) analyzed and validated.`);
+        }
         await loadFindings(selectedRepo.id);
       } else {
         setActionError(data.error || 'Scan failed');
@@ -443,12 +500,68 @@ export default function DashboardPage() {
       <div className="app-heading">
         <div>
           <span className="small-label">AUTHENTICATED DEVELOPER WORKSPACE</span>
-          <h1>{selectedRepo ? selectedRepo.fullName : 'Connected Repositories'}</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px' }}>
+            <h1>{selectedRepo ? selectedRepo.fullName : 'Connected Repositories'}</h1>
+            {selectedRepo && (
+              <span
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  background: selectedRepo.isDemo || selectedRepo.fullName === 'patchbay-demo/checkout-service' ? '#fef3c7' : '#dcfce7',
+                  color: selectedRepo.isDemo || selectedRepo.fullName === 'patchbay-demo/checkout-service' ? '#92400e' : '#166534',
+                  border: `1px solid ${selectedRepo.isDemo || selectedRepo.fullName === 'patchbay-demo/checkout-service' ? '#fcd34d' : '#86efac'}`,
+                }}
+              >
+                {selectedRepo.isDemo || selectedRepo.fullName === 'patchbay-demo/checkout-service' ? 'DEMO FIXTURE' : 'LIVE GITHUB APP'}
+              </span>
+            )}
+          </div>
           <p>
             Signed in as <strong>{user?.email}</strong>. Connected to persistent state store.
           </p>
+          {repositories.length > 1 && (
+            <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label htmlFor="repo-select" style={{ fontSize: '12px', fontWeight: 600 }}>Active Repository:</label>
+              <select
+                id="repo-select"
+                value={selectedRepo?.id ?? ''}
+                onChange={e => {
+                  const repo = repositories.find(r => r.id === e.target.value);
+                  if (repo) {
+                    setSelectedRepo(repo);
+                  }
+                }}
+                style={{
+                  padding: '4px 8px',
+                  fontSize: '12px',
+                  borderRadius: '4px',
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                }}
+              >
+                {repositories.map(r => (
+                  <option key={r.id} value={r.id}>
+                    {r.fullName} ({r.isDemo || r.fullName === 'patchbay-demo/checkout-service' ? 'Demo Fixture' : 'Live GitHub App'})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+          {!repositories.some(r => r.fullName === 'Nitish-1303/CipherBill') && (
+            <button
+              type="button"
+              className="pill-button"
+              onClick={() => handleConnectSpecificRepo('Nitish-1303/CipherBill')}
+              disabled={loading}
+              title="Connect the live repository configured in GitHub App"
+            >
+              Connect CipherBill
+            </button>
+          )}
           <button
             type="button"
             className="pill-button"
@@ -517,15 +630,24 @@ export default function DashboardPage() {
                 <span className="small-label">REPOSITORY SELECTION</span>
                 <h2>No repositories connected yet</h2>
                 <p>Select or connect an authorized repository to begin dependency analysis.</p>
-                <button
-                  type="button"
-                  className="pill-button pill-button-dark"
-                  onClick={handleConnectRepo}
-                  disabled={loading}
-                  style={{ marginTop: '12px' }}
-                >
-                  Connect Disposable Repository
-                </button>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                  <button
+                    type="button"
+                    className="pill-button pill-button-dark"
+                    onClick={() => handleConnectSpecificRepo('Nitish-1303/CipherBill')}
+                    disabled={loading}
+                  >
+                    Connect CipherBill (Live GitHub App)
+                  </button>
+                  <button
+                    type="button"
+                    className="pill-button"
+                    onClick={handleConnectRepo}
+                    disabled={loading}
+                  >
+                    Connect Demo Repository
+                  </button>
+                </div>
               </section>
             ) : primaryFinding ? (
               <div className="dashboard-columns" style={{ marginTop: '16px' }}>

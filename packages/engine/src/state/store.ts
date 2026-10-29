@@ -222,10 +222,15 @@ export class StateStore {
     };
   }
 
-  private readEvents(): Array<{ type: string }> {
+  /** Read all logged events from disk (for auditing, testing, and telemetry). */
+  getEvents(): Array<{ type: string; data: Record<string, unknown>; ts: string }> {
+    return this.readEvents();
+  }
+
+  private readEvents(): Array<{ type: string; data: Record<string, unknown>; ts: string }> {
     const dir = path.join(this.stateDir, 'events');
     if (!fs.existsSync(dir)) return [];
-    const events: Array<{ type: string }> = [];
+    const events: Array<{ type: string; data: Record<string, unknown>; ts: string }> = [];
     for (const file of fs.readdirSync(dir).filter(f => f.endsWith('.jsonl'))) {
       const lines = fs.readFileSync(path.join(dir, file), 'utf-8').split('\n');
       for (const line of lines) {

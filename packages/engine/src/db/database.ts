@@ -16,7 +16,10 @@ import {
   WebhookDeliveryRecord,
   JobType,
   WatchTargetRecord,
+  InstallationOnboardingState,
+  DeliveryClaimRecord,
 } from '@patchversion/shared';
+import { IPersistenceStore } from './store-interface';
 
 export interface DatabaseSchema {
   schemaVersion: number;
@@ -34,6 +37,8 @@ export interface DatabaseSchema {
   webhookDeliveries: Record<string, WebhookDeliveryRecord>;
   watchTargets?: Record<string, WatchTargetRecord>;
   revokedSessionIds?: Record<string, string>;
+  onboardingStates?: Record<string, InstallationOnboardingState>;
+  deliveryClaims?: Record<string, DeliveryClaimRecord>;
 }
 
 const CURRENT_SCHEMA_VERSION = 1;
@@ -43,10 +48,13 @@ const CURRENT_SCHEMA_VERSION = 1;
  * Supports multi-tenant isolation, ACID file writes, migration tracking,
  * and durable job lifecycle across worker and server restarts.
  */
-export class PatchversionDatabase {
+export class PatchversionDatabase implements IPersistenceStore {
   private dbPath: string;
   private data: DatabaseSchema;
   private writeLock = false;
+  private lastLoadedMtime = 0;
+  private lastLoadedIno = 0;
+  private lastLoadedSize = -1;
 
   constructor(dbDir: string) {
     fs.mkdirSync(dbDir, { recursive: true });
@@ -62,6 +70,12 @@ export class PatchversionDatabase {
     if (fs.existsSync(this.dbPath)) {
       try {
         const raw = fs.readFileSync(this.dbPath, 'utf8');
+        try {
+          const stats = fs.statSync(this.dbPath);
+          this.lastLoadedMtime = stats.mtimeMs;
+          this.lastLoadedIno = Number(stats.ino || 0);
+          this.lastLoadedSize = stats.size;
+        } catch {}
         const parsed = JSON.parse(raw) as DatabaseSchema;
         return this.migrate(parsed);
       } catch (err) {
@@ -87,6 +101,8 @@ export class PatchversionDatabase {
       webhookDeliveries: {},
       watchTargets: {},
       revokedSessionIds: {},
+      onboardingStates: {},
+      deliveryClaims: {},
     };
     this.persist(initial);
     return initial;
@@ -100,6 +116,14 @@ export class PatchversionDatabase {
     }
     if (!schema.revokedSessionIds) {
       schema.revokedSessionIds = {};
+      dirty = true;
+    }
+    if (!schema.onboardingStates) {
+      schema.onboardingStates = {};
+      dirty = true;
+    }
+    if (!schema.deliveryClaims) {
+      schema.deliveryClaims = {};
       dirty = true;
     }
     if (schema.schemaVersion < CURRENT_SCHEMA_VERSION) {
@@ -118,6 +142,49 @@ export class PatchversionDatabase {
     const serialized = JSON.stringify(data, null, 2);
     fs.writeFileSync(tmpPath, serialized, 'utf8');
     fs.renameSync(tmpPath, this.dbPath);
+    try {
+      const stats = fs.statSync(this.dbPath);
+      this.lastLoadedMtime = stats.mtimeMs;
+      this.lastLoadedIno = Number(stats.ino || 0);
+      this.lastLoadedSize = stats.size;
+    } catch {}
+  }
+
+
+  public reloadFromDisk(): void {
+    if (fs.existsSync(this.dbPath)) {
+      try {
+        const stats = fs.statSync(this.dbPath);
+        this.lastLoadedMtime = stats.mtimeMs;
+        this.lastLoadedIno = Number(stats.ino || 0);
+        this.lastLoadedSize = stats.size;
+        const raw = fs.readFileSync(this.dbPath, 'utf8');
+        this.data = this.migrate(JSON.parse(raw) as DatabaseSchema);
+      } catch {
+        // preserve current in-memory data on read contention
+      }
+    }
+  }
+
+  public maybeReload(): void {
+    try {
+      if (fs.existsSync(this.dbPath)) {
+        const stats = fs.statSync(this.dbPath);
+        const inoChanged = stats.ino !== undefined && stats.ino !== 0 && Number(stats.ino) !== this.lastLoadedIno;
+        const mtimeChanged = stats.mtimeMs !== this.lastLoadedMtime;
+        const sizeChanged = stats.size !== this.lastLoadedSize;
+        if (inoChanged || mtimeChanged || sizeChanged) {
+          this.reloadFromDisk();
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  public isSessionRevoked(sessionId: string): boolean {
+    this.maybeReload();
+    return Boolean(this.data.revokedSessionIds && this.data.revokedSessionIds[sessionId]);
   }
 
   private save(): void {
@@ -234,6 +301,7 @@ export class PatchversionDatabase {
   }
 
   getSession(token: string): Session | null {
+    this.maybeReload();
     if (token.startsWith('v1.')) {
       const parts = token.split('.');
       if (parts.length === 3) {
@@ -270,6 +338,7 @@ export class PatchversionDatabase {
 
     const session = this.data.sessions[token];
     if (!session) return null;
+    if (this.isSessionRevoked(session.id)) return null;
     if (new Date(session.expiresAt).getTime() < Date.now()) {
       delete this.data.sessions[token];
       this.save();
@@ -316,6 +385,13 @@ export class PatchversionDatabase {
   ): InstallationRecord {
     if (!this.data.tenants[tenantId]) throw new Error(`Tenant ${tenantId} not found`);
 
+    const existingForOther = Object.values(this.data.installations).find(
+      i => i.githubInstallationId === githubInstallationId && i.tenantId !== tenantId,
+    );
+    if (existingForOther) {
+      throw new Error(`Cross-tenant collision: GitHub installation ${githubInstallationId} belongs to another tenant`);
+    }
+
     let existing = Object.values(this.data.installations).find(
       i => i.githubInstallationId === githubInstallationId && i.tenantId === tenantId,
     );
@@ -345,8 +421,15 @@ export class PatchversionDatabase {
 
   getInstallation(tenantId: string, id: string): InstallationRecord | null {
     const inst = this.data.installations[id];
-    if (!inst || inst.tenantId !== tenantId) return null;
-    return inst;
+    if (inst && inst.tenantId === tenantId) return inst;
+    const numId = Number(id);
+    if (!isNaN(numId)) {
+      const byGithub = Object.values(this.data.installations).find(
+        i => i.tenantId === tenantId && i.githubInstallationId === numId,
+      );
+      if (byGithub) return byGithub;
+    }
+    return null;
   }
 
   getInstallationByGithubId(githubInstallationId: number): InstallationRecord | null {
@@ -357,10 +440,41 @@ export class PatchversionDatabase {
     return Object.values(this.data.installations).filter(i => i.tenantId === tenantId && i.status === 'active');
   }
 
+  updateInstallationStatus(
+    tenantId: string,
+    githubInstallationId: number,
+    status: 'active' | 'suspended' | 'deleted',
+  ): boolean {
+    const inst = Object.values(this.data.installations).find(
+      i => i.githubInstallationId === githubInstallationId && i.tenantId === tenantId,
+    );
+    if (!inst) return false;
+    // Guard against out-of-order events resurrecting deleted installation
+    if (inst.status === 'deleted' && status !== 'deleted') {
+      return false;
+    }
+    const now = new Date().toISOString();
+    inst.status = status;
+    inst.updatedAt = now;
+
+    if (status === 'deleted') {
+      for (const repo of Object.values(this.data.repositories)) {
+        if (repo.installationId === inst.id && repo.tenantId === tenantId) {
+          repo.status = 'revoked';
+          repo.updatedAt = now;
+        }
+      }
+    }
+
+    this.save();
+    return true;
+  }
+
   saveRepository(
     tenantId: string,
     installationId: string,
     repoData: {
+      id?: string;
       githubRepoId: number;
       fullName: string;
       owner: string;
@@ -368,17 +482,39 @@ export class PatchversionDatabase {
       defaultBranch: string;
       isPrivate: boolean;
       localPath?: string;
+      isDemo?: boolean;
     },
   ): RepositoryRecord {
     const inst = this.getInstallation(tenantId, installationId);
     if (!inst) throw new Error(`Installation ${installationId} not found for tenant ${tenantId}`);
 
+    if (repoData.id && this.data.repositories[repoData.id] && this.data.repositories[repoData.id].tenantId !== tenantId) {
+      throw new Error(`Cross-tenant collision: repository ID ${repoData.id} belongs to another tenant`);
+    }
+
+    const otherWithSameGithubId = Object.values(this.data.repositories).find(
+      r => r.githubRepoId === repoData.githubRepoId && r.tenantId !== tenantId,
+    );
+    if (otherWithSameGithubId) {
+      throw new Error(`Cross-tenant collision: GitHub repository ID ${repoData.githubRepoId} belongs to another tenant`);
+    }
+
     let existing = Object.values(this.data.repositories).find(
-      r => r.tenantId === tenantId && r.githubRepoId === repoData.githubRepoId,
+      r =>
+        r.tenantId === tenantId &&
+        ((repoData.id && r.id === repoData.id) ||
+          r.githubRepoId === repoData.githubRepoId ||
+          r.fullName.toLowerCase() === repoData.fullName.toLowerCase()),
     );
 
     const now = new Date().toISOString();
     if (existing) {
+      if (existing.githubRepoId !== repoData.githubRepoId && !existing.isDemo) {
+        throw new Error(`Immutable identity violation: cannot change GitHub repository ID from ${existing.githubRepoId} to ${repoData.githubRepoId}`);
+      }
+      if (existing.installationId !== inst.id) {
+        existing.installationId = inst.id;
+      }
       existing.fullName = repoData.fullName;
       existing.owner = repoData.owner;
       existing.name = repoData.name;
@@ -386,13 +522,14 @@ export class PatchversionDatabase {
       existing.isPrivate = repoData.isPrivate;
       existing.status = 'connected';
       if (repoData.localPath) existing.localPath = repoData.localPath;
+      if (typeof repoData.isDemo === 'boolean') existing.isDemo = repoData.isDemo;
       existing.updatedAt = now;
     } else {
-      const id = `repo_${crypto.randomUUID()}`;
+      const id = repoData.id ?? `repo_${crypto.randomUUID()}`;
       existing = {
         id,
         tenantId,
-        installationId,
+        installationId: inst.id,
         githubRepoId: repoData.githubRepoId,
         fullName: repoData.fullName,
         owner: repoData.owner,
@@ -401,6 +538,7 @@ export class PatchversionDatabase {
         isPrivate: repoData.isPrivate,
         status: 'connected',
         localPath: repoData.localPath,
+        isDemo: repoData.isDemo,
         createdAt: now,
         updatedAt: now,
       };
@@ -411,9 +549,39 @@ export class PatchversionDatabase {
   }
 
   getRepository(tenantId: string, id: string): RepositoryRecord | null {
-    const repo = this.data.repositories[id];
-    if (!repo || repo.tenantId !== tenantId) return null;
-    return repo;
+    if (!id || typeof id !== 'string') return null;
+    const direct = this.data.repositories[id];
+    if (direct && direct.tenantId === tenantId) return direct;
+
+    const normalizedId = id.trim().toLowerCase();
+
+    // Check by numeric githubRepoId
+    if (/^\d+$/.test(normalizedId)) {
+      const numId = Number(normalizedId);
+      const byGithubId = Object.values(this.data.repositories).filter(
+        r => r.tenantId === tenantId && r.githubRepoId === numId,
+      );
+      if (byGithubId.length === 1) return byGithubId[0];
+      if (byGithubId.length > 1) return null;
+    }
+
+    // Match by full name (owner/repo)
+    const byFullName = Object.values(this.data.repositories).filter(
+      r => r.tenantId === tenantId && r.fullName.toLowerCase() === normalizedId,
+    );
+    if (byFullName.length === 1) return byFullName[0];
+    if (byFullName.length > 1) return null;
+
+    // Match by short name only if unique across the tenant; reject as ambiguous if duplicate
+    const byName = Object.values(this.data.repositories).filter(
+      r => r.tenantId === tenantId && r.name.toLowerCase() === normalizedId,
+    );
+    if (byName.length === 1) return byName[0];
+    if (byName.length > 1) {
+      return null;
+    }
+
+    return null;
   }
 
   listRepositories(tenantId: string): RepositoryRecord[] {
@@ -546,15 +714,38 @@ export class PatchversionDatabase {
   saveFinding(
     tenantId: string,
     repositoryId: string,
-    data: Omit<FindingRecord, 'id' | 'tenantId' | 'repositoryId' | 'createdAt'>,
+    data: Omit<FindingRecord, 'id' | 'tenantId' | 'repositoryId' | 'createdAt'> & { id?: string },
   ): FindingRecord {
-    const id = `finding_${crypto.randomUUID()}`;
+    const repo = this.getRepository(tenantId, repositoryId);
+    if (!repo) throw new Error(`Repository ${repositoryId} not found for tenant ${tenantId}`);
+
+    if (data.id && this.data.findings[data.id]) {
+      if (this.data.findings[data.id].tenantId !== tenantId) {
+        throw new Error(`Cross-tenant collision: finding ID ${data.id} belongs to another tenant`);
+      }
+      if (this.data.findings[data.id].repositoryId !== repositoryId) {
+        throw new Error(`Immutable parent violation: cannot reassign finding ${data.id} to repository ${repositoryId}`);
+      }
+    }
+
+    let existing = data.id ? this.data.findings[data.id] : undefined;
+    if (!existing) {
+      existing = Object.values(this.data.findings).find(
+        f =>
+          f.tenantId === tenantId &&
+          f.repositoryId === repositoryId &&
+          f.packageName === data.packageName &&
+          f.fromVersion === data.fromVersion &&
+          f.toVersion === data.toVersion,
+      );
+    }
+    const id = data.id ?? existing?.id ?? `finding_${crypto.randomUUID()}`;
     const finding: FindingRecord = {
       id,
       tenantId,
       repositoryId,
       ...data,
-      createdAt: new Date().toISOString(),
+      createdAt: existing?.createdAt ?? new Date().toISOString(),
     };
     this.data.findings[id] = finding;
     this.save();
@@ -578,15 +769,26 @@ export class PatchversionDatabase {
     findingId: string,
     diffContent: string,
     lockfileUpdates?: string,
+    explicitId?: string,
   ): PatchRecord {
     const finding = this.getFinding(tenantId, findingId);
     if (!finding) throw new Error(`Finding ${findingId} not found for tenant ${tenantId}`);
+
+    if (explicitId && this.data.patches[explicitId]) {
+      if (this.data.patches[explicitId].tenantId !== tenantId) {
+        throw new Error(`Cross-tenant collision: patch ID ${explicitId} belongs to another tenant`);
+      }
+      if (this.data.patches[explicitId].findingId !== findingId) {
+        throw new Error(`Immutable parent violation: cannot reassign patch ${explicitId} to finding ${findingId}`);
+      }
+    }
 
     // Compute reproducible SHA-256 diff hash
     const normalizedDiff = diffContent.replace(/\r\n/g, '\n').trim();
     const diffHash = crypto.createHash('sha256').update(normalizedDiff).digest('hex');
 
-    const id = `patch_${crypto.randomUUID()}`;
+    const existing = explicitId ? this.data.patches[explicitId] : this.getPatchByFinding(tenantId, findingId);
+    const id = explicitId ?? existing?.id ?? `patch_${crypto.randomUUID()}`;
     const patch: PatchRecord = {
       id,
       tenantId,
@@ -595,7 +797,7 @@ export class PatchversionDatabase {
       diffHash,
       lockfileUpdates,
       status: 'generated',
-      createdAt: new Date().toISOString(),
+      createdAt: existing?.createdAt ?? new Date().toISOString(),
     };
     this.data.patches[id] = patch;
     this.save();
@@ -617,18 +819,28 @@ export class PatchversionDatabase {
   saveValidation(
     tenantId: string,
     patchId: string,
-    data: Omit<ValidationRecord, 'id' | 'tenantId' | 'patchId' | 'createdAt'>,
+    data: Omit<ValidationRecord, 'id' | 'tenantId' | 'patchId' | 'createdAt'> & { id?: string },
   ): ValidationRecord {
     const patch = this.getPatch(tenantId, patchId);
     if (!patch) throw new Error(`Patch ${patchId} not found for tenant ${tenantId}`);
 
-    const id = `val_${crypto.randomUUID()}`;
+    if (data.id && this.data.validations[data.id]) {
+      if (this.data.validations[data.id].tenantId !== tenantId) {
+        throw new Error(`Cross-tenant collision: validation ID ${data.id} belongs to another tenant`);
+      }
+      if (this.data.validations[data.id].patchId !== patchId) {
+        throw new Error(`Immutable parent violation: cannot reassign validation ${data.id} to patch ${patchId}`);
+      }
+    }
+
+    const existing = data.id ? this.data.validations[data.id] : this.getValidationByPatch(tenantId, patchId);
+    const id = data.id ?? existing?.id ?? `val_${crypto.randomUUID()}`;
     const validation: ValidationRecord = {
       id,
       tenantId,
       patchId,
       ...data,
-      createdAt: new Date().toISOString(),
+      createdAt: existing?.createdAt ?? new Date().toISOString(),
     };
     this.data.validations[id] = validation;
 
@@ -663,6 +875,11 @@ export class PatchversionDatabase {
     userId: string,
     expectedDiffHash: string,
   ): ApprovalRecord {
+    const user = this.getUser(userId);
+    if (!user || user.tenantId !== tenantId) {
+      throw new Error(`Unauthorized: user ${userId} does not belong to tenant ${tenantId}`);
+    }
+
     const patch = this.getPatch(tenantId, patchId);
     if (!patch) throw new Error(`Patch ${patchId} not found`);
 
@@ -745,7 +962,45 @@ export class PatchversionDatabase {
       deliveryBlockedReason?: string;
     },
   ): PullRequestRecord {
-    // Check if PR for this patch or finding already exists (Duplicate prevention)
+    // Verify repository exists and belongs to this tenant
+    const repo = this.data.repositories[data.repositoryId];
+    if (!repo || repo.tenantId !== tenantId) {
+      throw new Error(`Repository ${data.repositoryId} not found for tenant ${tenantId}`);
+    }
+
+    // Verify finding exists and belongs to this tenant
+    const finding = this.data.findings[data.findingId];
+    if (!finding || finding.tenantId !== tenantId) {
+      throw new Error(`Finding ${data.findingId} not found for tenant ${tenantId}`);
+    }
+
+    // Verify patch exists and belongs to this tenant
+    const patch = this.data.patches[data.patchId];
+    if (!patch || patch.tenantId !== tenantId) {
+      throw new Error(`Patch ${data.patchId} not found for tenant ${tenantId}`);
+    }
+
+    // Verify approval exists and belongs to this tenant
+    const approval = this.data.approvals[data.approvalId];
+    if (!approval || approval.tenantId !== tenantId) {
+      throw new Error(`Approval ${data.approvalId} not found for tenant ${tenantId}`);
+    }
+
+    // Verify immutable parent relationship consistency across parents
+    if (finding.repositoryId !== repo.id) {
+      throw new Error(`Inconsistent parent relationship: finding ${finding.id} does not belong to repository ${repo.id}`);
+    }
+    if (patch.findingId !== finding.id) {
+      throw new Error(`Inconsistent parent relationship: patch ${patch.id} does not belong to finding ${finding.id}`);
+    }
+    if (approval.patchId !== patch.id) {
+      throw new Error(`Inconsistent parent relationship: approval ${approval.id} does not belong to patch ${patch.id}`);
+    }
+    if (approval.diffHashAtApproval !== patch.diffHash) {
+      throw new Error(`Approval diff hash mismatch: approval was for ${approval.diffHashAtApproval}, but patch is ${patch.diffHash}`);
+    }
+
+    // Check if PR for this patch already exists (Duplicate prevention / idempotency)
     const existing = Object.values(this.data.pullRequests).find(
       p => p.tenantId === tenantId && p.patchId === data.patchId,
     );
@@ -753,11 +1008,12 @@ export class PatchversionDatabase {
       return existing;
     }
 
-    // Mark approval as used
-    const approval = this.data.approvals[data.approvalId];
-    if (approval) {
-      approval.status = 'used';
+    if (approval.status !== 'active') {
+      throw new Error(`Approval ${approval.id} is not active (current status: ${approval.status})`);
     }
+
+    // Mark approval as used only after all checks pass and duplicate check confirms a new PR is being created
+    approval.status = 'used';
 
     const id = `pr_${crypto.randomUUID()}`;
     const now = new Date().toISOString();
@@ -771,10 +1027,7 @@ export class PatchversionDatabase {
     };
     this.data.pullRequests[id] = pr;
 
-    const finding = this.data.findings[data.findingId];
-    if (finding) {
-      finding.status = 'pr_created';
-    }
+    finding.status = 'pr_created';
 
     this.save();
     return pr;
@@ -882,4 +1135,172 @@ export class PatchversionDatabase {
     this.save();
     return updated;
   }
+  // --- Secure GitHub Installation Onboarding ---
+
+  createOnboardingState(
+    tenantId: string,
+    userId: string,
+    targetAccount?: string,
+    ttlMinutes = 15,
+  ): InstallationOnboardingState {
+    this.maybeReload();
+    const user = this.getUser(userId);
+    if (!user || user.tenantId !== tenantId) {
+      throw new Error(`Unauthorized: user ${userId} does not belong to tenant ${tenantId}`);
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const id = `onb_${crypto.randomUUID()}`;
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + ttlMinutes * 60 * 1000).toISOString();
+
+    if (!this.data.onboardingStates) {
+      this.data.onboardingStates = {};
+    }
+
+    const state: InstallationOnboardingState = {
+      id,
+      token,
+      tenantId,
+      userId,
+      targetAccount: targetAccount ? targetAccount.trim() : undefined,
+      status: 'pending',
+      createdAt: now.toISOString(),
+      expiresAt,
+    };
+
+    this.data.onboardingStates[token] = state;
+    this.save();
+    return state;
+  }
+
+  getOnboardingState(token: string): InstallationOnboardingState | null {
+    this.maybeReload();
+    if (!this.data.onboardingStates || !token) return null;
+    const state = this.data.onboardingStates[token];
+    if (!state) return null;
+    if (new Date(state.expiresAt).getTime() < Date.now() && state.status === 'pending') {
+      state.status = 'expired';
+      this.save();
+    }
+    return state;
+  }
+
+  verifyAndLinkInstallation(
+    stateToken: string,
+    githubInstallationId: number,
+    accountLogin: string,
+    accountType: 'User' | 'Organization' = 'User',
+  ): InstallationRecord {
+    this.maybeReload();
+    if (!stateToken || typeof stateToken !== 'string') {
+      throw new Error('Missing or invalid onboarding state token');
+    }
+
+    const state = this.getOnboardingState(stateToken);
+    if (!state) {
+      throw new Error('Invalid or unknown onboarding state token');
+    }
+
+    if (new Date(state.expiresAt).getTime() < Date.now()) {
+      state.status = 'expired';
+      this.save();
+      throw new Error('Onboarding state token has expired');
+    }
+
+    if (state.status !== 'pending') {
+      throw new Error(`Onboarding state token has already been consumed (status: ${state.status})`);
+    }
+
+    if (state.targetAccount && state.targetAccount.toLowerCase() !== accountLogin.toLowerCase()) {
+      throw new Error(`GitHub account mismatch: expected "${state.targetAccount}", got "${accountLogin}"`);
+    }
+
+    // Check cross-tenant conflict: cannot link an installation already owned by another tenant
+    const existing = this.getInstallationByGithubId(githubInstallationId);
+    if (existing && existing.tenantId !== state.tenantId) {
+      throw new Error(`GitHub installation ${githubInstallationId} is already linked to another workspace`);
+    }
+
+    // Perform atomic save and state consumption
+    const inst = this.saveInstallation(state.tenantId, githubInstallationId, accountLogin, accountType);
+    state.status = 'completed';
+    state.completedAt = new Date().toISOString();
+    state.installationId = githubInstallationId;
+    this.save();
+
+    return inst;
+  }
+
+  // --- Distributed Delivery Claims ---
+
+  claimDelivery(
+    tenantId: string,
+    patchId: string,
+    workerId: string,
+    ttlSeconds = 120,
+  ): boolean {
+    this.maybeReload();
+    if (!this.data.deliveryClaims) {
+      this.data.deliveryClaims = {};
+    }
+
+    // Verify patch exists and belongs to tenant
+    const patch = this.getPatch(tenantId, patchId);
+    if (!patch) {
+      throw new Error(`Patch ${patchId} not found for tenant ${tenantId}`);
+    }
+
+    // First check if PR for this patch already exists
+    const existingPr = Object.values(this.data.pullRequests).find(
+      p => p.tenantId === tenantId && p.patchId === patchId,
+    );
+    if (existingPr) {
+      return false;
+    }
+
+    const now = Date.now();
+    const existingClaim = this.data.deliveryClaims[patchId];
+    if (existingClaim && existingClaim.status === 'active') {
+      const expiresAt = new Date(existingClaim.expiresAt).getTime();
+      if (expiresAt > now) {
+        return false;
+      }
+    }
+
+    const id = `claim_${crypto.randomUUID()}`;
+    const claimedAt = new Date(now).toISOString();
+    const expiresAt = new Date(now + ttlSeconds * 1000).toISOString();
+
+    const claim: DeliveryClaimRecord = {
+      id,
+      tenantId,
+      patchId,
+      workerId,
+      claimedAt,
+      expiresAt,
+      status: 'active',
+    };
+
+    this.data.deliveryClaims[patchId] = claim;
+    this.save();
+    return true;
+  }
+
+  releaseDeliveryClaim(tenantId: string, patchId: string, status: 'released' | 'completed'): void {
+    this.maybeReload();
+    if (!this.data.deliveryClaims) return;
+    const claim = this.data.deliveryClaims[patchId];
+    if (claim && claim.tenantId === tenantId) {
+      claim.status = status;
+      this.save();
+    }
+  }
+
+  getDeliveryClaim(patchId: string): DeliveryClaimRecord | null {
+    this.maybeReload();
+    if (!this.data.deliveryClaims) return null;
+    return this.data.deliveryClaims[patchId] ?? null;
+  }
+
 }

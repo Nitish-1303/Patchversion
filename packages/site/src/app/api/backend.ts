@@ -4,6 +4,8 @@ import os from 'os';
 import { NextRequest } from 'next/server';
 import {
   PatchversionDatabase,
+  PostgresStore,
+  IPersistenceStore,
   GitHubClient,
   WorkflowOrchestrator,
 } from '@patchversion/engine';
@@ -11,8 +13,18 @@ import { User, Tenant, Session, ChangeRecord } from '@patchversion/shared';
 
 // Global singleton instances across Next.js API route invocations
 let dbInstance: PatchversionDatabase | null = null;
+let postgresInstance: PostgresStore | null = null;
+let activeStore: IPersistenceStore | null = null;
 let githubInstance: GitHubClient | null = null;
 let orchestratorInstance: WorkflowOrchestrator | null = null;
+
+export function _resetInstancesForTest(): void {
+  dbInstance = null;
+  postgresInstance = null;
+  activeStore = null;
+  githubInstance = null;
+  orchestratorInstance = null;
+}
 
 function resolveDataDir(): string {
   if (process.env.PATCHVERSION_STATE_DIR) {
@@ -35,11 +47,19 @@ function resolveDataDir(): string {
 }
 
 export function getStorageModeInfo(): {
-  mode: 'configured-durable' | 'transient-serverless-tmp' | 'local-workspace';
+  mode: 'postgresql-shared' | 'configured-durable' | 'transient-serverless-tmp' | 'local-workspace';
   path: string;
   isDurable: boolean;
   guaranteeNotice: string;
 } {
+  if (process.env.DATABASE_URL || process.env.POSTGRES_URL) {
+    return {
+      mode: 'postgresql-shared',
+      path: 'PostgreSQL Database',
+      isDurable: true,
+      guaranteeNotice: 'State is persisted in shared PostgreSQL with transactional isolation and constraints.',
+    };
+  }
   if (process.env.PATCHVERSION_STATE_DIR) {
     return {
       mode: 'configured-durable',
@@ -65,19 +85,43 @@ export function getStorageModeInfo(): {
   };
 }
 
-export function getDatabase(): PatchversionDatabase {
+export function getPostgresStore(): PostgresStore | null {
+  if (process.env.DATABASE_URL || process.env.POSTGRES_URL) {
+    if (!postgresInstance) {
+      postgresInstance = new PostgresStore();
+    }
+    return postgresInstance;
+  }
+  return null;
+}
+
+export function getDatabase(): IPersistenceStore {
+  if (activeStore) {
+    return activeStore;
+  }
+  if (process.env.DATABASE_URL || process.env.POSTGRES_URL) {
+    activeStore = getPostgresStore()!;
+    return activeStore;
+  }
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'DATABASE_URL or POSTGRES_URL is required in production. Refusing fallback to ephemeral /tmp storage.',
+    );
+  }
   if (!dbInstance) {
     const dataDir = resolveDataDir();
     dbInstance = new PatchversionDatabase(dataDir);
   }
-  return dbInstance;
+  activeStore = dbInstance;
+  return activeStore;
 }
 
 export function getGitHubClient(): GitHubClient {
   if (!githubInstance) {
     const appId = process.env.GITHUB_APP_ID;
     const privateKey = process.env.GITHUB_APP_PRIVATE_KEY;
-    const webhookSecret = process.env.GITHUB_WEBHOOK_SECRET ?? 'trypatchbay_dev_webhook_secret';
+    // Standardize support for GITHUB_APP_WEBHOOK_SECRET and legacy GITHUB_WEBHOOK_SECRET; fail safely in production
+    const webhookSecret = process.env.GITHUB_APP_WEBHOOK_SECRET || process.env.GITHUB_WEBHOOK_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'trypatchbay_dev_webhook_secret');
 
     if (appId && privateKey) {
       githubInstance = new GitHubClient({
@@ -95,6 +139,10 @@ export function getGitHubClient(): GitHubClient {
   return githubInstance;
 }
 
+export function setGitHubClient(client: GitHubClient | null): void {
+  githubInstance = client;
+}
+
 export function getOrchestrator(): WorkflowOrchestrator {
   if (!orchestratorInstance) {
     const db = getDatabase();
@@ -107,6 +155,9 @@ export function getOrchestrator(): WorkflowOrchestrator {
 export const DEMO_TENANT_ID = 'ten_demo_workspace';
 export const DEMO_USER_ID = 'usr_demo_developer';
 export const DEMO_REPO_ID = 'repo_demo_checkout_service';
+export const DEMO_FINDING_ID = 'finding_demo_mockpay_1_0_0_to_2_0_0';
+export const DEMO_PATCH_ID = 'patch_demo_mockpay_1_0_0_to_2_0_0';
+export const DEMO_VALIDATION_ID = 'val_demo_mockpay_1_0_0_to_2_0_0';
 
 export interface AuthContext {
   user: User;
@@ -116,9 +167,9 @@ export interface AuthContext {
 
 /**
  * Extracts and verifies the session token from cookies or Authorization header.
- * Enforces server-side authorization. Returns null if unauthenticated.
+ * Enforces server-side authorization and immediate session revocation. Returns null if unauthenticated.
  */
-export function getAuthContext(request: NextRequest): AuthContext | null {
+export async function getAuthContext(request: NextRequest): Promise<AuthContext | null> {
   const db = getDatabase();
 
   // Try cookie first
@@ -134,15 +185,19 @@ export function getAuthContext(request: NextRequest): AuthContext | null {
 
   if (!token) return null;
 
-  const session = db.getSession(token);
+  const session = await db.getSession(token);
   if (!session) return null;
 
-  let user = db.getUser(session.userId);
-  let tenant = db.getTenant(session.tenantId);
+  // Enforce session revocation across all instances
+  const isRevoked = await db.isSessionRevoked(session.id);
+  if (isRevoked) return null;
+
+  let user = await db.getUser(session.userId);
+  let tenant = await db.getTenant(session.tenantId);
 
   // If running in an ephemeral/fresh serverless instance, reconstitute deterministic demo data
-  if ((!user || !tenant) && (session.userId === DEMO_USER_ID || session.tenantId === DEMO_TENANT_ID)) {
-    const demo = ensureDemoTenantAndUser();
+  if ((!user || !tenant || !(await db.getRepository(session.tenantId, DEMO_REPO_ID))) && (session.userId === DEMO_USER_ID || session.tenantId === DEMO_TENANT_ID)) {
+    const demo = await ensureDemoTenantAndUser();
     user = demo.user;
     tenant = demo.tenant;
   }
@@ -156,33 +211,34 @@ export function getAuthContext(request: NextRequest): AuthContext | null {
 /**
  * Ensures a default demo/developer tenant and user exist for evaluation.
  */
-export function ensureDemoTenantAndUser(): { tenant: Tenant; user: User } {
+export async function ensureDemoTenantAndUser(): Promise<{ tenant: Tenant; user: User }> {
   const db = getDatabase();
-  let tenant = db.getTenant(DEMO_TENANT_ID);
+  let tenant = await db.getTenant(DEMO_TENANT_ID);
   if (!tenant) {
-    tenant = db.createTenant('TryPatchBay Demo Workspace', DEMO_TENANT_ID);
+    tenant = await db.createTenant('TryPatchBay Demo Workspace', DEMO_TENANT_ID);
   }
 
-  let user = db.getUser(DEMO_USER_ID) ?? db.getUserByEmail('developer@trypatchbay.dev');
+  let user = (await db.getUser(DEMO_USER_ID)) ?? (await db.getUserByEmail('developer@trypatchbay.dev'));
   if (!user) {
-    user = db.createUser(tenant.id, 'developer@trypatchbay.dev', 'owner', 'patchbay-demo', undefined, DEMO_USER_ID);
+    user = await db.createUser(tenant.id, 'developer@trypatchbay.dev', 'owner', 'patchbay-demo', undefined, DEMO_USER_ID);
   }
 
   // Pre-register demo installation and repository if not already present
-  const installations = db.listInstallations(tenant.id);
+  const installations = await db.listInstallations(tenant.id);
   let inst = installations[0];
   if (!inst) {
-    inst = db.saveInstallation(tenant.id, 10001, 'patchbay-demo');
+    inst = await db.saveInstallation(tenant.id, 10001, 'patchbay-demo');
   }
 
-  let repo = db.getRepository(tenant.id, DEMO_REPO_ID);
+  let repo = await db.getRepository(tenant.id, DEMO_REPO_ID);
   if (!repo) {
     let fixtureRepoPath = path.resolve(process.cwd(), 'fixtures/sample-repo');
     if (!fs.existsSync(fixtureRepoPath)) {
       fixtureRepoPath = path.resolve(process.cwd(), '../../fixtures/sample-repo');
     }
 
-    repo = db.saveRepository(tenant.id, inst.id, {
+    repo = await db.saveRepository(tenant.id, inst.id, {
+      id: DEMO_REPO_ID,
       githubRepoId: 20001,
       fullName: 'patchbay-demo/checkout-service',
       owner: 'patchbay-demo',
@@ -190,13 +246,14 @@ export function ensureDemoTenantAndUser(): { tenant: Tenant; user: User } {
       defaultBranch: 'main',
       isPrivate: false,
       localPath: fixtureRepoPath,
+      isDemo: true,
     });
   }
 
   // Seed package watch target for mockpay if none exist
-  const watchTargets = db.listWatchTargets(tenant.id);
+  const watchTargets = await db.listWatchTargets(tenant.id);
   if (watchTargets.length === 0) {
-    db.saveWatchTarget(tenant.id, {
+    await db.saveWatchTarget(tenant.id, {
       packageName: 'mockpay',
       ecosystem: 'npm',
       currentVersion: '1.0.0',
@@ -209,7 +266,7 @@ export function ensureDemoTenantAndUser(): { tenant: Tenant; user: User } {
     });
   }
 
-  const existingFindings = db.listFindings(tenant.id, repo.id);
+  const existingFindings = await db.listFindings(tenant.id, repo.id);
   if (existingFindings.length === 0) {
     // Seed verified fixture finding, patch, and proof for demo readiness
     const mockpayChange: ChangeRecord = {
@@ -237,7 +294,8 @@ export function ensureDemoTenantAndUser(): { tenant: Tenant; user: User } {
 
     const sampleDiff = '--- a/src/createCharge.js\n+++ b/src/createCharge.js\n@@ -4,1 +4,1 @@\n-  return mockpay.charges.create({ amount, currency, source: token });\n+  return mockpay.charges.create({ amount, currency, payment_method: token });\n';
 
-    const finding = db.saveFinding(tenant.id, repo.id, {
+    const finding = await db.saveFinding(tenant.id, repo.id, {
+      id: DEMO_FINDING_ID,
       packageName: 'mockpay',
       fromVersion: '1.0.0',
       toVersion: '2.0.0',
@@ -275,9 +333,10 @@ export function ensureDemoTenantAndUser(): { tenant: Tenant; user: User } {
       status: 'validated',
     });
 
-    const patch = db.savePatch(tenant.id, finding.id, sampleDiff);
+    const patch = await db.savePatch(tenant.id, finding.id, sampleDiff, undefined, DEMO_PATCH_ID);
 
-    db.saveValidation(tenant.id, patch.id, {
+    await db.saveValidation(tenant.id, patch.id, {
+      id: DEMO_VALIDATION_ID,
       status: 'passed',
       proof: {
         id: 'proof_mockpay_2_0_0',

@@ -52,9 +52,57 @@ jobs:
       # Offline fixture proof - deterministic, no registry access needed
       - run: npm run prove
 
+  prove-real:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # Real package proof: lodash 3.10.1 -> 4.17.21
+      - run: npm run prove:real
+
+  postgres-live-integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: patchbay_test
+          POSTGRES_PASSWORD: patchbay_test_password
+          POSTGRES_DB: patchbay_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Build dependencies
+        run: npm run build -w @patchversion/shared && npm run build -w @patchversion/engine
+      # Real PostgreSQL transactional tests against disposable container
+      - name: Run PostgreSQL Live Integration Tests
+        run: npm test -w @patchversion/engine -- test/postgres-live.integration.test.ts
+        env:
+          DATABASE_URL: postgresql://patchbay_test:patchbay_test_password@localhost:5432/patchbay_test
+          STRICT_DB_CHECK: 'true'
+
   build:
     runs-on: ubuntu-latest
-    needs: [typecheck, test, prove]
+    needs: [typecheck, test, prove, prove-real, postgres-live-integration]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -65,3 +113,18 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+
+  readiness-audit:
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Machine-Readable Readiness Report
+        run: npm run readiness

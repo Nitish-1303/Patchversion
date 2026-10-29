@@ -15,13 +15,13 @@ export function isValidPackageName(name: string): boolean {
 }
 
 export async function GET(request: NextRequest) {
-  const auth = getAuthContext(request);
+  const auth = await getAuthContext(request);
   if (!auth) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const db = getDatabase();
-  let packages = db.listWatchTargets(auth.tenant.id);
+  let packages = await db.listWatchTargets(auth.tenant.id);
 
   if (packages.length === 0) {
     const defaultTargets: Omit<WatchTargetRecord, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>[] = [
@@ -60,9 +60,9 @@ export async function GET(request: NextRequest) {
       },
     ];
     for (const dt of defaultTargets) {
-      db.saveWatchTarget(auth.tenant.id, dt);
+      await db.saveWatchTarget(auth.tenant.id, dt);
     }
-    packages = db.listWatchTargets(auth.tenant.id);
+    packages = await db.listWatchTargets(auth.tenant.id);
   }
 
   return NextResponse.json({
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = getAuthContext(request);
+  const auth = await getAuthContext(request);
   if (!auth) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -93,10 +93,10 @@ export async function POST(request: NextRequest) {
   }
 
   const db = getDatabase();
-  let pkg = db.getWatchTarget(auth.tenant.id, packageName);
+  let pkg = await db.getWatchTarget(auth.tenant.id, packageName);
 
   if (!pkg) {
-    pkg = db.saveWatchTarget(auth.tenant.id, {
+    pkg = await db.saveWatchTarget(auth.tenant.id, {
       packageName,
       ecosystem: (body.ecosystem as 'npm' | 'pypi' | 'remote-api') || 'npm',
       currentVersion: typeof body.currentVersion === 'string' ? body.currentVersion : '1.0.0',
@@ -110,7 +110,8 @@ export async function POST(request: NextRequest) {
 
   if (packageName === 'mockpay') {
     // Local demo fixture observation
-    const updated = db.updateWatchTarget(auth.tenant.id, packageName, {
+    const updated = await db.saveWatchTarget(auth.tenant.id, {
+      ...pkg,
       lastCheckedAt: new Date().toISOString(),
       latestVersion: '2.0.0',
       status: 'upgrade_available',
@@ -145,7 +146,8 @@ export async function POST(request: NextRequest) {
       const errorMsg = res.status === 404
         ? `Package '${packageName}' was not found in npm registry (HTTP 404)`
         : `npm registry returned HTTP ${res.status}`;
-      const updated = db.updateWatchTarget(auth.tenant.id, packageName, {
+      const updated = await db.saveWatchTarget(auth.tenant.id, {
+        ...pkg,
         lastCheckedAt: new Date().toISOString(),
         status: 'error',
         lastError: errorMsg,
@@ -163,7 +165,8 @@ export async function POST(request: NextRequest) {
     const data = (await res.json()) as { version: string };
     const latestVersion = data.version || 'unknown';
     const status = pkg.currentVersion === latestVersion ? 'up_to_date' : 'upgrade_available';
-    const updated = db.updateWatchTarget(auth.tenant.id, packageName, {
+    const updated = await db.saveWatchTarget(auth.tenant.id, {
+      ...pkg,
       lastCheckedAt: new Date().toISOString(),
       latestVersion,
       status,
@@ -182,12 +185,17 @@ export async function POST(request: NextRequest) {
       ? 'Registry request timed out after 5000ms'
       : err instanceof Error ? err.message : String(err);
 
-    const updated = db.updateWatchTarget(auth.tenant.id, packageName, {
-      lastCheckedAt: new Date().toISOString(),
-      status: 'error',
-      lastError: errorMsg,
-      source: 'registry',
-    });
+    let updated = null;
+    try {
+      updated = await db.updateWatchTarget(auth.tenant.id, packageName, {
+        lastCheckedAt: new Date().toISOString(),
+        status: 'error',
+        lastError: errorMsg,
+        source: 'registry',
+      });
+    } catch (dbErr) {
+      console.error('[packages/route] Failed to persist watch target error status:', dbErr);
+    }
 
     return NextResponse.json({
       success: false,

@@ -23,6 +23,7 @@ export interface CreatedPullRequest {
   url: string;
   htmlUrl: string;
   branch: string;
+  baseBranch?: string;
   commitSha: string;
   title: string;
   body: string;
@@ -46,6 +47,10 @@ export class GitHubClient {
 
   constructor(config?: GitHubAppConfig | null) {
     this.config = config ?? null;
+  }
+
+  setConfig(config: GitHubAppConfig | null): void {
+    this.config = config;
   }
 
   isConfigured(): boolean {
@@ -130,12 +135,61 @@ export class GitHubClient {
   }
 
   /**
+   * Lists all installations of this GitHub App using App JWT.
+   */
+  async listAppInstallations(): Promise<Array<{ id: number; account: string; targetType: string }>> {
+    if (!this.config) {
+      return [
+        { id: 176251721, account: 'Nitish-1303', targetType: 'User' },
+      ];
+    }
+
+    const jwt = this.generateAppJwt();
+    const response = await fetch('https://api.github.com/app/installations?per_page=100', {
+      headers: {
+        Authorization: `Bearer ${jwt}`,
+        Accept: 'application/vnd.github.v3+json',
+        'User-Agent': 'TryPatchBay-Engine',
+      },
+    });
+
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error(`Failed to list app installations: ${response.status} ${err}`);
+    }
+
+    const data = await response.json() as Array<{
+      id: number;
+      account: { login: string; type?: string };
+      target_type?: string;
+    }>;
+
+    return data.map(i => ({
+      id: i.id,
+      account: i.account.login,
+      targetType: i.target_type ?? i.account.type ?? 'User',
+    }));
+  }
+
+  /**
    * Lists repositories accessible to an installation.
    */
   async listInstallationRepositories(installationId: number): Promise<GitHubRepoInfo[]> {
     if (!this.config) {
-      // Return configured mock repositories or default disposable mock repo
-      return Array.from(this.mockRepositories.values());
+      if (this.mockRepositories.size > 0) {
+        return Array.from(this.mockRepositories.values());
+      }
+      return [
+        {
+          id: 98765432,
+          name: 'CipherBill',
+          fullName: 'Nitish-1303/CipherBill',
+          owner: 'Nitish-1303',
+          defaultBranch: 'main',
+          isPrivate: false,
+          htmlUrl: 'https://github.com/Nitish-1303/CipherBill',
+        },
+      ];
     }
 
     const token = await this.getInstallationToken(installationId);
@@ -172,6 +226,81 @@ export class GitHubClient {
       isPrivate: r.private,
       htmlUrl: r.html_url,
     }));
+  }
+
+
+  /**
+   * Fetches file content from a GitHub repository via contents API.
+   * Returns string content, or null if file not found (404).
+   */
+  async getRepositoryFileContent(
+    owner: string,
+    repo: string,
+    filePath: string,
+    token: string,
+    ref?: string,
+  ): Promise<string | null> {
+    if (!this.config) {
+      // In offline/mock mode, provide mock package.json for CipherBill if requested
+      if (repo.toLowerCase() === 'cipherbill' && filePath === 'package.json') {
+        return JSON.stringify({
+          name: 'cipherbill',
+          version: '0.1.0',
+          private: true,
+          dependencies: {
+            '@react-three/drei': '^9.114.3',
+            '@react-three/fiber': '^8.17.10',
+            '@starknet-io/get-starknet-discovery': '^6.0.3',
+            '@starknet-io/get-starknet-wallet-standard': '^6.0.3',
+            '@starknet-io/types-js': '^0.10.3',
+            'framer-motion': '^13.1.1',
+            next: '^15.4.6',
+            react: '^18.3.1',
+            'react-dom': '^18.3.1',
+            starknet: '^10.4.0',
+            three: '^0.169.0',
+          },
+          devDependencies: {
+            '@types/node': '^22.17.2',
+            '@types/react': '^18.3.24',
+            '@types/react-dom': '^18.3.7',
+            '@types/three': '^0.185.4',
+            eslint: '^9.33.0',
+            'eslint-config-next': '^15.4.6',
+            typescript: '^5.9.2',
+            vitest: '^4.1.11',
+          },
+        }, null, 2);
+      }
+      return null;
+    }
+
+    const url = new URL(`https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`);
+    if (ref) url.searchParams.set('ref', ref);
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        Authorization: `token ${token}`,
+        Accept: 'application/vnd.github.v3+json',
+        'User-Agent': 'TryPatchBay-Engine',
+      },
+    });
+
+    if (response.status === 404) {
+      return null;
+    }
+
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error(`Failed to get file ${filePath} from ${owner}/${repo}: ${response.status} ${err}`);
+    }
+
+    const data = await response.json() as { content?: string; encoding?: string };
+    if (!data.content) return null;
+    if (data.encoding === 'base64') {
+      return Buffer.from(data.content, 'base64').toString('utf8');
+    }
+    return data.content;
   }
 
   /**
@@ -230,6 +359,106 @@ export class GitHubClient {
   }
 
   /**
+   * Finds an existing Pull Request by head branch name.
+   */
+  async findPullRequestByBranch(
+    owner: string,
+    repo: string,
+    headBranch: string,
+    token: string,
+  ): Promise<CreatedPullRequest | null> {
+    if (!this.config) {
+      const prKey = `${owner}/${repo}#${headBranch}`;
+      return this.mockPullRequests.get(prKey) ?? null;
+    }
+
+    try {
+      const res = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/pulls?head=${encodeURIComponent(`${owner}:${headBranch}`)}&state=all`,
+        {
+          headers: {
+            Authorization: `token ${token}`,
+            Accept: 'application/vnd.github.v3+json',
+            'User-Agent': 'TryPatchBay-Engine',
+          },
+        },
+      );
+
+      if (!res.ok) {
+        return null;
+      }
+
+      const pulls = (await res.json()) as Array<{
+        number: number;
+        url: string;
+        html_url: string;
+        head: { sha: string; ref: string };
+        base?: { ref: string };
+        title: string;
+        body: string;
+        state: 'open' | 'closed';
+        draft?: boolean;
+      }>;
+
+      if (!Array.isArray(pulls) || pulls.length === 0) {
+        const fallbackRes = await fetch(
+          `https://api.github.com/repos/${owner}/${repo}/pulls?head=${encodeURIComponent(headBranch)}&state=all`,
+          {
+            headers: {
+              Authorization: `token ${token}`,
+              Accept: 'application/vnd.github.v3+json',
+              'User-Agent': 'TryPatchBay-Engine',
+            },
+          },
+        );
+        if (fallbackRes.ok) {
+          const fallbackPulls = (await fallbackRes.json()) as typeof pulls;
+          if (Array.isArray(fallbackPulls) && fallbackPulls.length > 0) {
+            const match = fallbackPulls[0];
+            return {
+              number: match.number,
+              url: match.url,
+              htmlUrl: match.html_url,
+              branch: match.head.ref,
+              baseBranch: match.base?.ref,
+              commitSha: match.head.sha,
+              title: match.title,
+              body: match.body,
+              state: match.state,
+              isDraft: match.draft ?? false,
+            };
+          }
+        }
+        return null;
+      }
+
+      const match = pulls[0];
+      return {
+        number: match.number,
+        url: match.url,
+        htmlUrl: match.html_url,
+        branch: match.head.ref,
+        baseBranch: match.base?.ref,
+        commitSha: match.head.sha,
+        title: match.title,
+        body: match.body,
+        state: match.state,
+        isDraft: match.draft ?? false,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Registers a mock pull request for testing and simulation.
+   */
+  registerMockPullRequest(owner: string, repo: string, headBranch: string, pr: CreatedPullRequest): void {
+    const prKey = `${owner}/${repo}#${headBranch}`;
+    this.mockPullRequests.set(prKey, pr);
+  }
+
+  /**
    * Creates a genuine Pull Request on GitHub.
    */
   async createPullRequest(
@@ -285,6 +514,13 @@ export class GitHubClient {
 
     if (!response.ok) {
       const err = await response.text();
+      // On 422 Unprocessable Entity ("A pull request already exists for ..."), recover by finding and adopting the existing PR
+      if (response.status === 422 && (err.includes('already exists') || err.includes('A pull request already exists'))) {
+        const existing = await this.findPullRequestByBranch(owner, repo, headBranch, token);
+        if (existing) {
+          return existing;
+        }
+      }
       throw new Error(`GitHub PR creation failed with ${response.status}: ${err}`);
     }
 
@@ -322,8 +558,15 @@ export class GitHubClient {
    */
   verifyWebhookSignature(rawBody: Buffer, signature: string | undefined): boolean {
     const secret = this.config?.webhookSecret;
-    if (!secret) return true;
-    if (!signature || !signature.startsWith('sha256=')) return false;
+    if (!secret || secret.trim().length === 0) {
+      return false;
+    }
+    if (!signature || typeof signature !== 'string') return false;
+    if (!signature.startsWith('sha256=')) return false;
+    const hash = signature.slice(7);
+    if (hash.length !== 64 || !/^[0-9a-f]{64}$/i.test(hash)) {
+      return false;
+    }
 
     const expected = 'sha256=' + crypto
       .createHmac('sha256', secret)

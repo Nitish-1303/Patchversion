@@ -3,6 +3,9 @@ module.exports = {
   roots: ['<rootDir>/test'],
   testEnvironment: 'jsdom',
   testMatch: ['**/*.test.ts'],
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/src/$1',
+  },
   transform: {
     '^.+\\.tsx?$': ['ts-jest', {
       tsconfig: {

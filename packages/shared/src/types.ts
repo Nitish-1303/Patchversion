@@ -63,6 +63,8 @@ export interface ImpactAnalysis {
    */
   potentialCallSites?: CallSite[];
   coveragePercent: number;
+  sourceAnalysisPerformed?: boolean;
+  analysisMode?: 'local-ast' | 'remote-manifest-only';
   analyzedAt: string;
 }
 
@@ -221,6 +223,7 @@ export interface RepositoryRecord {
   isPrivate: boolean;
   status: 'connected' | 'disconnected' | 'revoked';
   localPath?: string;
+  isDemo?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -259,6 +262,8 @@ export interface FindingRecord {
   changeRecord: ChangeRecord;
   impactAnalysis: ImpactAnalysis;
   status: 'open' | 'fixing' | 'validated' | 'approved' | 'pr_created' | 'dismissed';
+  sourceAnalysisPerformed?: boolean;
+  analysisMode?: 'local-ast' | 'remote-manifest-only';
   createdAt: string;
 }
 
@@ -340,4 +345,26 @@ export interface WebhookDeliveryRecord {
   signature: string;
   processedAt: string;
   status: 'processed' | 'ignored' | 'failed';
+}
+export interface InstallationOnboardingState {
+  id: string;
+  token: string;
+  tenantId: string;
+  userId: string;
+  targetAccount?: string;
+  status: 'pending' | 'completed' | 'expired';
+  createdAt: string;
+  expiresAt: string;
+  completedAt?: string;
+  installationId?: number;
+}
+
+export interface DeliveryClaimRecord {
+  id: string;
+  tenantId: string;
+  patchId: string;
+  workerId: string;
+  claimedAt: string;
+  expiresAt: string;
+  status: 'active' | 'released' | 'completed';
 }
