@@ -308,6 +308,27 @@ export interface PullRequestRecord {
   branchName: string;
   commitSha: string;
   status: 'open' | 'merged' | 'closed';
+  isDraft?: boolean;
+  isSimulation?: boolean;
+  deliveryBlockedReason?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+
+export interface WatchTargetRecord {
+  id: string;
+  tenantId: string;
+  packageName: string;
+  ecosystem: 'npm' | 'pypi' | 'remote-api';
+  currentVersion: string;
+  latestVersion: string;
+  lastCheckedAt: string;
+  status: 'up_to_date' | 'upgrade_available' | 'error';
+  isDemo?: boolean;
+  notes?: string;
+  lastError?: string;
+  source: 'registry' | 'fixture-demo' | 'manual';
   createdAt: string;
   updatedAt: string;
 }

@@ -34,6 +34,37 @@ function resolveDataDir(): string {
   }
 }
 
+export function getStorageModeInfo(): {
+  mode: 'configured-durable' | 'transient-serverless-tmp' | 'local-workspace';
+  path: string;
+  isDurable: boolean;
+  guaranteeNotice: string;
+} {
+  if (process.env.PATCHVERSION_STATE_DIR) {
+    return {
+      mode: 'configured-durable',
+      path: process.env.PATCHVERSION_STATE_DIR,
+      isDurable: true,
+      guaranteeNotice: 'State is written to the configured persistent state directory.',
+    };
+  }
+  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    return {
+      mode: 'transient-serverless-tmp',
+      path: path.join(os.tmpdir(), '.patchversion-state'),
+      isDurable: false,
+      guaranteeNotice:
+        'Ephemeral container storage (/tmp). State does not survive across serverless microVM recycling without an external database. Deterministic demo seed ensures evaluation continuity only.',
+    };
+  }
+  return {
+    mode: 'local-workspace',
+    path: path.join(process.cwd(), '.patchversion-state'),
+    isDurable: true,
+    guaranteeNotice: 'Local development file storage.',
+  };
+}
+
 export function getDatabase(): PatchversionDatabase {
   if (!dbInstance) {
     const dataDir = resolveDataDir();
@@ -73,6 +104,10 @@ export function getOrchestrator(): WorkflowOrchestrator {
   return orchestratorInstance;
 }
 
+export const DEMO_TENANT_ID = 'ten_demo_workspace';
+export const DEMO_USER_ID = 'usr_demo_developer';
+export const DEMO_REPO_ID = 'repo_demo_checkout_service';
+
 export interface AuthContext {
   user: User;
   tenant: Tenant;
@@ -102,10 +137,17 @@ export function getAuthContext(request: NextRequest): AuthContext | null {
   const session = db.getSession(token);
   if (!session) return null;
 
-  const user = db.getUser(session.userId);
-  if (!user || user.tenantId !== session.tenantId) return null;
+  let user = db.getUser(session.userId);
+  let tenant = db.getTenant(session.tenantId);
 
-  const tenant = db.getTenant(session.tenantId);
+  // If running in an ephemeral/fresh serverless instance, reconstitute deterministic demo data
+  if ((!user || !tenant) && (session.userId === DEMO_USER_ID || session.tenantId === DEMO_TENANT_ID)) {
+    const demo = ensureDemoTenantAndUser();
+    user = demo.user;
+    tenant = demo.tenant;
+  }
+
+  if (!user || user.tenantId !== session.tenantId) return null;
   if (!tenant) return null;
 
   return { user, tenant, session };
@@ -116,20 +158,31 @@ export function getAuthContext(request: NextRequest): AuthContext | null {
  */
 export function ensureDemoTenantAndUser(): { tenant: Tenant; user: User } {
   const db = getDatabase();
-  let user = db.getUserByEmail('developer@trypatchbay.dev');
+  let tenant = db.getTenant(DEMO_TENANT_ID);
+  if (!tenant) {
+    tenant = db.createTenant('TryPatchBay Demo Workspace', DEMO_TENANT_ID);
+  }
 
+  let user = db.getUser(DEMO_USER_ID) ?? db.getUserByEmail('developer@trypatchbay.dev');
   if (!user) {
-    const tenant = db.createTenant('TryPatchBay Demo Workspace');
-    user = db.createUser(tenant.id, 'developer@trypatchbay.dev', 'owner', 'patchbay-demo');
+    user = db.createUser(tenant.id, 'developer@trypatchbay.dev', 'owner', 'patchbay-demo', undefined, DEMO_USER_ID);
+  }
 
-    // Pre-register demo installation and repository
-    const inst = db.saveInstallation(tenant.id, 10001, 'patchbay-demo');
+  // Pre-register demo installation and repository if not already present
+  const installations = db.listInstallations(tenant.id);
+  let inst = installations[0];
+  if (!inst) {
+    inst = db.saveInstallation(tenant.id, 10001, 'patchbay-demo');
+  }
+
+  let repo = db.getRepository(tenant.id, DEMO_REPO_ID);
+  if (!repo) {
     let fixtureRepoPath = path.resolve(process.cwd(), 'fixtures/sample-repo');
     if (!fs.existsSync(fixtureRepoPath)) {
       fixtureRepoPath = path.resolve(process.cwd(), '../../fixtures/sample-repo');
     }
 
-    const repo = db.saveRepository(tenant.id, inst.id, {
+    repo = db.saveRepository(tenant.id, inst.id, {
       githubRepoId: 20001,
       fullName: 'patchbay-demo/checkout-service',
       owner: 'patchbay-demo',
@@ -138,7 +191,26 @@ export function ensureDemoTenantAndUser(): { tenant: Tenant; user: User } {
       isPrivate: false,
       localPath: fixtureRepoPath,
     });
+  }
 
+  // Seed package watch target for mockpay if none exist
+  const watchTargets = db.listWatchTargets(tenant.id);
+  if (watchTargets.length === 0) {
+    db.saveWatchTarget(tenant.id, {
+      packageName: 'mockpay',
+      ecosystem: 'npm',
+      currentVersion: '1.0.0',
+      latestVersion: '2.0.0',
+      lastCheckedAt: new Date().toISOString(),
+      status: 'upgrade_available',
+      isDemo: true,
+      notes: 'Demo SDK fixture for Stripe breaking change scenario',
+      source: 'fixture-demo',
+    });
+  }
+
+  const existingFindings = db.listFindings(tenant.id, repo.id);
+  if (existingFindings.length === 0) {
     // Seed verified fixture finding, patch, and proof for demo readiness
     const mockpayChange: ChangeRecord = {
       id: 'change_mockpay_1_0_0_to_2_0_0',
@@ -248,11 +320,8 @@ export function ensureDemoTenantAndUser(): { tenant: Tenant; user: User } {
         'Sandbox: isolated copy, secret-scrubbed, 100% call-site coverage verified.',
       durationMs: 55700,
     });
-
-    return { tenant, user };
   }
 
-  const tenant = db.getTenant(user.tenantId)!;
   return { tenant, user };
 }
 
