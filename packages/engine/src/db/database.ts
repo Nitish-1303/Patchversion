@@ -53,6 +53,8 @@ export class PatchversionDatabase implements IPersistenceStore {
   private data: DatabaseSchema;
   private writeLock = false;
   private lastLoadedMtime = 0;
+  private lastLoadedIno = 0;
+  private lastLoadedSize = -1;
 
   constructor(dbDir: string) {
     fs.mkdirSync(dbDir, { recursive: true });
@@ -68,7 +70,12 @@ export class PatchversionDatabase implements IPersistenceStore {
     if (fs.existsSync(this.dbPath)) {
       try {
         const raw = fs.readFileSync(this.dbPath, 'utf8');
-        try { this.lastLoadedMtime = fs.statSync(this.dbPath).mtimeMs; } catch {}
+        try {
+          const stats = fs.statSync(this.dbPath);
+          this.lastLoadedMtime = stats.mtimeMs;
+          this.lastLoadedIno = Number(stats.ino || 0);
+          this.lastLoadedSize = stats.size;
+        } catch {}
         const parsed = JSON.parse(raw) as DatabaseSchema;
         return this.migrate(parsed);
       } catch (err) {
@@ -135,7 +142,12 @@ export class PatchversionDatabase implements IPersistenceStore {
     const serialized = JSON.stringify(data, null, 2);
     fs.writeFileSync(tmpPath, serialized, 'utf8');
     fs.renameSync(tmpPath, this.dbPath);
-    try { this.lastLoadedMtime = fs.statSync(this.dbPath).mtimeMs; } catch {}
+    try {
+      const stats = fs.statSync(this.dbPath);
+      this.lastLoadedMtime = stats.mtimeMs;
+      this.lastLoadedIno = Number(stats.ino || 0);
+      this.lastLoadedSize = stats.size;
+    } catch {}
   }
 
 
@@ -144,6 +156,8 @@ export class PatchversionDatabase implements IPersistenceStore {
       try {
         const stats = fs.statSync(this.dbPath);
         this.lastLoadedMtime = stats.mtimeMs;
+        this.lastLoadedIno = Number(stats.ino || 0);
+        this.lastLoadedSize = stats.size;
         const raw = fs.readFileSync(this.dbPath, 'utf8');
         this.data = this.migrate(JSON.parse(raw) as DatabaseSchema);
       } catch {
@@ -156,7 +170,10 @@ export class PatchversionDatabase implements IPersistenceStore {
     try {
       if (fs.existsSync(this.dbPath)) {
         const stats = fs.statSync(this.dbPath);
-        if (stats.mtimeMs > this.lastLoadedMtime) {
+        const inoChanged = stats.ino !== undefined && stats.ino !== 0 && Number(stats.ino) !== this.lastLoadedIno;
+        const mtimeChanged = stats.mtimeMs !== this.lastLoadedMtime;
+        const sizeChanged = stats.size !== this.lastLoadedSize;
+        if (inoChanged || mtimeChanged || sizeChanged) {
           this.reloadFromDisk();
         }
       }

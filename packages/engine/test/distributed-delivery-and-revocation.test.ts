@@ -116,10 +116,13 @@ describe('Distributed Delivery Safety & Shared Session Revocation', () => {
       expect(activeClaim?.status).toBe('active');
     });
 
-    test('expired claim can be re-acquired by another worker after lease expiration', () => {
+    test('expired claim can be re-acquired by another worker after lease expiration', async () => {
       // Worker 1 claims with negative TTL (already expired)
       const claim1 = db1.claimDelivery(tenantId, patch.id, 'worker-pod-1', -1);
       expect(claim1).toBe(true);
+
+      // Brief tick ensuring filesystem timestamp and inode isolation across instances
+      await new Promise(r => setTimeout(r, 15));
 
       // Worker 2 attempts to claim on db2; since worker 1 lease expired, worker 2 acquires it
       const claim2 = db2.claimDelivery(tenantId, patch.id, 'worker-pod-2', 60);

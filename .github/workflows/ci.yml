@@ -91,6 +91,8 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Build dependencies
+        run: npm run build -w @patchversion/shared && npm run build -w @patchversion/engine
       # Real PostgreSQL transactional tests against disposable container
       - name: Run PostgreSQL Live Integration Tests
         run: npm test -w @patchversion/engine -- test/postgres-live.integration.test.ts

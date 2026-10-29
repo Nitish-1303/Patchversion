@@ -10,7 +10,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "jest --config jest.config.cjs --runInBand"
+    "test": "jest --config jest.config.cjs --runInBand --forceExit"
   },
   "dependencies": {
     "@patchversion/shared": "*",
