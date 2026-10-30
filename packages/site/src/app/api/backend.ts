@@ -95,6 +95,17 @@ export function getPostgresStore(): PostgresStore | null {
   return null;
 }
 
+export function setPostgresStore(store: PostgresStore | null): void {
+  postgresInstance = store;
+  if (store) {
+    activeStore = store;
+  }
+}
+
+export function setActiveStore(store: IPersistenceStore | null): void {
+  activeStore = store;
+}
+
 export function getDatabase(): IPersistenceStore {
   if (activeStore) {
     return activeStore;
