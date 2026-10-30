@@ -116,16 +116,16 @@ describe('GET /api/health Endpoint', () => {
   });
 
   test('4. Validates exact ping value: rejects empty, non-1, or unexpected rows', async () => {
-    const testCases: Array<{ rows: unknown[]; desc: string }> = [
-      { rows: [], desc: 'empty rows array' },
-      { rows: [{ ping: 2 }], desc: 'unexpected ping value 2' },
-      { rows: [{ ping: 0 }], desc: 'unexpected ping value 0' },
-      { rows: [{ ping: null }], desc: 'null ping value' },
-      { rows: [{ wrong_column: 1 }], desc: 'missing ping column' },
-      { rows: [{ ping: 1 }, { ping: 1 }], desc: 'multiple rows' },
+    const testCases: Array<{ rows: unknown[] }> = [
+      { rows: [] },
+      { rows: [{ ping: 2 }] },
+      { rows: [{ ping: 0 }] },
+      { rows: [{ ping: null }] },
+      { rows: [{ wrong_column: 1 }] },
+      { rows: [{ ping: 1 }, { ping: 1 }] },
     ];
 
-    for (const { rows, desc } of testCases) {
+    for (const { rows } of testCases) {
       _resetInstancesForTest();
       const mockQuery = jest.fn().mockResolvedValue({
         command: 'SELECT',

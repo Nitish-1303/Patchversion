@@ -2,6 +2,19 @@ import { NextResponse } from 'next/server';
 import { getDatabase } from '@/app/api/backend';
 import { PostgresStore } from '@patchversion/engine';
 
+interface QueryableStore {
+  query<T = unknown>(text: string, params?: unknown[]): Promise<T[]>;
+}
+
+function isQueryable(store: unknown): store is QueryableStore {
+  return (
+    typeof store === 'object' &&
+    store !== null &&
+    'query' in store &&
+    typeof (store as Record<string, unknown>).query === 'function'
+  );
+}
+
 function getSanitizedErrorCategory(err: unknown): string {
   if (err instanceof Error) {
     if (
@@ -30,14 +43,14 @@ export async function GET() {
     const db = getDatabase();
     const isPostgres =
       db instanceof PostgresStore ||
-      (typeof (db as any)?.query === 'function' && process.env.NODE_ENV !== 'production');
+      (isQueryable(db) && process.env.NODE_ENV !== 'production');
 
-    if (!db || !isPostgres) {
+    if (!db || !isPostgres || !isQueryable(db)) {
       throw new Error('unsupported_storage');
     }
 
     // Execute read-only SQL query to verify database connectivity and readiness
-    const rows = await (db as PostgresStore).query<{ ping: unknown }>('SELECT 1 AS ping');
+    const rows = await db.query<{ ping: unknown }>('SELECT 1 AS ping');
     const ping = rows?.[0]?.ping;
 
     // Verify the SQL ping result contains exactly the expected value (ping === 1)
