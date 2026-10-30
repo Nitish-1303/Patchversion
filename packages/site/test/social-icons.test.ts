@@ -54,6 +54,10 @@ describe('SocialIcons Component (Figma Community 839558611085349133)', () => {
     }
   });
 
+  test('social link registry excludes the removed repository URL', () => {
+    expect(SOCIAL_LINKS.some((item) => item.href === 'https://github.com/Nitish-1303/Patchversion')).toBe(false);
+  });
+
   test('SocialCommunityGrid renders all community channels with titles and descriptions', () => {
     render(createElement(SocialCommunityGrid));
     const cards = container.querySelectorAll('.social-community-card');
