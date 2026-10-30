@@ -184,6 +184,7 @@ export interface User {
   id: string;
   tenantId: string;
   email: string;
+  passwordHash?: string;
   githubUserId?: string;
   githubLogin?: string;
   role: 'owner' | 'admin' | 'member';

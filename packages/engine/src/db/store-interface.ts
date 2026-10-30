@@ -30,6 +30,7 @@ export interface IPersistenceStore {
     githubLogin?: string,
     githubUserId?: string,
     id?: string,
+    passwordHash?: string,
   ): Promise<User> | User;
   getUser(id: string): Promise<User | null> | User | null;
   getUserByEmail(email: string): Promise<User | null> | User | null;

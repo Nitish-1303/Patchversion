@@ -216,6 +216,7 @@ export class PatchversionDatabase implements IPersistenceStore {
     githubLogin?: string,
     githubUserId?: string,
     id?: string,
+    passwordHash?: string,
   ): User {
     if (!this.data.tenants[tenantId]) {
       throw new Error(`Tenant ${tenantId} does not exist`);
@@ -228,6 +229,7 @@ export class PatchversionDatabase implements IPersistenceStore {
       role,
       githubLogin,
       githubUserId,
+      passwordHash,
       createdAt: new Date().toISOString(),
     };
     this.data.users[userId] = user;

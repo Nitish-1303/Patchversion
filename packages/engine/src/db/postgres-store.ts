@@ -126,14 +126,15 @@ export class PostgresStore implements IPersistenceStore {
     githubLogin?: string,
     githubUserId?: string,
     id?: string,
+    passwordHash?: string,
   ): Promise<User> {
     const userId = id || `user_${crypto.randomUUID()}`;
     const now = new Date().toISOString();
     await this.pool.query(
-      `INSERT INTO users (id, tenant_id, email, role, github_user_id, github_login, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       ON CONFLICT (id) DO UPDATE SET email = $3, role = $4, github_login = $6`,
-      [userId, tenantId, email, role, githubUserId || null, githubLogin || null, now],
+      `INSERT INTO users (id, tenant_id, email, role, github_user_id, github_login, password_hash, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT (id) DO UPDATE SET email = $3, role = $4, github_login = $6, password_hash = $7`,
+      [userId, tenantId, email, role, githubUserId || null, githubLogin || null, passwordHash || null, now],
     );
     return {
       id: userId,
@@ -142,6 +143,7 @@ export class PostgresStore implements IPersistenceStore {
       role,
       githubUserId,
       githubLogin,
+      passwordHash,
       createdAt: now,
     };
   }
@@ -154,8 +156,9 @@ export class PostgresStore implements IPersistenceStore {
       role: 'owner' | 'admin' | 'member';
       github_user_id?: string;
       github_login?: string;
+      password_hash?: string;
       created_at: string;
-    }>('SELECT id, tenant_id, email, role, github_user_id, github_login, created_at FROM users WHERE id = $1', [id]);
+    }>('SELECT id, tenant_id, email, role, github_user_id, github_login, password_hash, created_at FROM users WHERE id = $1', [id]);
     if (!rows[0]) return null;
     return {
       id: rows[0].id,
@@ -164,6 +167,7 @@ export class PostgresStore implements IPersistenceStore {
       role: rows[0].role,
       githubUserId: rows[0].github_user_id,
       githubLogin: rows[0].github_login,
+      passwordHash: rows[0].password_hash || undefined,
       createdAt: rows[0].created_at,
     };
   }
@@ -176,8 +180,9 @@ export class PostgresStore implements IPersistenceStore {
       role: 'owner' | 'admin' | 'member';
       github_user_id?: string;
       github_login?: string;
+      password_hash?: string;
       created_at: string;
-    }>('SELECT id, tenant_id, email, role, github_user_id, github_login, created_at FROM users WHERE LOWER(email) = LOWER($1)', [email]);
+    }>('SELECT id, tenant_id, email, role, github_user_id, github_login, password_hash, created_at FROM users WHERE LOWER(email) = LOWER($1)', [email]);
     if (!rows[0]) return null;
     return {
       id: rows[0].id,
@@ -186,6 +191,7 @@ export class PostgresStore implements IPersistenceStore {
       role: rows[0].role,
       githubUserId: rows[0].github_user_id,
       githubLogin: rows[0].github_login,
+      passwordHash: rows[0].password_hash || undefined,
       createdAt: rows[0].created_at,
     };
   }
