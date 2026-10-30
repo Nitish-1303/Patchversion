@@ -14,11 +14,14 @@ CREATE TABLE IF NOT EXISTS users (
   id VARCHAR(128) PRIMARY KEY,
   tenant_id VARCHAR(128) NOT NULL REFERENCES tenants(id) ON DELETE RESTRICT,
   email TEXT NOT NULL,
+  password_hash TEXT,
   role VARCHAR(32) NOT NULL DEFAULT 'member',
   github_user_id TEXT,
   github_login TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_users_tenant_email ON users(tenant_id, email);
 

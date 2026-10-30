@@ -2,6 +2,7 @@ import { ChangeRecord, ImpactAnalysis, CallSite } from '@patchversion/shared';
 import { createTwoFilesPatch } from 'diff';
 import fs from 'fs';
 import path from 'path';
+import ts from 'typescript';
 
 /**
  * Fix generator: produces a minimal patch for affected call sites.
@@ -141,6 +142,10 @@ export class FixGenerator {
       const fixed = this.applyRenameScoped(content, fileSites, oldName, newName);
 
       if (fixed !== content) {
+        if (!this.validateSyntax(fixed, filePath)) {
+          console.warn(`[FixGenerator] Rejecting generated patch for ${filePath}: syntax validation failed`);
+          continue;
+        }
         // Standard unified diff with context, parseable by patch/git apply
         diffs.push(createTwoFilesPatch(`a/${filePath}`, `b/${filePath}`, content, fixed));
       }
@@ -215,6 +220,27 @@ export class FixGenerator {
     );
 
     return result;
+  }
+
+  /**
+   * Validates syntax integrity of the proposed source code.
+   * Rejects malformed code before diff emission.
+   */
+  public validateSyntax(code: string, fileName: string): boolean {
+    try {
+      const isTsx = fileName.endsWith('.tsx') || fileName.endsWith('.jsx');
+      const sourceFile = ts.createSourceFile(
+        fileName,
+        code,
+        ts.ScriptTarget.Latest,
+        true,
+        isTsx ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+      );
+      const diagnostics = (sourceFile as unknown as { parseDiagnostics?: unknown[] }).parseDiagnostics;
+      return !diagnostics || diagnostics.length === 0;
+    } catch {
+      return false;
+    }
   }
 
   /**

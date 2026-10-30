@@ -3,6 +3,12 @@ export { WebhookReceiver } from './webhook-receiver';
 export { type EngineConfig, loadConfig } from './config';
 export { StateStore } from './state/store';
 export { NpmWatcher } from './watcher/npm-watcher';
+export {
+  type IProviderAdapter,
+  ProviderRegistry,
+  NpmProviderAdapter,
+  StripeApiProviderAdapter,
+} from './watcher/provider-adapter';
 export { ContractProber } from './probes/contract-probe';
 export { UsageMapper } from './usage-map/mapper';
 export { analyzeImpact } from './break-detector/impact-analyzer';

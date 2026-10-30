@@ -144,7 +144,7 @@ export function SocialIcon({
 }
 
 export function SocialButtons({
-  platforms = ['x', 'discord', 'linkedin', 'slack'],
+  platforms = ['x', 'discord', 'linkedin', 'slack', 'youtube'],
   size = 18,
   className = '',
 }: {

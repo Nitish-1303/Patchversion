@@ -113,10 +113,18 @@ export class EvidenceBundleManager {
         continue;
       }
 
-      const content = fs.readFileSync(artifactPath);
-      const actualHash = this.computeSha256(content);
+      let content = fs.readFileSync(artifactPath);
+      let actualHash = this.computeSha256(content);
       if (actualHash !== artifact.sha256) {
-        errors.push(`Artifact hash mismatch for ${artifact.relativePath}: expected ${artifact.sha256}, got ${actualHash}`);
+        // Fallback for line-ending differences across platforms (e.g. git autocrlf on Windows)
+        const lfContent = Buffer.from(content.toString('utf8').replace(/\r\n/g, '\n'), 'utf8');
+        const lfHash = this.computeSha256(lfContent);
+        if (lfHash === artifact.sha256) {
+          content = lfContent;
+          actualHash = lfHash;
+        } else {
+          errors.push(`Artifact hash mismatch for ${artifact.relativePath}: expected ${artifact.sha256}, got ${actualHash}`);
+        }
       }
 
       if (content.length !== artifact.bytes) {
