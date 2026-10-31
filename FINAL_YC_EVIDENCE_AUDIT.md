@@ -1,28 +1,28 @@
 # TryPatchBay — Final YC W27 Evidence Audit Report
 
-**Audit Date & Time:** October 31, 2026, 18:50:00 IST (13:20:00 UTC)  
-**Auditor:** Skeptical Senior Infrastructure Engineer, Application-Security Reviewer & YC Due-Diligence Reviewer  
-**Repository:** `Nitish-1303/Patchversion`  
-**Local Repository Path:** `C:\Users\NITISH\Downloads\Patchversion`  
-**Audited Local HEAD Commit:** `7a4e18c4e14b2211e1f389a80e1ab6c1bc73e013`  
-**Remote Tracking (`origin/main`):** `3d72cb1a30e4bc74e5093a86db52c6fbc5c8599f`  
-**Production URL:** [https://trypatchbay.vercel.app](https://trypatchbay.vercel.app)  
+**Audit Date & Time:** October 31, 2026, 19:00:00 IST (13:30:00 UTC)
+**Auditor Roles:** Senior Infrastructure Engineer, Application-Security Reviewer & YC Due-Diligence Reviewer
+**Repository:** `Nitish-1303/Patchversion`
+**Local Repository Path:** `C:\Users\NITISH\Downloads\Patchversion`
+**Local Audit Commit:** `cee10e2`
+**Remote Tracking (`origin/main`):** `3d72cb1a30e4bc74e5093a86db52c6fbc5c8599f`
+**Production Deployment:** [https://trypatchbay.vercel.app](https://trypatchbay.vercel.app) (`dpl_GCb2YNpJHRju1SssSwbvVe7igA2a`)
+**Production Source Commit:** `3d72cb1a30e4bc74e5093a86db52c6fbc5c8599f`
 
 ---
 
 ## 1. Executive Summary
 
-This final audit independently investigated and verified every technical claim made about the TryPatchBay platform prior to Y Combinator Winter 2027 (W27) submission.
+This final audit independently investigates the technical state of TryPatchBay prior to Y Combinator Winter 2027 (W27) submission.
 
-Every conclusion in this document is backed by direct CLI output, process exit codes, Git commits, live HTTP responses, and test runner logs recorded during this session.
+Every conclusion in this document is qualified by direct CLI output, process exit codes, Git commits, live HTTP responses, and test runner logs recorded during this verification session.
 
-### High-Level Audit Findings:
-1. **Source Control:** Working tree is clean. PR #31 was merged into `main` via merge commit `d2b33f7`. Local HEAD is `7a4e18c` (ahead of `origin/main` @ `3d72cb1` by 1 commit containing atomic rate limiter hardening and audit deliverables).
-2. **GitHub Actions CI:** Run `41201751472` on `origin/main` (`3d72cb1`) passed 7/7 checks without skips or failures.
-3. **Local Test Suite:** Verified 44 passing Jest suites (35 engine, 9 site) and 2 passing node:test shared tests, totaling **418 passing tests** (6 skipped tests in 2 skipped Docker-dependent suites). Zero failing tests.
-4. **Vercel Production:** Deployment `dpl_GCb2YNpJHRju1SssSwbvVe7igA2a` is `● Ready`, assigned to `trypatchbay.vercel.app`, and serves commit `3d72cb1`.
-5. **Security Gating:** Mutation endpoints require RBAC (`POST /api/repos`, `/api/packages`, `/api/approvals`, `/api/pull-requests`). Untrusted customer code execution is **fail-closed**; sandbox execution is restricted to local fixtures.
-6. **Demo Authenticity:** The public demo is anchored to real open-source repository `Nitish-1303/CipherBill` (523 dependencies, 543 graph nodes, 1,374 edges, 27 inspected files). Reports truthfully: `"No breaking changes matched the migration rules currently supported by TryPatchBay."` Zero repo mutations occurred.
+### Release & Deployment State:
+- **Local Git Audit HEAD:** `cee10e2` (clean working tree). Contains local documentation corrections, audit packages, and security test hardening.
+- **Remote `origin/main`:** `3d72cb1`. PR #31 was merged into `main` at `d2b33f7`.
+- **Production Deployment Status:** Deployment `dpl_GCb2YNpJHRju1SssSwbvVe7igA2a` is `● Ready` on Vercel and serves commit `3d72cb1`. **Local audit changes (`cee10e2`) have NOT been deployed or pushed to production**, strictly adhering to read-only audit constraints.
+- **CI Status:** GitHub Actions Run `41201751472` on `origin/main` (`3d72cb1`) passed 7/7 checks in 3m 58s.
+- **Test Suite Verification:** 44 passing Jest suites (35 engine, 9 site) and 2 passing node:test tests = **418 passing tests** (6 skipped tests in 2 skipped Docker-dependent integration suites). Zero failing tests.
 
 ---
 
@@ -32,25 +32,25 @@ Every conclusion in this document is backed by direct CLI output, process exit c
 |---|---|---|
 | **Current Branch** | `main` | `git branch --show-current` $\rightarrow$ `main` |
 | **Working Tree Status** | Clean (0 uncommitted or untracked changes) | `git status --short` $\rightarrow$ empty |
-| **Current Local HEAD SHA** | `7a4e18c4e14b2211e1f389a80e1ab6c1bc73e013` | `git rev-parse HEAD` |
+| **Local Audit HEAD SHA** | `cee10e2` (or current pass commit) | `git rev-parse HEAD` |
 | **Remote Tracking HEAD (`origin/main`)** | `3d72cb1a30e4bc74e5093a86db52c6fbc5c8599f` | `git rev-parse origin/main` |
-| **Branch Relationship** | Ahead of `origin/main` by 1 commit (`7a4e18c`) | `git status` |
+| **Production Source SHA** | `3d72cb1a30e4bc74e5093a86db52c6fbc5c8599f` | `vercel inspect dpl_GCb2YNpJHRju1SssSwbvVe7igA2a` |
+| **Deployment Isolation** | Local audit deliverables are **not deployed** | Local HEAD is ahead of remote by local documentation/test commits |
 | **PR #31 Merge Commit** | `d2b33f7ef70b1801d73cbc45dacff71fc8e1023f` | `gh pr view 31 --json mergeCommit` |
 | **PR #31 Head SHA** | `6f3e7132d30142cc6f60e28c4e0758f38f25107b` | `gh pr view 31 --json headRefOid` |
-| **PR #31 Status** | MERGED at `2026-10-31T12:33:16Z` into `main` | GitHub PR API |
 
 ---
 
 ## 3. GitHub Actions CI Verification
 
-**GitHub Actions Run ID:** `41201751472`  
-**Workflow:** CI (`.github/workflows/ci.yml`)  
-**Trigger Event:** `push`  
-**Target Branch:** `main`  
-**Commit SHA:** `3d72cb1a30e4bc74e5093a86db52c6fbc5c8599f`  
-**Started At:** 2026-10-31T12:34:59Z  
-**Completed At:** 2026-10-31T12:38:57Z (Duration: 3m 58s)  
-**Overall Run Conclusion:** **SUCCESS**  
+**GitHub Actions Run ID:** `41201751472`
+**Workflow:** CI (`.github/workflows/ci.yml`)
+**Trigger Event:** `push`
+**Target Branch:** `main`
+**Commit SHA:** `3d72cb1a30e4bc74e5093a86db52c6fbc5c8599f`
+**Started At:** 2026-10-31T12:34:59Z
+**Completed At:** 2026-10-31T12:38:57Z (Duration: 3m 58s)
+**Overall Run Conclusion:** **SUCCESS**
 
 ### Individual Job Audit:
 
@@ -74,20 +74,15 @@ Every workspace command was executed locally and captured with exact metrics:
 
 ### Reconciliation of Test & Suite Counts:
 
-The apparent contradiction in prior reports is reconciled by separating **Jest Test Suites** from **Node:Test Tests**:
-
 1. **`@patchversion/engine` (Jest):**
    - Test Suites: **35 passed**, 2 skipped (require external live postgres container), **37 total**.
-   - Tests: **330 passed**, 6 skipped, **336 total**.
-   - Time: 241.35s.
+   - Tests: **330 passed**, 6 skipped, **336 total**. Time: 241.35s.
 2. **`@patchversion/site` (Jest):**
    - Test Suites: **9 passed**, 0 skipped, **9 total**.
-   - Tests: **86 passed**, 0 skipped, **86 total** (including 15 RBAC and rate limiter tests).
-   - Time: 58.98s.
+   - Tests: **86 passed**, 0 skipped, **86 total** (including 15 RBAC and rate limiter tests). Time: 58.98s.
 3. **`@patchversion/shared` (`node --test`):**
    - Test Suites: **0** (raw Node test runner without describe blocks).
-   - Tests: **2 passed**, 0 skipped, **2 total**.
-   - Time: 0.14s.
+   - Tests: **2 passed**, 0 skipped, **2 total**. Time: 0.14s.
 
 ### Total Mathematical Reconciliations:
 - **Total Passing Test Suites:** $35 + 9 = \mathbf{44\text{ passed suites}}$ (46 total Jest suites).
@@ -96,50 +91,59 @@ The apparent contradiction in prior reports is reconciled by separating **Jest T
 
 ### Local Proof & Build Execution Results:
 
-| Command | Exit Code | Output / Duration | Verdict |
-|---|:---:|---|:---:|
-| `npm run typecheck` | `0` | Zero errors across shared, engine, and site (14.3s) | **PASS** |
-| `npm test` | `0` | 44 passing suites, 418 passing tests | **PASS** |
-| `npm run prove` | `0` | Mockpay 1 $\rightarrow$ 2: Baseline 3/3 $\rightarrow$ Bump 1/3 (Fail) $\rightarrow$ Fix 3/3 (Pass) in 40.5s | **PASS** |
-| `npm run prove:real` | `0` | Lodash 3 $\rightarrow$ 4: Baseline 3/3 $\rightarrow$ Bump 1/3 (Fail) $\rightarrow$ Fix 3/3 (Pass) in 51.8s | **PASS** |
-| `npm run build` | `0` | Turbopack compiled 32 static/dynamic routes in 15.3s | **PASS** |
-| `npm run readiness` | `0` | Demo Ready: YES; Staging: NO; Customer: NO; Overall: BLOCKED (Fail-Closed) | **PASS** |
+| Command | Exit Code | Output / Duration | Evidence / Notes |
+|---|:---:|---|---|
+| `npm run typecheck` | `0` | Zero errors across shared, engine, and site (14.3s) | TypeScript 5.4 compiler verification |
+| `npm test` | `0` | 44 passing suites, 418 passing tests | All workspaces green |
+| `npm run prove` | `0` | Mockpay 1 $\rightarrow$ 2: Baseline 3/3 $\rightarrow$ Bump 1/3 (Fail) $\rightarrow$ Fix 3/3 (Pass) in 40.5s | Synthetic test fixture (`acme/payments`) |
+| `npm run prove:real` | `0` | Lodash 3 $\rightarrow$ 4: Baseline 3/3 $\rightarrow$ Bump 1/3 (Fail) $\rightarrow$ Fix 3/3 (Pass) in 51.8s | Real package migration on test fixture (`acme/membership`) |
+| `npm run build` | `0` | Turbopack compiled 32 static/dynamic routes in 15.3s | Production bundle compiled |
+| `npm run readiness` | `0` | Demo Ready: YES; Staging: NO; Customer: NO; Overall: BLOCKED | Machine-readable gate (Fail-Closed) |
 
 ---
 
-## 5. Vercel Production Infrastructure & Smoke Tests
+## 5. Vercel Production Infrastructure & HTTP Smoke Tests
 
-**Live Production Domain:** `https://trypatchbay.vercel.app`  
-**Active Deployment ID:** `dpl_GCb2YNpJHRju1SssSwbvVe7igA2a`  
-**Status:** `● Ready`  
-**Deployment Target:** `production`  
-**Created At:** Sat Oct 31 2026 18:05:01 IST (12:35:01 UTC)  
+**Live Production Domain:** `https://trypatchbay.vercel.app`
+**Active Deployment ID:** `dpl_GCb2YNpJHRju1SssSwbvVe7igA2a`
+**Status:** `● Ready`
+**Created At:** Sat Oct 31 2026 18:05:01 IST (12:35:01 UTC)
+**Deployed Commit:** `3d72cb1a30e4bc74e5093a86db52c6fbc5c8599f`
 **Assigned Aliases:**
 - `https://trypatchbay.vercel.app`
 - `https://patchbay-one.vercel.app`
 - `https://trypatchbay-nitish-1303s-projects.vercel.app`
 - `https://trypatchbay-git-main-nitish-1303s-projects.vercel.app`
 
-### Production Source Commit vs. Audited Commit:
-- **Production Deployment Commit:** `3d72cb1a30e4bc74e5093a86db52c6fbc5c8599f` (`origin/main`).
-- **Local Audited Commit:** `7a4e18c4e14b2211e1f389a80e1ab6c1bc73e013` (includes atomic rate limiter and final audit reports).
-- **Deployment Status:** Per operating rule 1, `7a4e18c` has NOT been deployed or pushed. Production serves `3d72cb1`.
+### Live HTTP Smoke Test Evidence:
+*Executed live via Node.js fetch against production endpoints on 2026-10-31T13:13:04Z.*
 
-### Live HTTP Smoke Check Results:
-
-| Route / Endpoint | HTTP Status | Content-Type | Observed Response |
-|---|:---:|---|---|
-| `GET /` | `200 OK` | `text/html; charset=utf-8` | Production SSR landing page (65,859 bytes) |
-| `GET /login` | `200 OK` | `text/html; charset=utf-8` | Authentication screen (26,190 bytes) |
-| `GET /dashboard` | `200 OK` | `text/html; charset=utf-8` | Workspace console (24,139 bytes) |
-| `GET /api/health` | `200 OK` | `application/json` | `{"status":"healthy","version":"0.1.0","timestamp":"...","service":"trypatchbay"}` |
-| `GET /api/findings` | `401 Unauthorized` | `application/json` | `{"error":"Unauthorized"}` (Properly gated) |
-| `GET /api/scan` | `401 Unauthorized` | `application/json` | `{"error":"Unauthorized"}` (Properly gated) |
+| Route / Endpoint | Method | HTTP Status | Content-Type | Payload Size | Observed Evidence Sample |
+|---|:---:|:---:|---|:---:|---|
+| `https://trypatchbay.vercel.app/` | GET | `200 OK` | `text/html; charset=utf-8` | 65,859 bytes | SSR HTML landing page with Turbopack CSS bundle |
+| `https://trypatchbay.vercel.app/login` | GET | `200 OK` | `text/html; charset=utf-8` | 26,190 bytes | Login view with email/password form |
+| `https://trypatchbay.vercel.app/dashboard` | GET | `200 OK` | `text/html; charset=utf-8` | 24,139 bytes | Authenticated console view |
+| `https://trypatchbay.vercel.app/api/health` | GET | `200 OK` | `application/json` | 101 bytes | `{"status":"healthy","version":"0.1.0","timestamp":"2026-10-31T13:13:04.699Z","service":"trypatchbay"}` |
+| `https://trypatchbay.vercel.app/api/findings?repo=Nitish-1303/CipherBill` | GET | `401 Unauthorized` | `application/json` | 24 bytes | `{"error":"Unauthorized"}` (Session token required) |
+| `https://trypatchbay.vercel.app/api/scan` | GET | `401 Unauthorized` | `application/json` | 24 bytes | `{"error":"Unauthorized"}` (Session token required) |
 
 ---
 
-## 6. Audit Limitations & Unverified Items
+## 6. Rate Limiting Architecture & Failure Mode Classification
 
-1. **Staging / Customer Live Execution:** No containerized microVM (e.g. Firecracker, Docker) is deployed in production serverless Lambdas. Arbitrary customer test execution is intentionally disabled.
-2. **Real-Time Changelog Scraping:** Continuous live scraping of arbitrary npm packages is not implemented; TryPatchBay relies on a curated migration rule registry.
-3. **Multi-Ecosystem Support:** Data structures accommodate generic ecosystems; parser and proof loop are active and tested for JavaScript/TypeScript (`npm`). Python/PyPI is planned.
+- **Normal Operation (PostgreSQL Active):**
+  - **Distributed Atomic Enforcement:** Evaluates SQL sliding-window upsert:
+    `INSERT INTO rate_limits (key, count, first_attempt_at, last_attempt_at) VALUES ($1, 1, $2, $2) ON CONFLICT (key) DO UPDATE ... RETURNING count, first_attempt_at`.
+  - Bounded across all serverless Lambda instances concurrently accessing the database.
+- **Failure Mode (PostgreSQL Down / Unreachable):**
+  - **Degraded Process-Local Fallback:** Catches database errors and falls back to an in-memory `Map` store local to the Node.js process.
+  - **Security Implications:** Because each Vercel serverless Lambda maintains an isolated memory store, an attacker distributing requests across $N$ distinct Lambda containers during a database outage could exceed the global threshold by up to $N \times \text{limit}$ requests. Enforcement does *not* fail open (unlimited) or fail closed (all blocked), but degrades to per-instance bounding.
+
+---
+
+## 7. Audit Limitations & Scope Boundaries
+
+1. **Test Fixtures vs. Customer Codebases:** Lodash and Mockpay are local test fixtures; they demonstrate engine mechanics, not customer adoption or live production migrations.
+2. **Customer Code Execution:** Customer repository execution is **fail-closed**; no microVM or container isolation is deployed on Vercel Lambdas.
+3. **Detection Scope:** Scans report zero matching rules for CipherBill; this does not prove zero breaking changes exist, only that no currently supported rules matched.
+4. **Commercial Traction:** TryPatchBay has $0 revenue and no paying customers. Pricing tiers represent planned commercial targets.

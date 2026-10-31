@@ -1,8 +1,8 @@
 # TryPatchBay — Final YC W27 Application Claim Audit
 
-**Audit Date & Time:** October 31, 2026, 18:50:00 IST (13:20:00 UTC)  
-**Repository:** `Nitish-1303/Patchversion`  
-**Commit SHA:** `7a4e18c4e14b2211e1f389a80e1ab6c1bc73e013`  
+**Audit Date & Time:** October 31, 2026, 19:00:00 IST (13:30:00 UTC)
+**Repository:** `Nitish-1303/Patchversion`
+**Commit SHA:** `cee10e2`
 
 ---
 
@@ -13,7 +13,7 @@ Every claim made across the YC application materials (`YC_W27_APPLICATION.md`, `
 Claims are categorized into:
 - **VERIFIED:** Supported by direct code or test evidence.
 - **NEEDS REVISION:** Factually true in part, but worded too broadly or optimistically.
-- **REJECTED:** Unsupported by evidence (e.g. implying paying customers, multi-language support, or microVM sandboxing).
+- **REJECTED:** Unsupported by evidence (e.g. implying paying customers, multi-language support, complete breaking-change coverage, or microVM sandboxing).
 
 ---
 
@@ -43,3 +43,4 @@ To ensure complete defensibility under a skeptical YC partner's questioning:
 3. **Language Scope (`YC_PRODUCT_DESCRIPTION.md` & `YC_W27_APPLICATION.md`):** Clarified that npm/TypeScript is active, while Python is planned.
 4. **Execution Boundaries (`YC_PRODUCT_DESCRIPTION.md` & `YC_TECHNICAL_READINESS.md`):** Explicitly noted that proof loops execute in local child processes on fixtures, while live customer execution is fail-closed.
 5. **CipherBill Status (`YC_DEMO_SCRIPT.md`):** Clarified CipherBill is an open-source demonstration target, not a commercial customer.
+6. **Rate Limiting Reclassification:** Reclassified from "fully distributed" to "distributed atomic under normal database operation, degraded process-local fallback during database failure".

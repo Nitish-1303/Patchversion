@@ -1,9 +1,9 @@
 # TryPatchBay — Final Security Verification & Defenses Report
 
-**Audit Date & Time:** October 31, 2026, 18:50:00 IST (13:20:00 UTC)  
-**Auditor:** Application Security & Infrastructure Reviewer  
-**Repository:** `Nitish-1303/Patchversion`  
-**Commit SHA:** `7a4e18c4e14b2211e1f389a80e1ab6c1bc73e013`  
+**Audit Date & Time:** October 31, 2026, 19:00:00 IST (13:30:00 UTC)
+**Auditor:** Application Security & Infrastructure Reviewer
+**Repository:** `Nitish-1303/Patchversion`
+**Commit SHA:** `cee10e2`
 
 ---
 
@@ -14,7 +14,7 @@ TryPatchBay interacts with developer repositories, dependency manifests, and aut
 1. **Zero Untrusted Execution:** Untrusted customer repositories are never executed on host serverless runtimes.
 2. **Strict Multi-Tenancy:** Tenant IDs are derived exclusively from authenticated server session context, never client payloads.
 3. **Defense-in-Depth File Access:** Path traversal, external symlinks, and dangling symlinks are trapped before file access.
-4. **Atomic Distributed Rate Limiting:** High-frequency mutation and authentication routes are bounded by atomic database counters.
+4. **Resilient Rate Limiting:** High-frequency mutation and authentication routes are bounded by atomic database counters under normal operations, degrading to process-local limits under database failure.
 
 ---
 
@@ -36,18 +36,33 @@ TryPatchBay interacts with developer repositories, dependency manifests, and aut
 
 ---
 
-### SEC-002: Distributed Sliding-Window Atomic Rate Limiting
+### SEC-002: Rate Limiting Architecture, Reclassification & Security Implications
 - **Implementation:** [`rate-limiter.ts`](file:///C:/Users/NITISH/Downloads/Patchversion/packages/site/src/app/api/security/rate-limiter.ts).
-- **Database Semantics:**
-  - Evaluates an atomic PostgreSQL `INSERT ... ON CONFLICT (key) DO UPDATE` query returning `count` and `first_attempt_at`.
-  - Window reset occurs atomically in SQL when `first_attempt_at + windowMs <= now`.
-- **Rate Limit Policy by Endpoint:**
-  - **Authentication (`POST /api/auth`):** Maximum 5 failed attempts per minute per IP + email key. Returns `429 Too Many Requests` with `Retry-After: 60`.
-  - **Scanning (`POST /api/scan`):** Maximum 10 scan requests per minute per tenant ID. Returns `429 Too Many Requests` with `Retry-After: 60`.
-- **Database Failure Policy Classification:**
-  - **Classification:** **Degraded local-only enforcement.**
-  - **Behavior:** If PostgreSQL is unreachable or connection fails, `RateLimiter` falls back to an in-process `Map` memory store.
-  - **Consequence for Serverless Clusters:** In an outage where PostgreSQL is offline, rate limits are enforced per-instance rather than globally. An attacker whose requests hit $N$ distinct serverless Lambda instances could make up to $N \times \text{limit}$ requests during the failure window. The platform does *not* fail open (unlimited) or fail closed (all blocked), but degrades gracefully to local bounding.
+- **Normal Database Operation:**
+  - **Distributed Atomic Enforcement:** When `getPostgresStore()` is available, `RateLimiter` executes an atomic SQL sliding-window upsert:
+    ```sql
+    INSERT INTO rate_limits (key, count, first_attempt_at, last_attempt_at)
+    VALUES ($1, 1, $2, $2)
+    ON CONFLICT (key) DO UPDATE
+    SET count = CASE
+          WHEN rate_limits.first_attempt_at + $3 <= $2 THEN 1
+          ELSE rate_limits.count + 1
+        END,
+        first_attempt_at = CASE
+          WHEN rate_limits.first_attempt_at + $3 <= $2 THEN $2
+          ELSE rate_limits.first_attempt_at
+        END,
+        last_attempt_at = $2
+    RETURNING count, first_attempt_at;
+    ```
+  - This guarantees atomic consistency across all Vercel serverless Lambda instances without race conditions.
+- **Database Failure Behavior:**
+  - **Degraded Process-Local Fallback:** If PostgreSQL is unreachable or connection fails, the query exception is caught and execution falls back to an in-memory `Map` store local to that specific Lambda process instance.
+- **Security Implications:**
+  - **Degraded Local-Only Enforcement:** During a database outage or when `DATABASE_URL` is unconfigured, rate limiting is *not* globally synchronized.
+  - Each serverless Lambda container maintains its own separate memory counter.
+  - Consequently, an attacker who distributes requests across $N$ distinct serverless Lambda instances could make up to $N \times \text{limit}$ requests during a database outage without triggering HTTP 429.
+  - The system does *not* fail open (unlimited per process) or fail closed (all blocked), but degrades to per-instance bounding.
 
 ---
 
