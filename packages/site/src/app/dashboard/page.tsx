@@ -774,7 +774,7 @@ export default function DashboardPage() {
                       {findings.length > 0 ? `${findings.length} regression(s) found` : '0 breaking changes (clean)'}
                     </div>
                     <div style={{ fontSize: '11px', color: '#475569', marginTop: '2px' }}>
-                      {findings.length > 0 ? `${findings[0].packageName} ${findings[0].fromVersion} → ${findings[0].toVersion}` : 'Monitored packages are on stable, compatible APIs'}
+                      {findings.length > 0 ? `${findings[0].packageName} ${findings[0].fromVersion} → ${findings[0].toVersion}` : 'No breaking changes matched the migration rules currently supported by TryPatchBay.'}
                     </div>
                   </div>
                   <div style={{ padding: '10px', background: '#ffffff', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '12px' }}>
@@ -980,7 +980,7 @@ export default function DashboardPage() {
                 <h2 style={{ marginTop: '8px' }}>No Breaking Regressions Detected</h2>
                 <p style={{ marginTop: '4px', color: '#475569' }}>
                   Genuine read-only dependency analysis completed against public GitHub manifests (<code>package.json</code> &amp; <code>package-lock.json</code>).
-                  All <strong>{scanResult?.totalDependencies ?? 0}</strong> mapped dependencies are currently on stable, compatible versions with zero breaking contract drift against monitored migration rules.
+                  No breaking changes matched the migration rules currently supported by TryPatchBay across the <strong>{scanResult?.totalDependencies ?? 0}</strong> mapped dependencies.
                 </p>
                 <div style={{ marginTop: '14px', padding: '10px 14px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '11px' }}>
                   <strong style={{ color: '#0f172a' }}>Execution Boundary Status:</strong> Untrusted customer code execution is disabled. No arbitrary test suites were executed on the serverless host.
