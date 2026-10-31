@@ -134,20 +134,60 @@ export class WorkflowOrchestrator {
       });
     } else {
       // Fetch manifests, lockfiles, and bounded source files from remote GitHub repository
-      const inst = await this.db.getInstallation(tenantId, repo.installationId);
-      if (!inst || inst.status !== 'active') {
-        throw new Error(`Cannot scan remote repository: GitHub App installation is not active or has been deleted for repository ${repo.fullName}`);
+      let token: string | undefined;
+      if (repo.installationId) {
+        const inst = await this.db.getInstallation(tenantId, repo.installationId);
+        if (inst && inst.status !== 'active') {
+          throw new Error(
+            `Cannot scan remote repository: GitHub App installation is not active or has been deleted for repository ${repo.fullName}`,
+          );
+        }
+        if (inst && inst.status === 'active' && this.github.isConfigured()) {
+          try {
+            token = await this.github.getInstallationToken(inst.githubInstallationId);
+          } catch (tokenErr) {
+            if (repo.isPrivate) {
+              throw new Error(
+                `Cannot scan private repository: Failed to acquire installation token for ${repo.fullName}: ${tokenErr instanceof Error ? tokenErr.message : String(tokenErr)}`,
+              );
+            }
+          }
+        } else if (repo.isPrivate) {
+          throw new Error(
+            `Cannot scan remote repository: GitHub App installation is not active or has been deleted for repository ${repo.fullName}`,
+          );
+        }
+      } else if (repo.isPrivate) {
+        throw new Error(
+          `Cannot scan remote repository: GitHub App installation is required for private repository ${repo.fullName}`,
+        );
       }
-      const token = await this.github.getInstallationToken(inst.githubInstallationId);
+
       const fileProvider: IRepositoryFileProvider = {
         getFileContent: async (filePath: string): Promise<string | null> => {
-          return await this.github.getRepositoryFileContent(repo.owner, repo.name, filePath, token);
+          return await this.github.getRepositoryFileContent(
+            repo.owner,
+            repo.name,
+            filePath,
+            token,
+            repo.defaultBranch || 'main',
+          );
         },
         listFiles: async (): Promise<string[]> => {
-          return await this.github.listRepositoryFiles(repo.owner, repo.name, token);
+          return await this.github.listRepositoryFiles(
+            repo.owner,
+            repo.name,
+            token,
+            repo.defaultBranch || 'main',
+          );
         },
         getBranchHeadSha: async (branch?: string): Promise<string> => {
-          return await this.github.getBranchHeadSha(repo.owner, repo.name, branch || repo.defaultBranch || 'main', token);
+          return await this.github.getBranchHeadSha(
+            repo.owner,
+            repo.name,
+            branch || repo.defaultBranch || 'main',
+            token,
+          );
         },
       };
       scanResult = await this.scanner.scanRemoteRepository(tenantId, repo.id, fileProvider, {

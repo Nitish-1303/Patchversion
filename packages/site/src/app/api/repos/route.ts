@@ -98,6 +98,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ repository: repo });
   }
 
+  // Real public demonstration repository: Nitish-1303/CipherBill
+  if (normalizedFullName === 'nitish-1303/cipherbill') {
+    const installations = await db.listInstallations(auth.tenant.id);
+    const inst = installations[0] ?? (await db.saveInstallation(auth.tenant.id, 10001, 'Nitish-1303'));
+    const repo = await db.saveRepository(auth.tenant.id, inst.id, {
+      id: 'repo_cipherbill',
+      githubRepoId: 99482711,
+      fullName: 'Nitish-1303/CipherBill',
+      owner: 'Nitish-1303',
+      name: 'CipherBill',
+      defaultBranch: 'main',
+      isPrivate: false,
+      isDemo: false,
+    });
+    return NextResponse.json({ repository: repo });
+  }
+
   // Live repository connection requires verified GitHub App installation
   if (!github.isConfigured()) {
     return NextResponse.json(

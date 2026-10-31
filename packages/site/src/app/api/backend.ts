@@ -166,6 +166,7 @@ export function getOrchestrator(): WorkflowOrchestrator {
 export const DEMO_TENANT_ID = 'ten_demo_workspace';
 export const DEMO_USER_ID = 'usr_demo_developer';
 export const DEMO_REPO_ID = 'repo_demo_checkout_service';
+export const CIPHERBILL_REPO_ID = 'repo_cipherbill';
 export const DEMO_FINDING_ID = 'finding_demo_mockpay_1_0_0_to_2_0_0';
 export const DEMO_PATCH_ID = 'patch_demo_mockpay_1_0_0_to_2_0_0';
 export const DEMO_VALIDATION_ID = 'val_demo_mockpay_1_0_0_to_2_0_0';
@@ -258,6 +259,21 @@ export async function ensureDemoTenantAndUser(): Promise<{ tenant: Tenant; user:
       isPrivate: false,
       localPath: fixtureRepoPath,
       isDemo: true,
+    });
+  }
+
+  // Pre-register real public repository CipherBill for live read-only AST demonstration
+  const cipherbillRepo = await db.getRepository(tenant.id, CIPHERBILL_REPO_ID);
+  if (!cipherbillRepo) {
+    await db.saveRepository(tenant.id, inst.id, {
+      id: CIPHERBILL_REPO_ID,
+      githubRepoId: 99482711,
+      fullName: 'Nitish-1303/CipherBill',
+      owner: 'Nitish-1303',
+      name: 'CipherBill',
+      defaultBranch: 'main',
+      isPrivate: false,
+      isDemo: false,
     });
   }
 
