@@ -86,6 +86,7 @@ export interface ProofArtifact {
   producedAt: string;
   sandboxType: 'docker-isolated' | 'local-process';
   durationMs: number;
+  executionProvenance?: 'fixture-verified' | 'executed' | 'not-executed';
 }
 
 export interface TestResult {
@@ -284,6 +285,7 @@ export interface ValidationRecord {
   tenantId: string;
   patchId: string;
   status: 'passed' | 'failed' | 'inconclusive';
+  executionProvenance?: 'fixture-verified' | 'executed' | 'not-executed';
   proof?: ProofArtifact;
   executionLogs: string;
   durationMs: number;

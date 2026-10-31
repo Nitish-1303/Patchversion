@@ -55,6 +55,7 @@ interface Finding {
   validation?: {
     id: string;
     status: string;
+    executionProvenance?: 'fixture-verified' | 'executed' | 'not-executed';
     executionLogs: string;
   };
   approval?: {
@@ -770,6 +771,32 @@ export default function DashboardPage() {
                     </strong>
                   </div>
 
+                  <div className="table-row">
+                    <span>Execution Provenance</span>
+                    <span
+                      style={{
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        background:
+                          primaryFinding.validation?.executionProvenance === 'executed'
+                            ? '#dcfce7'
+                            : primaryFinding.validation?.executionProvenance === 'fixture-verified'
+                            ? '#fef3c7'
+                            : '#f1f5f9',
+                        color:
+                          primaryFinding.validation?.executionProvenance === 'executed'
+                            ? '#166534'
+                            : primaryFinding.validation?.executionProvenance === 'fixture-verified'
+                            ? '#92400e'
+                            : '#475569',
+                      }}
+                    >
+                      {primaryFinding.validation?.executionProvenance?.toUpperCase() ?? 'NOT-EXECUTED'}
+                    </span>
+                  </div>
+
                   {primaryFinding.validation && (
                     <div style={{ marginTop: '10px', fontSize: '10px', background: '#f8fafc', padding: '8px', borderRadius: '4px' }}>
                       <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{primaryFinding.validation.executionLogs}</pre>
@@ -1317,7 +1344,7 @@ export default function DashboardPage() {
               {findings.map(f => (
                 <React.Fragment key={f.id}>
                   <p><span>Regression detected</span><span>{f.packageName} {f.fromVersion} → {f.toVersion}</span></p>
-                  {f.validation && <p><span>Isolated proof</span><span>Status: {f.validation.status}</span></p>}
+                  {f.validation && <p><span>Isolated proof</span><span>Status: {f.validation.status} ({f.validation.executionProvenance || 'fixture-verified'})</span></p>}
                   {f.approval && <p><span>Human approval granted</span><span>Hash: {f.patch?.diffHash.slice(0, 8)}</span></p>}
                   {f.pullRequest && <p><span>PR Delivered</span><span>#{f.pullRequest.githubPrNumber} {f.pullRequest.isSimulation ? '(Local simulation)' : ''}</span></p>}
                 </React.Fragment>

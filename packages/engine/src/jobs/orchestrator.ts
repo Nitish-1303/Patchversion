@@ -255,13 +255,15 @@ export class WorkflowOrchestrator {
           producedAt: new Date().toISOString(),
           sandboxType: 'local-process',
           durationMs: 325,
+          executionProvenance: 'fixture-verified',
         };
 
         const validation = await this.db.saveValidation(tenantId, patch.id, {
           status: 'passed',
+          executionProvenance: 'fixture-verified',
           proof: demoProof,
           executionLogs:
-            'Baseline: Exit 0 (tests pass on v1)\nRed: Exit 1 (tests fail on v2 without patch: source parameter unrecognised)\nGreen: Exit 0 (tests pass on v2 with AST patch: payment_method parameter)\n',
+            '[FIXTURE-VERIFIED] Proof loaded from deterministic sample-repo verification fixture.\nBaseline: Exit 0 (tests pass on v1)\nRed: Exit 1 (tests fail on v2 without patch: source parameter unrecognised)\nGreen: Exit 0 (tests pass on v2 with AST patch: payment_method parameter)\n',
           durationMs: 325,
         });
 
@@ -292,15 +294,18 @@ export class WorkflowOrchestrator {
     );
 
     const validationStatus = proveResult.outcome === 'fixed' ? 'passed' : 'failed';
+    const executionProvenance = proveResult.outcome === 'fixed' ? 'executed' : 'not-executed';
     const executionLogs = proveResult.proof
-      ? `Baseline: Exit ${proveResult.proof.baselineResult.exitCode}\n` +
+      ? `[EXECUTED] Live sandbox proof executed against test suite.\n` +
+        `Baseline: Exit ${proveResult.proof.baselineResult.exitCode}\n` +
         `Red: Exit ${proveResult.proof.redResult.exitCode}\n` +
         `Green: Exit ${proveResult.proof.greenResult.exitCode}\n`
       : (proveResult.reason ?? 'Validation failed or inconclusive');
 
     const validation = await this.db.saveValidation(tenantId, patch.id, {
       status: validationStatus,
-      proof: proveResult.proof ?? undefined,
+      executionProvenance,
+      proof: proveResult.proof ? { ...proveResult.proof, executionProvenance } : undefined,
       executionLogs,
       durationMs: proveResult.proof?.durationMs ?? 0,
     });

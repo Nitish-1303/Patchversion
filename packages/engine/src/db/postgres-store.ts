@@ -1045,6 +1045,13 @@ export class PostgresStore implements IPersistenceStore {
 
     const client = await this.pool.connect();
     try {
+      const proofWithProvenance = data.proof
+        ? {
+            ...data.proof,
+            executionProvenance: data.executionProvenance || data.proof.executionProvenance || 'fixture-verified',
+          }
+        : null;
+
       await client.query('BEGIN');
       await client.query(
         `INSERT INTO validations (id, tenant_id, patch_id, status, proof, execution_logs, duration_ms, created_at)
@@ -1055,7 +1062,7 @@ export class PostgresStore implements IPersistenceStore {
           tenantId,
           patchId,
           data.status,
-          data.proof ? JSON.stringify(data.proof) : null,
+          proofWithProvenance ? JSON.stringify(proofWithProvenance) : null,
           data.executionLogs,
           data.durationMs,
           now,
@@ -1078,7 +1085,8 @@ export class PostgresStore implements IPersistenceStore {
         tenantId,
         patchId,
         status: data.status,
-        proof: data.proof,
+        executionProvenance: data.executionProvenance || proofWithProvenance?.executionProvenance,
+        proof: proofWithProvenance ?? undefined,
         executionLogs: data.executionLogs,
         durationMs: data.durationMs,
         createdAt: now,
@@ -1104,12 +1112,24 @@ export class PostgresStore implements IPersistenceStore {
     }>('SELECT * FROM validations WHERE tenant_id = $1 AND id = $2', [tenantId, id]);
     if (!rows[0]) return null;
     const v = rows[0];
+    const proof = typeof v.proof === 'string' ? JSON.parse(v.proof) : v.proof as ValidationRecord['proof'];
+    const executionProvenance: ValidationRecord['executionProvenance'] =
+      proof?.executionProvenance ||
+      (v.execution_logs?.startsWith('[FIXTURE-VERIFIED]')
+        ? 'fixture-verified'
+        : v.execution_logs?.startsWith('[EXECUTED]')
+        ? 'executed'
+        : proof
+        ? 'fixture-verified'
+        : 'not-executed');
+
     return {
       id: v.id,
       tenantId: v.tenant_id,
       patchId: v.patch_id,
       status: v.status,
-      proof: typeof v.proof === 'string' ? JSON.parse(v.proof) : v.proof as ValidationRecord['proof'],
+      executionProvenance,
+      proof,
       executionLogs: v.execution_logs,
       durationMs: Number(v.duration_ms),
       createdAt: v.created_at,
@@ -1129,12 +1149,24 @@ export class PostgresStore implements IPersistenceStore {
     }>('SELECT * FROM validations WHERE tenant_id = $1 AND patch_id = $2 ORDER BY created_at DESC LIMIT 1', [tenantId, patchId]);
     if (!rows[0]) return null;
     const v = rows[0];
+    const proof = typeof v.proof === 'string' ? JSON.parse(v.proof) : v.proof as ValidationRecord['proof'];
+    const executionProvenance: ValidationRecord['executionProvenance'] =
+      proof?.executionProvenance ||
+      (v.execution_logs?.startsWith('[FIXTURE-VERIFIED]')
+        ? 'fixture-verified'
+        : v.execution_logs?.startsWith('[EXECUTED]')
+        ? 'executed'
+        : proof
+        ? 'fixture-verified'
+        : 'not-executed');
+
     return {
       id: v.id,
       tenantId: v.tenant_id,
       patchId: v.patch_id,
       status: v.status,
-      proof: typeof v.proof === 'string' ? JSON.parse(v.proof) : v.proof as ValidationRecord['proof'],
+      executionProvenance,
+      proof,
       executionLogs: v.execution_logs,
       durationMs: Number(v.duration_ms),
       createdAt: v.created_at,

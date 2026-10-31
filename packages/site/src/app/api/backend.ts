@@ -349,6 +349,7 @@ export async function ensureDemoTenantAndUser(): Promise<{ tenant: Tenant; user:
     await db.saveValidation(tenant.id, patch.id, {
       id: DEMO_VALIDATION_ID,
       status: 'passed',
+      executionProvenance: 'fixture-verified',
       proof: {
         id: 'proof_mockpay_2_0_0',
         changeId: mockpayChange.id,
@@ -382,8 +383,10 @@ export async function ensureDemoTenantAndUser(): Promise<{ tenant: Tenant; user:
         producedAt: new Date().toISOString(),
         sandboxType: 'local-process',
         durationMs: 55700,
+        executionProvenance: 'fixture-verified',
       },
       executionLogs:
+        '[FIXTURE-VERIFIED] Proof loaded from deterministic sample-repo verification fixture.\n' +
         'Baseline (1.0.0): Exit 0 - 3 passed, 0 failed, 3 total\n' +
         'Bumped (2.0.0):   Exit 1 - 1 passed, 2 failed, 3 total\n' +
         'After fix (2.0.0): Exit 0 - 3 passed, 0 failed, 3 total\n' +

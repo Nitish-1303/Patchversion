@@ -748,12 +748,12 @@ export class PatchversionDatabase implements IPersistenceStore {
           f.toVersion === data.toVersion,
       );
     }
-    const id = data.id ?? existing?.id ?? `finding_${crypto.randomUUID()}`;
+    const id = existing?.id ?? data.id ?? `finding_${crypto.randomUUID()}`;
     const finding: FindingRecord = {
+      ...data,
       id,
       tenantId,
       repositoryId,
-      ...data,
       createdAt: existing?.createdAt ?? new Date().toISOString(),
     };
     this.data.findings[id] = finding;
