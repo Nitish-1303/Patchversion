@@ -1,5 +1,6 @@
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import {
   FindingRecord,
   PatchRecord,
@@ -71,7 +72,12 @@ export class WorkflowOrchestrator {
     this.mapper = new UsageMapper();
     this.scanner = new RepositoryScanner();
     this.fixGen = new FixGenerator(process.env.ANTHROPIC_API_KEY ?? null);
-    const stateDir = typeof this.db.getDataDir === 'function' ? this.db.getDataDir() : process.cwd();
+    const stateDir =
+      process.env.PATCHVERSION_STATE_DIR ||
+      (typeof this.db.getDataDir === 'function' ? this.db.getDataDir() : undefined) ||
+      (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME
+        ? path.join(os.tmpdir(), '.patchversion-state')
+        : path.join(process.cwd(), '.patchversion-state'));
     this.prBot = new PRBot(new StateStore(stateDir));
     this.workerId = options?.workerId ?? `worker_${process.pid}`;
   }

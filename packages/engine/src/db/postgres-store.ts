@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import os from 'os';
 import { Pool, PoolConfig } from 'pg';
 import {
   Tenant,
@@ -57,6 +58,16 @@ export class PostgresStore implements IPersistenceStore {
 
   async close(): Promise<void> {
     await this.pool.end();
+  }
+
+  getDataDir(): string {
+    if (process.env.PATCHVERSION_STATE_DIR) {
+      return process.env.PATCHVERSION_STATE_DIR;
+    }
+    if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+      return path.join(os.tmpdir(), '.patchversion-state');
+    }
+    return path.join(process.cwd(), '.patchversion-state');
   }
 
   async query<T = unknown>(text: string, params: unknown[] = []): Promise<T[]> {

@@ -36,8 +36,12 @@ export class StateStore {
   }
 
   private ensureDir(dir: string): void {
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+    try {
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+    } catch {
+      // In restricted or read-only container/serverless filesystems, fail closed safely
     }
   }
 
