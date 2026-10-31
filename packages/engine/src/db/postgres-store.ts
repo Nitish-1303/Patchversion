@@ -828,7 +828,7 @@ export class PostgresStore implements IPersistenceStore {
     const now = new Date().toISOString();
     const status = data.status || 'open';
 
-    await this.pool.query(
+    const res = await this.pool.query<{ id: string; created_at: string }>(
       `INSERT INTO findings (id, tenant_id, repository_id, package_name, from_version, to_version, is_breaking, change_record, impact_analysis, status, source_analysis_performed, analysis_mode, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        ON CONFLICT (tenant_id, repository_id, package_name, from_version, to_version) DO UPDATE SET
@@ -837,7 +837,8 @@ export class PostgresStore implements IPersistenceStore {
          impact_analysis = EXCLUDED.impact_analysis,
          status = EXCLUDED.status,
          source_analysis_performed = EXCLUDED.source_analysis_performed,
-         analysis_mode = EXCLUDED.analysis_mode`,
+         analysis_mode = EXCLUDED.analysis_mode
+       RETURNING id, created_at`,
       [
         id,
         tenantId,
@@ -855,8 +856,11 @@ export class PostgresStore implements IPersistenceStore {
       ],
     );
 
+    const actualId = res.rows[0]?.id || id;
+    const actualCreatedAt = res.rows[0]?.created_at || now;
+
     return {
-      id,
+      id: actualId,
       tenantId,
       repositoryId,
       packageName: data.packageName,
@@ -868,7 +872,7 @@ export class PostgresStore implements IPersistenceStore {
       status,
       sourceAnalysisPerformed: data.sourceAnalysisPerformed,
       analysisMode: data.analysisMode,
-      createdAt: now,
+      createdAt: actualCreatedAt,
     };
   }
 

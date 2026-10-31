@@ -161,6 +161,7 @@ export class WorkflowOrchestrator {
     const savedFindings: FindingRecord[] = [];
     for (const f of scanResult.findings) {
       const saved = await this.db.saveFinding(tenantId, repo.id, {
+        id: f.id,
         packageName: f.packageName,
         fromVersion: f.fromVersion,
         toVersion: f.toVersion,
