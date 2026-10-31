@@ -47,7 +47,10 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const repos = await db.listRepositories(auth.tenant.id);
+  let repos = await db.listRepositories(auth.tenant.id);
+  if (auth.tenant.id === DEMO_TENANT_ID) {
+    repos = repos.filter(r => r.fullName === 'Nitish-1303/CipherBill');
+  }
   return NextResponse.json({
     repositories: repos,
     storage: getStorageModeInfo(),
@@ -94,6 +97,23 @@ export async function POST(request: NextRequest) {
       isPrivate: false,
       isDemo: true,
       // Client-supplied localPath is completely ignored
+    });
+    return NextResponse.json({ repository: repo });
+  }
+
+  // Real public demonstration repository: Nitish-1303/CipherBill
+  if (normalizedFullName === 'nitish-1303/cipherbill') {
+    const installations = await db.listInstallations(auth.tenant.id);
+    const inst = installations[0] ?? (await db.saveInstallation(auth.tenant.id, 10001, 'Nitish-1303'));
+    const repo = await db.saveRepository(auth.tenant.id, inst.id, {
+      id: 'repo_cipherbill',
+      githubRepoId: 99482711,
+      fullName: 'Nitish-1303/CipherBill',
+      owner: 'Nitish-1303',
+      name: 'CipherBill',
+      defaultBranch: 'main',
+      isPrivate: false,
+      isDemo: false,
     });
     return NextResponse.json({ repository: repo });
   }

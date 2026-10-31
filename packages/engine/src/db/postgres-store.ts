@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import os from 'os';
 import { Pool, PoolConfig } from 'pg';
 import {
   Tenant,
@@ -17,6 +18,7 @@ import {
   WatchTargetRecord,
   InstallationOnboardingState,
   DeliveryClaimRecord,
+  RepositoryScanResult,
 } from '@patchversion/shared';
 import { IPersistenceStore } from './store-interface';
 
@@ -56,6 +58,16 @@ export class PostgresStore implements IPersistenceStore {
 
   async close(): Promise<void> {
     await this.pool.end();
+  }
+
+  getDataDir(): string {
+    if (process.env.PATCHVERSION_STATE_DIR) {
+      return process.env.PATCHVERSION_STATE_DIR;
+    }
+    if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+      return path.join(os.tmpdir(), '.patchversion-state');
+    }
+    return path.join(process.cwd(), '.patchversion-state');
   }
 
   async query<T = unknown>(text: string, params: unknown[] = []): Promise<T[]> {
@@ -122,7 +134,7 @@ export class PostgresStore implements IPersistenceStore {
   async createUser(
     tenantId: string,
     email: string,
-    role: 'owner' | 'admin' | 'member' = 'member',
+    role: 'owner' | 'admin' | 'member' | 'reviewer' = 'member',
     githubLogin?: string,
     githubUserId?: string,
     id?: string,
@@ -153,7 +165,7 @@ export class PostgresStore implements IPersistenceStore {
       id: string;
       tenant_id: string;
       email: string;
-      role: 'owner' | 'admin' | 'member';
+      role: 'owner' | 'admin' | 'member' | 'reviewer';
       github_user_id?: string;
       github_login?: string;
       password_hash?: string;
@@ -177,7 +189,7 @@ export class PostgresStore implements IPersistenceStore {
       id: string;
       tenant_id: string;
       email: string;
-      role: 'owner' | 'admin' | 'member';
+      role: 'owner' | 'admin' | 'member' | 'reviewer';
       github_user_id?: string;
       github_login?: string;
       password_hash?: string;
@@ -816,7 +828,7 @@ export class PostgresStore implements IPersistenceStore {
     const now = new Date().toISOString();
     const status = data.status || 'open';
 
-    await this.pool.query(
+    const res = await this.pool.query<{ id: string; created_at: string }>(
       `INSERT INTO findings (id, tenant_id, repository_id, package_name, from_version, to_version, is_breaking, change_record, impact_analysis, status, source_analysis_performed, analysis_mode, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        ON CONFLICT (tenant_id, repository_id, package_name, from_version, to_version) DO UPDATE SET
@@ -825,7 +837,8 @@ export class PostgresStore implements IPersistenceStore {
          impact_analysis = EXCLUDED.impact_analysis,
          status = EXCLUDED.status,
          source_analysis_performed = EXCLUDED.source_analysis_performed,
-         analysis_mode = EXCLUDED.analysis_mode`,
+         analysis_mode = EXCLUDED.analysis_mode
+       RETURNING id, created_at`,
       [
         id,
         tenantId,
@@ -843,8 +856,11 @@ export class PostgresStore implements IPersistenceStore {
       ],
     );
 
+    const actualId = res.rows[0]?.id || id;
+    const actualCreatedAt = res.rows[0]?.created_at || now;
+
     return {
-      id,
+      id: actualId,
       tenantId,
       repositoryId,
       packageName: data.packageName,
@@ -856,7 +872,7 @@ export class PostgresStore implements IPersistenceStore {
       status,
       sourceAnalysisPerformed: data.sourceAnalysisPerformed,
       analysisMode: data.analysisMode,
-      createdAt: now,
+      createdAt: actualCreatedAt,
     };
   }
 
@@ -873,7 +889,7 @@ export class PostgresStore implements IPersistenceStore {
       impact_analysis: unknown;
       status: 'open' | 'fixing' | 'validated' | 'approved' | 'pr_created' | 'dismissed';
       source_analysis_performed?: boolean;
-      analysis_mode?: 'local-ast' | 'remote-manifest-only';
+      analysis_mode?: 'local-ast' | 'remote-manifest-only' | 'remote-ast';
       created_at: string;
     }>('SELECT * FROM findings WHERE tenant_id = $1 AND id = $2', [tenantId, id]);
     if (!rows[0]) return null;
@@ -912,7 +928,7 @@ export class PostgresStore implements IPersistenceStore {
       impact_analysis: unknown;
       status: 'open' | 'fixing' | 'validated' | 'approved' | 'pr_created' | 'dismissed';
       source_analysis_performed?: boolean;
-      analysis_mode?: 'local-ast' | 'remote-manifest-only';
+      analysis_mode?: 'local-ast' | 'remote-manifest-only' | 'remote-ast';
       created_at: string;
     }>(query, params);
 
@@ -1029,6 +1045,13 @@ export class PostgresStore implements IPersistenceStore {
 
     const client = await this.pool.connect();
     try {
+      const proofWithProvenance = data.proof
+        ? {
+            ...data.proof,
+            executionProvenance: data.executionProvenance || data.proof.executionProvenance || 'fixture-verified',
+          }
+        : null;
+
       await client.query('BEGIN');
       await client.query(
         `INSERT INTO validations (id, tenant_id, patch_id, status, proof, execution_logs, duration_ms, created_at)
@@ -1039,7 +1062,7 @@ export class PostgresStore implements IPersistenceStore {
           tenantId,
           patchId,
           data.status,
-          data.proof ? JSON.stringify(data.proof) : null,
+          proofWithProvenance ? JSON.stringify(proofWithProvenance) : null,
           data.executionLogs,
           data.durationMs,
           now,
@@ -1062,7 +1085,8 @@ export class PostgresStore implements IPersistenceStore {
         tenantId,
         patchId,
         status: data.status,
-        proof: data.proof,
+        executionProvenance: data.executionProvenance || proofWithProvenance?.executionProvenance,
+        proof: proofWithProvenance ?? undefined,
         executionLogs: data.executionLogs,
         durationMs: data.durationMs,
         createdAt: now,
@@ -1088,12 +1112,24 @@ export class PostgresStore implements IPersistenceStore {
     }>('SELECT * FROM validations WHERE tenant_id = $1 AND id = $2', [tenantId, id]);
     if (!rows[0]) return null;
     const v = rows[0];
+    const proof = typeof v.proof === 'string' ? JSON.parse(v.proof) : v.proof as ValidationRecord['proof'];
+    const executionProvenance: ValidationRecord['executionProvenance'] =
+      proof?.executionProvenance ||
+      (v.execution_logs?.startsWith('[FIXTURE-VERIFIED]')
+        ? 'fixture-verified'
+        : v.execution_logs?.startsWith('[EXECUTED]')
+        ? 'executed'
+        : proof
+        ? 'fixture-verified'
+        : 'not-executed');
+
     return {
       id: v.id,
       tenantId: v.tenant_id,
       patchId: v.patch_id,
       status: v.status,
-      proof: typeof v.proof === 'string' ? JSON.parse(v.proof) : v.proof as ValidationRecord['proof'],
+      executionProvenance,
+      proof,
       executionLogs: v.execution_logs,
       durationMs: Number(v.duration_ms),
       createdAt: v.created_at,
@@ -1113,12 +1149,24 @@ export class PostgresStore implements IPersistenceStore {
     }>('SELECT * FROM validations WHERE tenant_id = $1 AND patch_id = $2 ORDER BY created_at DESC LIMIT 1', [tenantId, patchId]);
     if (!rows[0]) return null;
     const v = rows[0];
+    const proof = typeof v.proof === 'string' ? JSON.parse(v.proof) : v.proof as ValidationRecord['proof'];
+    const executionProvenance: ValidationRecord['executionProvenance'] =
+      proof?.executionProvenance ||
+      (v.execution_logs?.startsWith('[FIXTURE-VERIFIED]')
+        ? 'fixture-verified'
+        : v.execution_logs?.startsWith('[EXECUTED]')
+        ? 'executed'
+        : proof
+        ? 'fixture-verified'
+        : 'not-executed');
+
     return {
       id: v.id,
       tenantId: v.tenant_id,
       patchId: v.patch_id,
       status: v.status,
-      proof: typeof v.proof === 'string' ? JSON.parse(v.proof) : v.proof as ValidationRecord['proof'],
+      executionProvenance,
+      proof,
       executionLogs: v.execution_logs,
       durationMs: Number(v.duration_ms),
       createdAt: v.created_at,
@@ -1820,5 +1868,38 @@ export class PostgresStore implements IPersistenceStore {
     } finally {
       client.release();
     }
+  }
+
+  async saveScanResult(tenantId: string, repositoryId: string, result: RepositoryScanResult): Promise<void> {
+    const repo = await this.getRepository(tenantId, repositoryId);
+    if (!repo) {
+      throw new Error(`Repository ${repositoryId} not found for tenant ${tenantId}`);
+    }
+    const jobId = `job_scan_${crypto.randomUUID()}`;
+    const now = new Date().toISOString();
+    await this.pool.query(
+      `INSERT INTO jobs (id, tenant_id, repository_id, type, status, payload, result, updated_at)
+       VALUES ($1, $2, $3, 'scan_dependencies', 'completed', $4, $5, $6)`,
+      [
+        jobId,
+        tenantId,
+        repositoryId,
+        JSON.stringify({ repositoryId, scannedAt: result.scannedAt }),
+        JSON.stringify(result),
+        now,
+      ],
+    );
+  }
+
+  async getLatestScanResult(tenantId: string, repositoryId: string): Promise<RepositoryScanResult | null> {
+    const res = await this.pool.query(
+      `SELECT result FROM jobs
+       WHERE tenant_id = $1 AND repository_id = $2 AND type = 'scan_dependencies' AND status = 'completed'
+       ORDER BY created_at DESC LIMIT 1`,
+      [tenantId, repositoryId],
+    );
+    if (res.rows.length === 0 || !res.rows[0].result) return null;
+    const raw = res.rows[0].result;
+    return typeof raw === 'string' ? JSON.parse(raw) : (raw as RepositoryScanResult);
   }
 }

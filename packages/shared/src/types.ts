@@ -64,7 +64,7 @@ export interface ImpactAnalysis {
   potentialCallSites?: CallSite[];
   coveragePercent: number;
   sourceAnalysisPerformed?: boolean;
-  analysisMode?: 'local-ast' | 'remote-manifest-only';
+  analysisMode?: 'local-ast' | 'remote-manifest-only' | 'remote-ast';
   analyzedAt: string;
 }
 
@@ -86,6 +86,7 @@ export interface ProofArtifact {
   producedAt: string;
   sandboxType: 'docker-isolated' | 'local-process';
   durationMs: number;
+  executionProvenance?: 'fixture-verified' | 'executed' | 'not-executed';
 }
 
 export interface TestResult {
@@ -180,6 +181,8 @@ export interface Tenant {
   createdAt: string;
 }
 
+export type UserRole = 'owner' | 'admin' | 'member' | 'reviewer';
+
 export interface User {
   id: string;
   tenantId: string;
@@ -187,7 +190,7 @@ export interface User {
   passwordHash?: string;
   githubUserId?: string;
   githubLogin?: string;
-  role: 'owner' | 'admin' | 'member';
+  role: UserRole;
   createdAt: string;
 }
 
@@ -264,7 +267,7 @@ export interface FindingRecord {
   impactAnalysis: ImpactAnalysis;
   status: 'open' | 'fixing' | 'validated' | 'approved' | 'pr_created' | 'dismissed';
   sourceAnalysisPerformed?: boolean;
-  analysisMode?: 'local-ast' | 'remote-manifest-only';
+  analysisMode?: 'local-ast' | 'remote-manifest-only' | 'remote-ast';
   createdAt: string;
 }
 
@@ -284,6 +287,7 @@ export interface ValidationRecord {
   tenantId: string;
   patchId: string;
   status: 'passed' | 'failed' | 'inconclusive';
+  executionProvenance?: 'fixture-verified' | 'executed' | 'not-executed';
   proof?: ProofArtifact;
   executionLogs: string;
   durationMs: number;
@@ -369,3 +373,129 @@ export interface DeliveryClaimRecord {
   expiresAt: string;
   status: 'active' | 'released' | 'completed';
 }
+
+// Repository Scanning and Dependency Mapping Domain Types
+export type PackageManagerType = 'npm' | 'pnpm' | 'yarn' | 'unknown';
+export type ProjectStructureType =
+  | 'single-package'
+  | 'npm-workspace'
+  | 'pnpm-workspace'
+  | 'yarn-workspace'
+  | 'lerna'
+  | 'nested-packages';
+export type FrameworkRole = 'framework' | 'build-tool' | 'testing' | 'utility' | 'runtime' | 'dev';
+export type DependencyType = 'direct-prod' | 'direct-dev' | 'direct-peer' | 'direct-optional' | 'transitive';
+
+export interface ManifestRecord {
+  path: string;
+  name: string;
+  version: string;
+  isRoot: boolean;
+  workspaceName?: string;
+  packageManager?: PackageManagerType;
+  dependenciesCount: number;
+}
+
+export interface LockfileRecord {
+  type: 'package-lock' | 'pnpm-lock' | 'yarn-lock';
+  path: string;
+  formatVersion: string;
+  entriesCount: number;
+}
+
+export interface DependencySourceLocation {
+  filePath: string;
+  line: number;
+  column: number;
+  symbol?: string;
+  callExpression?: string;
+}
+
+export interface DependencyConcern {
+  type:
+    | 'upgrade_available'
+    | 'breaking_change'
+    | 'duplicate_version'
+    | 'unsupported_specifier'
+    | 'incompatible_range'
+    | 'deprecated_pattern';
+  severity: 'info' | 'warning' | 'critical';
+  message: string;
+  evidence: string;
+}
+
+export interface MappedDependency {
+  id: string;
+  name: string;
+  declaredVersion: string;
+  resolvedVersion?: string;
+  type: DependencyType;
+  packageManager: PackageManagerType;
+  manifestPath: string;
+  workspaceName?: string;
+  frameworkRole?: FrameworkRole;
+  importingFiles: DependencySourceLocation[];
+  directDependents: string[];
+  transitiveDependencies: string[];
+  concerns: DependencyConcern[];
+  evidence: {
+    source: 'manifest' | 'lockfile' | 'ast-import';
+    detail: string;
+    confidence?: number;
+  };
+}
+
+export interface DependencyGraphNode {
+  id: string;
+  name: string;
+  version: string;
+  type: 'package' | 'source-file' | 'workspace';
+  direct: boolean;
+  role?: FrameworkRole;
+}
+
+export interface DependencyGraphEdge {
+  source: string;
+  target: string;
+  relation: 'imports' | 'depends_on' | 'declared_in' | 'workspace_child';
+}
+
+export interface DependencyGraph {
+  nodes: DependencyGraphNode[];
+  edges: DependencyGraphEdge[];
+}
+
+export interface ScanProvenance {
+  repositoryFullName: string;
+  repositoryId: string;
+  branch: string;
+  commitSha: string;
+  scannedAt: string;
+  scannerVersion: string;
+  filesInspected: number;
+  filesSkipped: Array<{ path: string; reason: string }>;
+  limitsReached: boolean;
+  warnings: string[];
+  astAnalysisStatus: 'complete' | 'manifest-only' | 'partial';
+}
+
+export interface RepositoryScanResult {
+  repositoryId: string;
+  tenantId: string;
+  scannedAt: string;
+  projectType: ProjectStructureType;
+  packageManager: PackageManagerType;
+  manifests: ManifestRecord[];
+  lockfiles: LockfileRecord[];
+  frameworks: Array<{ name: string; version?: string; role: FrameworkRole }>;
+  totalDependencies: number;
+  directCount: number;
+  transitiveCount: number;
+  dependencies: MappedDependency[];
+  graph: DependencyGraph;
+  warnings: string[];
+  unsupportedFeatures: string[];
+  findings: FindingRecord[];
+  provenance: ScanProvenance;
+}
+

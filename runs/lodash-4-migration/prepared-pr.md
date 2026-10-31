@@ -18,7 +18,7 @@ Updates 1 call site to work with lodash@4.17.21.
 
 ### Changed files
 
-- `src\membership.js` (1 call site updated)
+- `src/membership.js` (1 call site updated)
 
 ## Proof
 
@@ -42,7 +42,7 @@ The following call sites could not be verified by the test suite:
 
 - Change classification confidence: 90%
 - Sandbox type: local-process
-- Proof generated: 2026-10-29T14:33:50.094Z
+- Proof generated: 2026-10-31T12:25:54.819Z
 
 ---
 *Prepared by Patchversion. Not submitted to GitHub. Proof recorded from local execution.*

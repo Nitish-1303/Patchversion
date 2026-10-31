@@ -1,10 +1,68 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthContext, getOrchestrator, DEMO_REPO_ID, ensureDemoTenantAndUser } from '@/app/api/backend';
+import {
+  getAuthContext,
+  getOrchestrator,
+  DEMO_REPO_ID,
+  CIPHERBILL_REPO_ID,
+  ensureDemoTenantAndUser,
+  ensureCheckoutServiceFixtureRepo,
+} from '@/app/api/backend';
+import { checkScanRateLimit } from '@/app/api/security/rate-limiter';
+
+export async function GET(request: NextRequest) {
+  const auth = await getAuthContext(request);
+  if (!auth) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const repositoryId = request.nextUrl.searchParams.get('repositoryId');
+  if (!repositoryId) {
+    return NextResponse.json({ error: 'repositoryId is required' }, { status: 400 });
+  }
+
+  const orchestrator = getOrchestrator();
+  const db = orchestrator.getDb();
+
+  let repo = await db.getRepository(auth.tenant.id, repositoryId);
+  if (!repo && (repositoryId === DEMO_REPO_ID || repositoryId === 'patchbay-demo/checkout-service')) {
+    await ensureCheckoutServiceFixtureRepo(auth.tenant.id);
+    repo = await db.getRepository(auth.tenant.id, DEMO_REPO_ID);
+  } else if (!repo && (repositoryId === CIPHERBILL_REPO_ID || repositoryId === 'Nitish-1303/CipherBill')) {
+    await ensureDemoTenantAndUser();
+    repo = await db.getRepository(auth.tenant.id, CIPHERBILL_REPO_ID);
+  }
+
+  if (!repo) {
+    return NextResponse.json({ error: 'Repository not found for tenant' }, { status: 404 });
+  }
+
+  try {
+    const scan = await db.getLatestScanResult(auth.tenant.id, repo.id);
+    return NextResponse.json({
+      success: true,
+      repositoryId: repo.id,
+      scan: scan ?? null,
+    });
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : String(err) },
+      { status: 500 },
+    );
+  }
+}
 
 export async function POST(request: NextRequest) {
   const auth = await getAuthContext(request);
   if (!auth) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const rateLimit = await checkScanRateLimit(auth.tenant.id);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: 'Scan rate limit exceeded. Maximum 10 scan requests per minute.', code: 'TOO_MANY_REQUESTS' },
+      { status: 429, headers: { 'Retry-After': '60' } },
+    );
   }
 
   const body = await request.json().catch(() => ({}));
@@ -18,8 +76,11 @@ export async function POST(request: NextRequest) {
 
   let repo = await db.getRepository(auth.tenant.id, repositoryId);
   if (!repo && (repositoryId === DEMO_REPO_ID || repositoryId === 'patchbay-demo/checkout-service')) {
+    await ensureCheckoutServiceFixtureRepo(auth.tenant.id);
+    repo = await db.getRepository(auth.tenant.id, DEMO_REPO_ID);
+  } else if (!repo && (repositoryId === CIPHERBILL_REPO_ID || repositoryId === 'Nitish-1303/CipherBill')) {
     await ensureDemoTenantAndUser();
-    repo = await db.getRepository(auth.tenant.id, repositoryId);
+    repo = await db.getRepository(auth.tenant.id, CIPHERBILL_REPO_ID);
   }
 
   if (!repo) {
@@ -27,8 +88,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // 1. Scan repo for upgrade regressions
-    const findings = await orchestrator.scanRepository(auth.tenant.id, repo.id);
+    // 1. Scan repo for dependencies, build graph, and discover upgrade regressions
+    const scanResult = await orchestrator.scanRepositoryWithDependencyMap(auth.tenant.id, repo.id);
+    const findings = scanResult.findings;
 
     // 2. For each finding, generate fix and run isolated red-to-green validation
     const results = [];
@@ -52,6 +114,7 @@ export async function POST(request: NextRequest) {
       success: true,
       repositoryId: repo.id,
       repositoryFullName: repo.fullName,
+      scan: scanResult,
       findingsCount: findings.length,
       results,
     });

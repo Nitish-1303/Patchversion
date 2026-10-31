@@ -18,6 +18,7 @@ import {
   WatchTargetRecord,
   InstallationOnboardingState,
   DeliveryClaimRecord,
+  RepositoryScanResult,
 } from '@patchversion/shared';
 import { IPersistenceStore } from './store-interface';
 
@@ -39,6 +40,7 @@ export interface DatabaseSchema {
   revokedSessionIds?: Record<string, string>;
   onboardingStates?: Record<string, InstallationOnboardingState>;
   deliveryClaims?: Record<string, DeliveryClaimRecord>;
+  scanResults?: Record<string, RepositoryScanResult>;
 }
 
 const CURRENT_SCHEMA_VERSION = 1;
@@ -103,6 +105,7 @@ export class PatchversionDatabase implements IPersistenceStore {
       revokedSessionIds: {},
       onboardingStates: {},
       deliveryClaims: {},
+      scanResults: {},
     };
     this.persist(initial);
     return initial;
@@ -124,6 +127,10 @@ export class PatchversionDatabase implements IPersistenceStore {
     }
     if (!schema.deliveryClaims) {
       schema.deliveryClaims = {};
+      dirty = true;
+    }
+    if (!schema.scanResults) {
+      schema.scanResults = {};
       dirty = true;
     }
     if (schema.schemaVersion < CURRENT_SCHEMA_VERSION) {
@@ -212,7 +219,7 @@ export class PatchversionDatabase implements IPersistenceStore {
   createUser(
     tenantId: string,
     email: string,
-    role: 'owner' | 'admin' | 'member' = 'member',
+    role: 'owner' | 'admin' | 'member' | 'reviewer' = 'member',
     githubLogin?: string,
     githubUserId?: string,
     id?: string,
@@ -741,12 +748,12 @@ export class PatchversionDatabase implements IPersistenceStore {
           f.toVersion === data.toVersion,
       );
     }
-    const id = data.id ?? existing?.id ?? `finding_${crypto.randomUUID()}`;
+    const id = existing?.id ?? data.id ?? `finding_${crypto.randomUUID()}`;
     const finding: FindingRecord = {
+      ...data,
       id,
       tenantId,
       repositoryId,
-      ...data,
       createdAt: existing?.createdAt ?? new Date().toISOString(),
     };
     this.data.findings[id] = finding;
@@ -1305,4 +1312,24 @@ export class PatchversionDatabase implements IPersistenceStore {
     return this.data.deliveryClaims[patchId] ?? null;
   }
 
+  saveScanResult(tenantId: string, repositoryId: string, result: RepositoryScanResult): void {
+    this.maybeReload();
+    const repo = this.getRepository(tenantId, repositoryId);
+    if (!repo) {
+      throw new Error(`Repository ${repositoryId} not found for tenant ${tenantId}`);
+    }
+    if (!this.data.scanResults) {
+      this.data.scanResults = {};
+    }
+    const key = `${tenantId}:${repositoryId}`;
+    this.data.scanResults[key] = result;
+    this.save();
+  }
+
+  getLatestScanResult(tenantId: string, repositoryId: string): RepositoryScanResult | null {
+    this.maybeReload();
+    if (!this.data.scanResults) return null;
+    const key = `${tenantId}:${repositoryId}`;
+    return this.data.scanResults[key] ?? null;
+  }
 }

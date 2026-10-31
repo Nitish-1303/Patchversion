@@ -113,8 +113,9 @@ export class PRBot {
       : `The fix updated ${proof.coverageVerified} of ${proof.coverageTotal} affected call sites. ${proof.unverifiable.length} could not be verified (see below).`;
 
     // Count only the call sites the applied fix actually changed
+    const fixedFilesNorm = proof.fixedFiles.map(f => f.replace(/\\/g, '/'));
     const fixedSites = impact.affectedCallSites.filter(site =>
-      proof.fixedFiles.includes(site.filePath),
+      fixedFilesNorm.includes((site.filePath || '').replace(/\\/g, '/')),
     );
 
     // A caller-supplied or persisted label is not evidence of isolation.
@@ -142,8 +143,9 @@ export class PRBot {
       `### Changed files`,
       ``,
       ...proof.fixedFiles.map(file => {
-        const count = fixedSites.filter(site => site.filePath === file).length;
-        return `- \`${file}\` (${count} call site${count !== 1 ? 's' : ''} updated)`;
+        const normFile = file.replace(/\\/g, '/');
+        const count = fixedSites.filter(site => (site.filePath || '').replace(/\\/g, '/') === normFile).length;
+        return `- \`${normFile}\` (${count} call site${count !== 1 ? 's' : ''} updated)`;
       }),
       ``,
       `## Proof`,

@@ -13,6 +13,7 @@ import {
   WatchTargetRecord,
   InstallationOnboardingState,
   DeliveryClaimRecord,
+  RepositoryScanResult,
 } from '@patchversion/shared';
 
 export interface IPersistenceStore {
@@ -26,7 +27,7 @@ export interface IPersistenceStore {
   createUser(
     tenantId: string,
     email: string,
-    role?: 'owner' | 'admin' | 'member',
+    role?: 'owner' | 'admin' | 'member' | 'reviewer',
     githubLogin?: string,
     githubUserId?: string,
     id?: string,
@@ -175,4 +176,8 @@ export interface IPersistenceStore {
   claimNextJob(workerId: string): Promise<JobRecord | null> | JobRecord | null;
   completeJob(jobId: string, result?: unknown): Promise<void> | void;
   failJob(jobId: string, error: string, retryable?: boolean): Promise<void> | void;
+
+  // Repository Scans & Dependency Mapping
+  saveScanResult(tenantId: string, repositoryId: string, result: RepositoryScanResult): Promise<void> | void;
+  getLatestScanResult(tenantId: string, repositoryId: string): Promise<RepositoryScanResult | null> | RepositoryScanResult | null;
 }

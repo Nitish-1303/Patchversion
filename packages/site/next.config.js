@@ -12,6 +12,9 @@ const securityHeaders = [
 const nextConfig = {
   output: 'standalone',
   transpilePackages: ['@patchversion/shared', '@patchversion/engine'],
+  outputFileTracingIncludes: {
+    '/api/**/*': ['../../fixtures/**/*'],
+  },
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
   },

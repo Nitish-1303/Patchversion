@@ -260,6 +260,29 @@ describe('Webhook Installation Deletion and Watch Target Hardening', () => {
         db.updateWatchTarget = originalUpdate;
       }
     });
+
+    test('enforces RBAC on POST /api/packages: unprivileged member receives 403', async () => {
+      const db = getDatabase();
+      const memberUserId = 'usr_member_test_only';
+      await db.createUser(tenantId, 'member@example.com', 'member', 'member-dev', undefined, memberUserId);
+      const memberSession = await db.createSession(memberUserId);
+
+      const req = new NextRequest(new URL('/api/packages', 'http://localhost:3000'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${memberSession.token}`,
+        },
+        body: JSON.stringify({
+          packageName: 'react',
+        }),
+      });
+
+      const res = await packagesPost(req);
+      expect(res.status).toBe(403);
+      const data = await res.json();
+      expect(data.code).toBe('FORBIDDEN_INSUFFICIENT_ROLE');
+    });
   });
 
   describe('Scan API Isolation and Execution Safety Gate', () => {

@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { EvidenceBundleManager } from './evidence/evidence-bundle';
 
 /**
  * Proof output writer with history.
@@ -35,5 +36,18 @@ export function writeArtifacts(
   archivePreviousArtifacts(outDir);
   for (const [name, content] of Object.entries(files)) {
     fs.writeFileSync(path.join(outDir, name), content);
+  }
+
+  // If this directory contains a manifest.json (e.g. runs/lodash-4-migration),
+  // refresh its artifact hashes and tamper-evident hash to match written artifacts.
+  const manifestPath = path.join(outDir, 'manifest.json');
+  if (fs.existsSync(manifestPath)) {
+    try {
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+      const artifactFiles = ARTIFACTS.filter(f => fs.existsSync(path.join(outDir, f)));
+      EvidenceBundleManager.writeManifest(outDir, manifest, artifactFiles);
+    } catch {
+      // Best-effort
+    }
   }
 }

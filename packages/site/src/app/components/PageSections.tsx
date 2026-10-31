@@ -8,15 +8,23 @@ export function PageHeading({
   title,
   description,
   align = 'center',
+  eyebrowStyle = 'label',
 }: {
   eyebrow: string;
   title: string;
   description: string;
   align?: 'center' | 'left';
+  eyebrowStyle?: 'chip' | 'label';
 }) {
   return (
     <header className={`page-heading${align === 'left' ? ' align-left' : ''}`}>
-      <Reveal><span className="eyebrow-chip">{eyebrow}</span></Reveal>
+      <Reveal>
+        {eyebrowStyle === 'chip' ? (
+          <span className="eyebrow-chip">{eyebrow}</span>
+        ) : (
+          <span className="small-label section-eyebrow-text">{eyebrow}</span>
+        )}
+      </Reveal>
       <Reveal delay={80}><h1>{title}</h1></Reveal>
       <Reveal delay={160}><p>{description}</p></Reveal>
     </header>
@@ -31,9 +39,51 @@ export function FeatureGrid({ eyebrow, title, description, cards }: {
 }) {
   return (
     <section className="section-block content-width">
-      <PageHeading eyebrow={eyebrow} title={title} description={description} />
+      <PageHeading eyebrow={eyebrow} title={title} description={description} eyebrowStyle="label" />
       <div className="feature-grid">
         {cards.map((card, index) => <Reveal key={card.title} delay={index * 80}><article className="feature-card"><span className="small-label">{card.eyebrow || `POINT 0${index + 1}`}</span><h3>{card.title}</h3><p>{card.body}</p></article></Reveal>)}
+      </div>
+    </section>
+  );
+}
+
+export function BentoSection({
+  eyebrow,
+  title,
+  description,
+  cards,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+  cards: FeatureCard[];
+}) {
+  const [featured, ...rest] = cards;
+  return (
+    <section className="section-block content-width">
+      <PageHeading eyebrow={eyebrow} title={title} description={description} eyebrowStyle="label" />
+      <div className="bento-layout">
+        {featured && (
+          <Reveal delay={0}>
+            <article className="bento-featured-card">
+              <span className="small-label">{featured.eyebrow || 'CORE CAPABILITY'}</span>
+              <h3>{featured.title}</h3>
+              <p>{featured.body}</p>
+              <div className="bento-highlight-badge">AST Verification Engine</div>
+            </article>
+          </Reveal>
+        )}
+        <div className="bento-stacked-col">
+          {rest.map((card, idx) => (
+            <Reveal key={card.title} delay={(idx + 1) * 80}>
+              <article className="bento-card">
+                <span className="small-label">{card.eyebrow || `POINT 0${idx + 2}`}</span>
+                <h3>{card.title}</h3>
+                <p>{card.body}</p>
+              </article>
+            </Reveal>
+          ))}
+        </div>
       </div>
     </section>
   );

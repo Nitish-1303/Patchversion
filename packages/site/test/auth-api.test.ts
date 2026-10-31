@@ -6,7 +6,9 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { GET, POST, DELETE } from '../src/app/api/auth/route';
-import { _resetInstancesForTest } from '../src/app/api/backend';
+import { _resetInstancesForTest, assertRole } from '../src/app/api/backend';
+import { RateLimiter } from '../src/app/api/security/rate-limiter';
+import { User } from '@patchversion/shared';
 
 describe('/api/auth API Endpoint', () => {
   let tmpDir: string;
@@ -18,10 +20,12 @@ describe('/api/auth API Endpoint', () => {
     process.env.PATCHVERSION_STATE_DIR = tmpDir;
     process.env.PATCHVERSION_SESSION_SECRET = 'test-secret-at-least-32-chars-long-auth-api-12345';
     (process.env as Record<string, string | undefined>).NODE_ENV = 'test';
+    RateLimiter.resetForTest();
     _resetInstancesForTest();
   });
 
   afterEach(() => {
+    RateLimiter.resetForTest();
     _resetInstancesForTest();
     process.env = originalEnv;
     try {
@@ -206,5 +210,125 @@ describe('/api/auth API Endpoint', () => {
     });
     const checkRes = await GET(checkReq);
     expect(checkRes.status).toBe(401);
+  });
+
+  test('demo sign-in cannot impersonate an existing password-protected account', async () => {
+    // 1. Register legitimate customer account
+    const regReq = new NextRequest('http://localhost:3000/api/auth', {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'register',
+        email: 'customer@acmecorp.com',
+        password: 'securePassword789!',
+        tenantName: 'Acme Corp',
+      }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    await POST(regReq);
+
+    // 2. Attempt to demo sign-in using that registered email
+    const demoImpersonationReq = new NextRequest('http://localhost:3000/api/auth', {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'demo',
+        email: 'customer@acmecorp.com',
+      }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const res = await POST(demoImpersonationReq);
+    expect(res.status).toBe(403);
+    const data = await res.json();
+    expect(data.error).toContain('Please sign in with your password');
+  });
+
+  test('rate-limits repeated failed login attempts with HTTP 429', async () => {
+    // Register test user
+    const regReq = new NextRequest('http://localhost:3000/api/auth', {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'register',
+        email: 'target@enterprise.com',
+        password: 'correctPassword123!',
+      }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    await POST(regReq);
+
+    // Make 5 consecutive failed login attempts
+    for (let i = 0; i < 5; i++) {
+      const failReq = new NextRequest('http://localhost:3000/api/auth', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'login',
+          email: 'target@enterprise.com',
+          password: `wrongPassword${i}!`,
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-forwarded-for': '198.51.100.42',
+        },
+      });
+      const failRes = await POST(failReq);
+      expect(failRes.status).toBe(401);
+    }
+
+    // 6th attempt should be blocked with 429 TOO_MANY_REQUESTS
+    const blockedReq = new NextRequest('http://localhost:3000/api/auth', {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'login',
+        email: 'target@enterprise.com',
+        password: 'correctPassword123!',
+      }),
+      headers: {
+        'Content-Type': 'application/json',
+        'x-forwarded-for': '198.51.100.42',
+      },
+    });
+    const blockedRes = await POST(blockedReq);
+    expect(blockedRes.status).toBe(429);
+    const blockedData = await blockedRes.json();
+    expect(blockedData.code).toBe('TOO_MANY_REQUESTS');
+    expect(blockedRes.headers.get('Retry-After')).toBe('60');
+  });
+
+  test('assertRole allows authorized roles and throws 403 FORBIDDEN_INSUFFICIENT_ROLE for unauthorized roles', () => {
+    const adminUser: User = {
+      id: 'usr_admin',
+      tenantId: 'ten_test',
+      email: 'admin@test.com',
+      role: 'admin',
+      createdAt: new Date().toISOString(),
+    };
+    const memberUser: User = {
+      id: 'usr_member',
+      tenantId: 'ten_test',
+      email: 'member@test.com',
+      role: 'member',
+      createdAt: new Date().toISOString(),
+    };
+    const reviewerUser: User = {
+      id: 'usr_rev',
+      tenantId: 'ten_test',
+      email: 'reviewer@test.com',
+      role: 'reviewer',
+      createdAt: new Date().toISOString(),
+    };
+
+    // Allowed: admin
+    expect(() => assertRole(adminUser, ['owner', 'admin'])).not.toThrow();
+
+    // Denied: member
+    expect(() => assertRole(memberUser, ['owner', 'admin'])).toThrow(/Forbidden/);
+    try {
+      assertRole(memberUser, ['owner', 'admin']);
+    } catch (err: unknown) {
+      const errorObj = err as { statusCode?: number; code?: string };
+      expect(errorObj.statusCode).toBe(403);
+      expect(errorObj.code).toBe('FORBIDDEN_INSUFFICIENT_ROLE');
+    }
+
+    // Denied: reviewer
+    expect(() => assertRole(reviewerUser, ['owner', 'admin'])).toThrow(/Forbidden/);
   });
 });

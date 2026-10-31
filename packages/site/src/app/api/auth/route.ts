@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { User } from '@patchversion/shared';
 import { getAuthContext, getDatabase, ensureDemoTenantAndUser } from '@/app/api/backend';
+import { isAuthRateLimited, recordAuthFailure, resetAuthFailures } from '@/app/api/security/rate-limiter';
 
 function hashPassword(password: string): string {
   const salt = crypto.randomBytes(16).toString('hex');
@@ -97,6 +98,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email address is required.' }, { status: 400 });
     }
 
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || '127.0.0.1';
+    const rateLimitIdentifier = `${ip}:${email}`;
+
+    if (await isAuthRateLimited(rateLimitIdentifier)) {
+      return NextResponse.json(
+        { error: 'Too many failed authentication attempts. Please try again in 1 minute.', code: 'TOO_MANY_REQUESTS' },
+        { status: 429, headers: { 'Retry-After': '60' } },
+      );
+    }
+
     let user = await db.getUserByEmail(email);
     if (!user) {
       // In dev or demo mode, allow fallback for developer@trypatchbay.dev
@@ -104,6 +115,7 @@ export async function POST(request: NextRequest) {
         const demo = await ensureDemoTenantAndUser();
         user = demo.user;
       } else {
+        await recordAuthFailure(rateLimitIdentifier);
         return NextResponse.json({ error: 'Invalid email or password.' }, { status: 401 });
       }
     }
@@ -111,10 +123,12 @@ export async function POST(request: NextRequest) {
     // If user has a password hash, strictly verify credentials
     if (user.passwordHash) {
       if (!password || !verifyPassword(password, user.passwordHash)) {
+        await recordAuthFailure(rateLimitIdentifier);
         return NextResponse.json({ error: 'Invalid email or password.' }, { status: 401 });
       }
     }
 
+    await resetAuthFailures(rateLimitIdentifier);
     const session = await db.createSession(user.id);
     const tenant = (await db.getTenant(user.tenantId))!;
 
@@ -137,13 +151,19 @@ export async function POST(request: NextRequest) {
     return response;
   }
 
-  // 3. Demo / Development Fallback Flow (Legacy or direct demo login)
-  const defaultEmail = email || 'developer@trypatchbay.dev';
-  let user = await db.getUserByEmail(defaultEmail);
-  if (!user) {
-    const demo = await ensureDemoTenantAndUser();
-    user = demo.user;
+  // 3. Demo / Development Fallback Flow (Strictly isolated demo tenant)
+  if (email) {
+    const existing = await db.getUserByEmail(email);
+    if (existing && existing.passwordHash) {
+      return NextResponse.json(
+        { error: 'An account with this email exists. Please sign in with your password.' },
+        { status: 403 },
+      );
+    }
   }
+
+  const demo = await ensureDemoTenantAndUser();
+  const user = demo.user;
 
   const session = await db.createSession(user.id);
   const tenant = (await db.getTenant(user.tenantId))!;

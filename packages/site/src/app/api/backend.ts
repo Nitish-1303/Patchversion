@@ -9,7 +9,7 @@ import {
   GitHubClient,
   WorkflowOrchestrator,
 } from '@patchversion/engine';
-import { User, Tenant, Session, ChangeRecord } from '@patchversion/shared';
+import { User, Tenant, Session, ChangeRecord, RepositoryRecord } from '@patchversion/shared';
 
 // Global singleton instances across Next.js API route invocations
 let dbInstance: PatchversionDatabase | null = null;
@@ -166,6 +166,7 @@ export function getOrchestrator(): WorkflowOrchestrator {
 export const DEMO_TENANT_ID = 'ten_demo_workspace';
 export const DEMO_USER_ID = 'usr_demo_developer';
 export const DEMO_REPO_ID = 'repo_demo_checkout_service';
+export const CIPHERBILL_REPO_ID = 'repo_cipherbill';
 export const DEMO_FINDING_ID = 'finding_demo_mockpay_1_0_0_to_2_0_0';
 export const DEMO_PATCH_ID = 'patch_demo_mockpay_1_0_0_to_2_0_0';
 export const DEMO_VALIDATION_ID = 'val_demo_mockpay_1_0_0_to_2_0_0';
@@ -174,6 +175,29 @@ export interface AuthContext {
   user: User;
   tenant: Tenant;
   session: Session;
+}
+
+export interface InsufficientRoleError extends Error {
+  statusCode: number;
+  code: string;
+}
+
+/**
+ * Enforces role-based access control (RBAC).
+ * Throws an error with statusCode 403 and code FORBIDDEN_INSUFFICIENT_ROLE if the user's role is not allowed.
+ */
+export function assertRole(
+  user: User,
+  allowedRoles: Array<'owner' | 'admin' | 'member' | 'reviewer'>,
+): void {
+  if (!allowedRoles.includes(user.role)) {
+    const error = new Error(
+      `Forbidden: User role '${user.role}' is not authorized. Required: ${allowedRoles.join(', ')}`,
+    ) as InsufficientRoleError;
+    error.statusCode = 403;
+    error.code = 'FORBIDDEN_INSUFFICIENT_ROLE';
+    throw error;
+  }
 }
 
 /**
@@ -207,7 +231,7 @@ export async function getAuthContext(request: NextRequest): Promise<AuthContext 
   let tenant = await db.getTenant(session.tenantId);
 
   // If running in an ephemeral/fresh serverless instance, reconstitute deterministic demo data
-  if ((!user || !tenant || !(await db.getRepository(session.tenantId, DEMO_REPO_ID))) && (session.userId === DEMO_USER_ID || session.tenantId === DEMO_TENANT_ID)) {
+  if ((!user || !tenant || !(await db.getRepository(session.tenantId, CIPHERBILL_REPO_ID))) && (session.userId === DEMO_USER_ID || session.tenantId === DEMO_TENANT_ID)) {
     const demo = await ensureDemoTenantAndUser();
     user = demo.user;
     tenant = demo.tenant;
@@ -234,21 +258,78 @@ export async function ensureDemoTenantAndUser(): Promise<{ tenant: Tenant; user:
     user = await db.createUser(tenant.id, 'developer@trypatchbay.dev', 'owner', 'patchbay-demo', undefined, DEMO_USER_ID);
   }
 
-  // Pre-register demo installation and repository if not already present
+  // Pre-register demo installation if not already present
   const installations = await db.listInstallations(tenant.id);
   let inst = installations[0];
   if (!inst) {
     inst = await db.saveInstallation(tenant.id, 10001, 'patchbay-demo');
   }
 
-  let repo = await db.getRepository(tenant.id, DEMO_REPO_ID);
+  // Pre-register real public repository CipherBill as the primary YC demo repository
+  const cipherbillRepo = await db.getRepository(tenant.id, CIPHERBILL_REPO_ID);
+  if (!cipherbillRepo) {
+    await db.saveRepository(tenant.id, inst.id, {
+      id: CIPHERBILL_REPO_ID,
+      githubRepoId: 99482711,
+      fullName: 'Nitish-1303/CipherBill',
+      owner: 'Nitish-1303',
+      name: 'CipherBill',
+      defaultBranch: 'main',
+      isPrivate: false,
+      isDemo: false,
+    });
+  }
+
+  // Seed package watch targets for CipherBill dependencies if none exist
+  const watchTargets = await db.listWatchTargets(tenant.id);
+  if (watchTargets.length === 0) {
+    await db.saveWatchTarget(tenant.id, {
+      packageName: 'next',
+      ecosystem: 'npm',
+      currentVersion: '15.5.23',
+      latestVersion: '15.5.23',
+      lastCheckedAt: new Date().toISOString(),
+      status: 'up_to_date',
+      isDemo: true,
+      notes: 'Next.js core framework dependency',
+      source: 'manual',
+    });
+    await db.saveWatchTarget(tenant.id, {
+      packageName: 'starknet',
+      ecosystem: 'npm',
+      currentVersion: '6.24.1',
+      latestVersion: '6.24.1',
+      lastCheckedAt: new Date().toISOString(),
+      status: 'up_to_date',
+      isDemo: true,
+      notes: 'Starknet.js client SDK',
+      source: 'manual',
+    });
+  }
+
+  return { tenant, user };
+}
+
+/**
+ * Ensures test fixture repository (checkout-service) exists for automated regression tests.
+ * Retained strictly for test infrastructure; not exposed in the user-facing YC demo path.
+ */
+export async function ensureCheckoutServiceFixtureRepo(tenantId: string): Promise<RepositoryRecord> {
+  const db = getDatabase();
+  const installations = await db.listInstallations(tenantId);
+  let inst = installations[0];
+  if (!inst) {
+    inst = await db.saveInstallation(tenantId, 10001, 'patchbay-demo');
+  }
+
+  let repo = await db.getRepository(tenantId, DEMO_REPO_ID);
   if (!repo) {
     let fixtureRepoPath = path.resolve(process.cwd(), 'fixtures/sample-repo');
     if (!fs.existsSync(fixtureRepoPath)) {
       fixtureRepoPath = path.resolve(process.cwd(), '../../fixtures/sample-repo');
     }
 
-    repo = await db.saveRepository(tenant.id, inst.id, {
+    repo = await db.saveRepository(tenantId, inst.id, {
       id: DEMO_REPO_ID,
       githubRepoId: 20001,
       fullName: 'patchbay-demo/checkout-service',
@@ -261,25 +342,8 @@ export async function ensureDemoTenantAndUser(): Promise<{ tenant: Tenant; user:
     });
   }
 
-  // Seed package watch target for mockpay if none exist
-  const watchTargets = await db.listWatchTargets(tenant.id);
-  if (watchTargets.length === 0) {
-    await db.saveWatchTarget(tenant.id, {
-      packageName: 'mockpay',
-      ecosystem: 'npm',
-      currentVersion: '1.0.0',
-      latestVersion: '2.0.0',
-      lastCheckedAt: new Date().toISOString(),
-      status: 'upgrade_available',
-      isDemo: true,
-      notes: 'Demo SDK fixture for Stripe breaking change scenario',
-      source: 'fixture-demo',
-    });
-  }
-
-  const existingFindings = await db.listFindings(tenant.id, repo.id);
+  const existingFindings = await db.listFindings(tenantId, repo.id);
   if (existingFindings.length === 0) {
-    // Seed verified fixture finding, patch, and proof for demo readiness
     const mockpayChange: ChangeRecord = {
       id: 'change_mockpay_1_0_0_to_2_0_0',
       packageName: 'mockpay',
@@ -305,7 +369,7 @@ export async function ensureDemoTenantAndUser(): Promise<{ tenant: Tenant; user:
 
     const sampleDiff = '--- a/src/createCharge.js\n+++ b/src/createCharge.js\n@@ -4,1 +4,1 @@\n-  return mockpay.charges.create({ amount, currency, source: token });\n+  return mockpay.charges.create({ amount, currency, payment_method: token });\n';
 
-    const finding = await db.saveFinding(tenant.id, repo.id, {
+    const finding = await db.saveFinding(tenantId, repo.id, {
       id: DEMO_FINDING_ID,
       packageName: 'mockpay',
       fromVersion: '1.0.0',
@@ -344,11 +408,12 @@ export async function ensureDemoTenantAndUser(): Promise<{ tenant: Tenant; user:
       status: 'validated',
     });
 
-    const patch = await db.savePatch(tenant.id, finding.id, sampleDiff, undefined, DEMO_PATCH_ID);
+    const patch = await db.savePatch(tenantId, finding.id, sampleDiff, undefined, DEMO_PATCH_ID);
 
-    await db.saveValidation(tenant.id, patch.id, {
+    await db.saveValidation(tenantId, patch.id, {
       id: DEMO_VALIDATION_ID,
       status: 'passed',
+      executionProvenance: 'fixture-verified',
       proof: {
         id: 'proof_mockpay_2_0_0',
         changeId: mockpayChange.id,
@@ -382,8 +447,10 @@ export async function ensureDemoTenantAndUser(): Promise<{ tenant: Tenant; user:
         producedAt: new Date().toISOString(),
         sandboxType: 'local-process',
         durationMs: 55700,
+        executionProvenance: 'fixture-verified',
       },
       executionLogs:
+        '[FIXTURE-VERIFIED] Proof loaded from deterministic sample-repo verification fixture.\n' +
         'Baseline (1.0.0): Exit 0 - 3 passed, 0 failed, 3 total\n' +
         'Bumped (2.0.0):   Exit 1 - 1 passed, 2 failed, 3 total\n' +
         'After fix (2.0.0): Exit 0 - 3 passed, 0 failed, 3 total\n' +
@@ -392,6 +459,6 @@ export async function ensureDemoTenantAndUser(): Promise<{ tenant: Tenant; user:
     });
   }
 
-  return { tenant, user };
+  return repo;
 }
 

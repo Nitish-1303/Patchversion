@@ -1,4 +1,21 @@
 import crypto from 'crypto';
+import {
+  GitHubTransport,
+  NetworkGitHubTransport,
+  OfflineMockTransport,
+  GitHubAppNotConfiguredError,
+  RepositoryTreeTruncatedError,
+  UnhandledMockRequestError,
+} from './transport';
+
+export {
+  type GitHubTransport,
+  NetworkGitHubTransport,
+  OfflineMockTransport,
+  GitHubAppNotConfiguredError,
+  RepositoryTreeTruncatedError,
+  UnhandledMockRequestError,
+};
 
 export interface GitHubAppConfig {
   appId: string;
@@ -6,6 +23,7 @@ export interface GitHubAppConfig {
   webhookSecret: string;
   clientId?: string;
   clientSecret?: string;
+  transport?: GitHubTransport;
 }
 
 export interface GitHubRepoInfo {
@@ -37,20 +55,44 @@ export interface CreatedPullRequest {
  * Robust GitHub API Client for TryPatchBay.
  * Supports GitHub App JWT authentication, installation tokens,
  * repository discovery, branch creation, commit creation, and real PR creation.
- * Also provides an in-memory test provider for unit tests and disposable sandbox environments.
+ * All HTTP requests route exclusively through an injectable GitHubTransport.
  */
 export class GitHubClient {
   private config: GitHubAppConfig | null;
+  private transport: GitHubTransport;
   private tokenCache: Map<number, { token: string; expiresAt: number }> = new Map();
-  private mockRepositories: Map<string, GitHubRepoInfo> = new Map();
   private mockPullRequests: Map<string, CreatedPullRequest> = new Map();
+  private isTransportExplicitlyInjected = false;
 
-  constructor(config?: GitHubAppConfig | null) {
+  constructor(config?: GitHubAppConfig | null, transport?: GitHubTransport) {
     this.config = config ?? null;
+    if (transport) {
+      this.transport = transport;
+      this.isTransportExplicitlyInjected = true;
+    } else if (config?.transport) {
+      this.transport = config.transport;
+      this.isTransportExplicitlyInjected = true;
+    } else {
+      this.transport = new NetworkGitHubTransport();
+      this.isTransportExplicitlyInjected = false;
+    }
+  }
+
+  setTransport(transport: GitHubTransport): void {
+    this.transport = transport;
+    this.isTransportExplicitlyInjected = true;
+  }
+
+  getTransport(): GitHubTransport {
+    return this.transport;
   }
 
   setConfig(config: GitHubAppConfig | null): void {
     this.config = config;
+    if (config?.transport) {
+      this.transport = config.transport;
+      this.isTransportExplicitlyInjected = true;
+    }
   }
 
   isConfigured(): boolean {
@@ -62,7 +104,7 @@ export class GitHubClient {
    */
   generateAppJwt(): string {
     if (!this.config?.appId || !this.config?.privateKey) {
-      throw new Error('GitHub App ID and private key must be configured to generate App JWT');
+      throw new GitHubAppNotConfiguredError('generateAppJwt');
     }
 
     const header = {
@@ -73,7 +115,7 @@ export class GitHubClient {
     const now = Math.floor(Date.now() / 1000);
     const payload = {
       iat: now - 60, // 60 seconds in the past for clock drift
-      exp: now + (9 * 60), // 9 minutes expiration (max 10 minutes)
+      exp: now + 9 * 60, // 9 minutes expiration (max 10 minutes)
       iss: this.config.appId,
     };
 
@@ -91,7 +133,8 @@ export class GitHubClient {
 
     const signer = crypto.createSign('RSA-SHA256');
     signer.update(message);
-    const signature = signer.sign(this.config.privateKey, 'base64')
+    const signature = signer
+      .sign(this.config.privateKey, 'base64')
       .replace(/=/g, '')
       .replace(/\+/g, '-')
       .replace(/\//g, '_');
@@ -101,6 +144,7 @@ export class GitHubClient {
 
   /**
    * Gets an installation access token for a given GitHub App installation ID.
+   * Path 1: POST https://api.github.com/app/installations/:id/access_tokens
    */
   async getInstallationToken(installationId: number): Promise<string> {
     const cached = this.tokenCache.get(installationId);
@@ -108,27 +152,31 @@ export class GitHubClient {
       return cached.token;
     }
 
-    if (!this.config) {
-      // In mock/test mode without credentials, return mock token
-      return `mock_token_${installationId}`;
+    if (!this.isConfigured()) {
+      throw new GitHubAppNotConfiguredError('getInstallationToken');
     }
 
     const jwt = this.generateAppJwt();
-    const response = await fetch(`https://api.github.com/app/installations/${installationId}/access_tokens`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${jwt}`,
-        Accept: 'application/vnd.github.v3+json',
-        'User-Agent': 'TryPatchBay-Engine',
+    const response = await this.transport.fetch(
+      `https://api.github.com/app/installations/${installationId}/access_tokens`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${jwt}`,
+          Accept: 'application/vnd.github.v3+json',
+          'User-Agent': 'TryPatchBay-Engine',
+        },
       },
-    });
+    );
 
     if (!response.ok) {
       const errText = await response.text();
-      throw new Error(`Failed to get installation token for ${installationId}: ${response.status} ${errText}`);
+      throw new Error(
+        `Failed to get installation token for ${installationId}: ${response.status} ${errText}`,
+      );
     }
 
-    const data = await response.json() as { token: string; expires_at: string };
+    const data = (await response.json()) as { token: string; expires_at: string };
     const expiresAt = new Date(data.expires_at).getTime();
     this.tokenCache.set(installationId, { token: data.token, expiresAt });
     return data.token;
@@ -136,35 +184,39 @@ export class GitHubClient {
 
   /**
    * Lists all installations of this GitHub App using App JWT.
+   * Path 2: GET https://api.github.com/app/installations?per_page=100
    */
-  async listAppInstallations(): Promise<Array<{ id: number; account: string; targetType: string }>> {
-    if (!this.config) {
-      return [
-        { id: 176251721, account: 'Nitish-1303', targetType: 'User' },
-      ];
+  async listAppInstallations(): Promise<
+    Array<{ id: number; account: string; targetType: string }>
+  > {
+    if (!this.isConfigured()) {
+      throw new GitHubAppNotConfiguredError('listAppInstallations');
     }
 
     const jwt = this.generateAppJwt();
-    const response = await fetch('https://api.github.com/app/installations?per_page=100', {
-      headers: {
-        Authorization: `Bearer ${jwt}`,
-        Accept: 'application/vnd.github.v3+json',
-        'User-Agent': 'TryPatchBay-Engine',
+    const response = await this.transport.fetch(
+      'https://api.github.com/app/installations?per_page=100',
+      {
+        headers: {
+          Authorization: `Bearer ${jwt}`,
+          Accept: 'application/vnd.github.v3+json',
+          'User-Agent': 'TryPatchBay-Engine',
+        },
       },
-    });
+    );
 
     if (!response.ok) {
       const err = await response.text();
       throw new Error(`Failed to list app installations: ${response.status} ${err}`);
     }
 
-    const data = await response.json() as Array<{
+    const data = (await response.json()) as Array<{
       id: number;
       account: { login: string; type?: string };
       target_type?: string;
     }>;
 
-    return data.map(i => ({
+    return data.map((i) => ({
       id: i.id,
       account: i.account.login,
       targetType: i.target_type ?? i.account.type ?? 'User',
@@ -173,39 +225,30 @@ export class GitHubClient {
 
   /**
    * Lists repositories accessible to an installation.
+   * Path 3: GET https://api.github.com/installation/repositories?per_page=100
    */
   async listInstallationRepositories(installationId: number): Promise<GitHubRepoInfo[]> {
-    if (!this.config) {
-      if (this.mockRepositories.size > 0) {
-        return Array.from(this.mockRepositories.values());
-      }
-      return [
-        {
-          id: 98765432,
-          name: 'CipherBill',
-          fullName: 'Nitish-1303/CipherBill',
-          owner: 'Nitish-1303',
-          defaultBranch: 'main',
-          isPrivate: false,
-          htmlUrl: 'https://github.com/Nitish-1303/CipherBill',
-        },
-      ];
+    if (!this.isConfigured()) {
+      throw new GitHubAppNotConfiguredError('listInstallationRepositories');
     }
 
     const token = await this.getInstallationToken(installationId);
-    const response = await fetch('https://api.github.com/installation/repositories?per_page=100', {
-      headers: {
-        Authorization: `token ${token}`,
-        Accept: 'application/vnd.github.v3+json',
-        'User-Agent': 'TryPatchBay-Engine',
+    const response = await this.transport.fetch(
+      'https://api.github.com/installation/repositories?per_page=100',
+      {
+        headers: {
+          Authorization: `token ${token}`,
+          Accept: 'application/vnd.github.v3+json',
+          'User-Agent': 'TryPatchBay-Engine',
+        },
       },
-    });
+    );
 
     if (!response.ok) {
       throw new Error(`Failed to list installation repositories: ${response.status}`);
     }
 
-    const data = await response.json() as {
+    const data = (await response.json()) as {
       repositories: Array<{
         id: number;
         name: string;
@@ -217,7 +260,7 @@ export class GitHubClient {
       }>;
     };
 
-    return data.repositories.map(r => ({
+    return data.repositories.map((r) => ({
       id: r.id,
       name: r.name,
       fullName: r.full_name,
@@ -228,126 +271,223 @@ export class GitHubClient {
     }));
   }
 
-
   /**
-   * Fetches file content from a GitHub repository via contents API.
-   * Returns string content, or null if file not found (404).
+   * Fetches file content from a GitHub repository via contents API or public fallback.
+   * Path 4: GET https://api.github.com/repos/:owner/:repo/contents/:path
+   * Path 5: GET https://raw.githubusercontent.com/:owner/:repo/:branch/:path (public fallback)
    */
   async getRepositoryFileContent(
     owner: string,
     repo: string,
     filePath: string,
-    token: string,
+    token?: string,
     ref?: string,
   ): Promise<string | null> {
-    if (!this.config) {
-      // In offline/mock mode, provide mock package.json for CipherBill if requested
-      if (repo.toLowerCase() === 'cipherbill' && filePath === 'package.json') {
-        return JSON.stringify({
-          name: 'cipherbill',
-          version: '0.1.0',
-          private: true,
-          dependencies: {
-            '@react-three/drei': '^9.114.3',
-            '@react-three/fiber': '^8.17.10',
-            '@starknet-io/get-starknet-discovery': '^6.0.3',
-            '@starknet-io/get-starknet-wallet-standard': '^6.0.3',
-            '@starknet-io/types-js': '^0.10.3',
-            'framer-motion': '^13.1.1',
-            next: '^15.4.6',
-            react: '^18.3.1',
-            'react-dom': '^18.3.1',
-            starknet: '^10.4.0',
-            three: '^0.169.0',
-          },
-          devDependencies: {
-            '@types/node': '^22.17.2',
-            '@types/react': '^18.3.24',
-            '@types/react-dom': '^18.3.7',
-            '@types/three': '^0.185.4',
-            eslint: '^9.33.0',
-            'eslint-config-next': '^15.4.6',
-            typescript: '^5.9.2',
-            vitest: '^4.1.11',
-          },
-        }, null, 2);
-      }
-      return null;
-    }
-
     const url = new URL(`https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`);
     if (ref) url.searchParams.set('ref', ref);
 
-    const response = await fetch(url.toString(), {
-      headers: {
-        Authorization: `token ${token}`,
-        Accept: 'application/vnd.github.v3+json',
-        'User-Agent': 'TryPatchBay-Engine',
-      },
-    });
-
-    if (response.status === 404) {
-      return null;
+    const headers: Record<string, string> = {
+      Accept: 'application/vnd.github.v3+json',
+      'User-Agent': 'TryPatchBay-Engine',
+    };
+    if (token) {
+      headers.Authorization = `token ${token}`;
     }
+
+    try {
+      const response = await this.transport.fetch(url.toString(), { headers });
+
+      if (response.status === 404) {
+        return null;
+      }
+
+      if (response.ok) {
+        const data = (await response.json()) as { content?: string; encoding?: string };
+        if (!data.content) return null;
+        if (data.encoding === 'base64') {
+          return Buffer.from(data.content, 'base64').toString('utf8');
+        }
+        return data.content;
+      }
+    } catch {
+      // Fall through to public raw fetch
+    }
+
+    // Public fallback to raw.githubusercontent.com for public repositories
+    try {
+      const targetBranch = ref || 'main';
+      const rawRes = await this.transport.fetch(
+        `https://raw.githubusercontent.com/${owner}/${repo}/${targetBranch}/${filePath}`,
+        { headers: { 'User-Agent': 'TryPatchBay-Engine' } },
+      );
+      if (rawRes.ok) {
+        return await rawRes.text();
+      }
+    } catch {
+      // ignore
+    }
+
+    return null;
+  }
+
+  /**
+   * Lists file paths in a GitHub repository using the Git tree API.
+   * Path 6: GET https://api.github.com/repos/:owner/:repo/git/trees/:ref?recursive=1
+   */
+  async listRepositoryFiles(
+    owner: string,
+    repo: string,
+    token?: string,
+    ref = 'HEAD',
+  ): Promise<string[]> {
+    const headers: Record<string, string> = {
+      Accept: 'application/vnd.github.v3+json',
+      'User-Agent': 'TryPatchBay-Engine',
+    };
+    if (token) {
+      headers.Authorization = `token ${token}`;
+    }
+
+    const encodedOwner = encodeURIComponent(owner);
+    const encodedRepo = encodeURIComponent(repo);
+    const encodedRef = encodeURIComponent(ref);
+
+    const response = await this.transport.fetch(
+      `https://api.github.com/repos/${encodedOwner}/${encodedRepo}/git/trees/${encodedRef}?recursive=1`,
+      { headers },
+    );
 
     if (!response.ok) {
-      const err = await response.text();
-      throw new Error(`Failed to get file ${filePath} from ${owner}/${repo}: ${response.status} ${err}`);
+      const errText = await response.text();
+      throw new Error(
+        `Failed to list repository files for ${owner}/${repo} at ref "${ref}": ${response.status} ${errText}`,
+      );
     }
 
-    const data = await response.json() as { content?: string; encoding?: string };
-    if (!data.content) return null;
-    if (data.encoding === 'base64') {
-      return Buffer.from(data.content, 'base64').toString('utf8');
+    let data: unknown;
+    try {
+      data = await response.json();
+    } catch {
+      throw new Error(
+        `Failed to parse GitHub Git tree response for ${owner}/${repo} at ref "${ref}": malformed JSON`,
+      );
     }
-    return data.content;
+
+    if (
+      typeof data !== 'object' ||
+      data === null ||
+      !('tree' in data) ||
+      !Array.isArray((data as { tree?: unknown }).tree)
+    ) {
+      throw new Error(
+        `Malformed Git tree response for ${owner}/${repo} at ref "${ref}": missing or invalid "tree" array`,
+      );
+    }
+
+    const treeData = data as {
+      tree: unknown[];
+      truncated?: boolean;
+    };
+
+    if (treeData.truncated) {
+      throw new RepositoryTreeTruncatedError(owner, repo, ref);
+    }
+
+    const validTreeEntryTypes = new Set(['blob', 'tree', 'commit']);
+    const blobPaths: string[] = [];
+
+    for (let i = 0; i < treeData.tree.length; i++) {
+      const entry = treeData.tree[i];
+      if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
+        throw new Error(
+          `Malformed Git tree entry at index ${i} for ${owner}/${repo} at ref "${ref}": entry must be a non-null object`,
+        );
+      }
+
+      const { path, type } = entry as { path?: unknown; type?: unknown };
+
+      if (typeof path !== 'string' || path.length === 0) {
+        throw new Error(
+          `Malformed Git tree entry at index ${i} for ${owner}/${repo} at ref "${ref}": "path" must be a non-empty string`,
+        );
+      }
+
+      if (typeof type !== 'string' || !validTreeEntryTypes.has(type)) {
+        throw new Error(
+          `Malformed Git tree entry "${path}" for ${owner}/${repo} at ref "${ref}": invalid entry type "${String(type)}" (expected "blob", "tree", or "commit")`,
+        );
+      }
+
+      if (type === 'blob') {
+        blobPaths.push(path);
+      }
+    }
+
+    return blobPaths;
   }
 
   /**
    * Fetches the SHA of the HEAD of a branch.
+   * Path 7: GET https://api.github.com/repos/:owner/:repo/commits/:branch
    */
-  async getBranchHeadSha(owner: string, repo: string, branch: string, token: string): Promise<string> {
-    if (!this.config) {
-      return '0000000000000000000000000000000000000001';
+  async getBranchHeadSha(
+    owner: string,
+    repo: string,
+    branch: string,
+    token?: string,
+  ): Promise<string> {
+    const headers: Record<string, string> = {
+      Accept: 'application/vnd.github.v3+json',
+      'User-Agent': 'TryPatchBay-Engine',
+    };
+    if (token) {
+      headers.Authorization = `token ${token}`;
     }
 
-    const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/ref/heads/${branch}`, {
-      headers: {
-        Authorization: `token ${token}`,
-        Accept: 'application/vnd.github.v3+json',
-        'User-Agent': 'TryPatchBay-Engine',
-      },
-    });
+    try {
+      const response = await this.transport.fetch(
+        `https://api.github.com/repos/${owner}/${repo}/commits/${branch}`,
+        { headers },
+      );
 
-    if (!response.ok) {
-      throw new Error(`Failed to get ref for branch ${branch}: ${response.status}`);
+      if (response.ok) {
+        const data = (await response.json()) as { sha?: string };
+        if (data.sha) return data.sha;
+      }
+    } catch {
+      // ignore
     }
 
-    const data = await response.json() as { object: { sha: string } };
-    return data.object.sha;
+    throw new Error(`Failed to get ref for branch ${branch} on ${owner}/${repo}`);
   }
 
   /**
    * Creates a new branch on the remote repository.
+   * Path 8: POST https://api.github.com/repos/:owner/:repo/git/refs
    */
-  async createBranch(owner: string, repo: string, branch: string, baseSha: string, token: string): Promise<void> {
-    if (!this.config) {
-      return;
-    }
-
-    const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/refs`, {
-      method: 'POST',
-      headers: {
-        Authorization: `token ${token}`,
-        Accept: 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json',
-        'User-Agent': 'TryPatchBay-Engine',
+  async createBranch(
+    owner: string,
+    repo: string,
+    branch: string,
+    baseSha: string,
+    token: string,
+  ): Promise<void> {
+    const response = await this.transport.fetch(
+      `https://api.github.com/repos/${owner}/${repo}/git/refs`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `token ${token}`,
+          Accept: 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json',
+          'User-Agent': 'TryPatchBay-Engine',
+        },
+        body: JSON.stringify({
+          ref: `refs/heads/${branch}`,
+          sha: baseSha,
+        }),
       },
-      body: JSON.stringify({
-        ref: `refs/heads/${branch}`,
-        sha: baseSha,
-      }),
-    });
+    );
 
     if (!response.ok) {
       const err = await response.text();
@@ -360,6 +500,8 @@ export class GitHubClient {
 
   /**
    * Finds an existing Pull Request by head branch name.
+   * Path 9: GET https://api.github.com/repos/:owner/:repo/pulls?head=:owner::branch&state=all
+   * Path 10: GET https://api.github.com/repos/:owner/:repo/pulls?head=:branch&state=all (fallback)
    */
   async findPullRequestByBranch(
     owner: string,
@@ -367,14 +509,16 @@ export class GitHubClient {
     headBranch: string,
     token: string,
   ): Promise<CreatedPullRequest | null> {
-    if (!this.config) {
-      const prKey = `${owner}/${repo}#${headBranch}`;
-      return this.mockPullRequests.get(prKey) ?? null;
+    const prKey = `${owner}/${repo}#${headBranch}`;
+    if (this.mockPullRequests.has(prKey)) {
+      return this.mockPullRequests.get(prKey)!;
     }
 
     try {
-      const res = await fetch(
-        `https://api.github.com/repos/${owner}/${repo}/pulls?head=${encodeURIComponent(`${owner}:${headBranch}`)}&state=all`,
+      const res = await this.transport.fetch(
+        `https://api.github.com/repos/${owner}/${repo}/pulls?head=${encodeURIComponent(
+          `${owner}:${headBranch}`,
+        )}&state=all`,
         {
           headers: {
             Authorization: `token ${token}`,
@@ -401,8 +545,10 @@ export class GitHubClient {
       }>;
 
       if (!Array.isArray(pulls) || pulls.length === 0) {
-        const fallbackRes = await fetch(
-          `https://api.github.com/repos/${owner}/${repo}/pulls?head=${encodeURIComponent(headBranch)}&state=all`,
+        const fallbackRes = await this.transport.fetch(
+          `https://api.github.com/repos/${owner}/${repo}/pulls?head=${encodeURIComponent(
+            headBranch,
+          )}&state=all`,
           {
             headers: {
               Authorization: `token ${token}`,
@@ -451,15 +597,21 @@ export class GitHubClient {
   }
 
   /**
-   * Registers a mock pull request for testing and simulation.
+   * Explicit test fixture helper: Registers a mock pull request for isolated integration tests.
    */
-  registerMockPullRequest(owner: string, repo: string, headBranch: string, pr: CreatedPullRequest): void {
+  registerMockPullRequest(
+    owner: string,
+    repo: string,
+    headBranch: string,
+    pr: CreatedPullRequest,
+  ): void {
     const prKey = `${owner}/${repo}#${headBranch}`;
     this.mockPullRequests.set(prKey, pr);
   }
 
   /**
    * Creates a genuine Pull Request on GitHub.
+   * Path 11: POST https://api.github.com/repos/:owner/:repo/pulls
    */
   async createPullRequest(
     owner: string,
@@ -470,52 +622,38 @@ export class GitHubClient {
     baseBranch: string,
     token: string,
   ): Promise<CreatedPullRequest> {
-    if (!this.config) {
-      // Mock / Offline mode PR creation
-      const prKey = `${owner}/${repo}#${headBranch}`;
-      if (this.mockPullRequests.has(prKey)) {
-        return this.mockPullRequests.get(prKey)!;
-      }
-
-      const mockNumber = Math.floor(100 + Math.random() * 900);
-      const mockPr: CreatedPullRequest = {
-        number: mockNumber,
-        url: `https://api.github.com/repos/${owner}/${repo}/pulls/${mockNumber}`,
-        htmlUrl: `https://github.com/${owner}/${repo}/pull/${mockNumber}`,
-        branch: headBranch,
-        commitSha: 'mock_sha_' + crypto.randomUUID().slice(0, 8),
-        title,
-        body,
-        state: 'open',
-        isDraft: true,
-        isSimulation: true,
-        deliveryBlockedReason: 'Real GitHub delivery blocked: GITHUB_APP_ID and GITHUB_APP_PRIVATE_KEY are not configured.',
-      };
-      this.mockPullRequests.set(prKey, mockPr);
-      return mockPr;
+    const prKey = `${owner}/${repo}#${headBranch}`;
+    if (this.mockPullRequests.has(prKey)) {
+      return this.mockPullRequests.get(prKey)!;
     }
 
-    const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls`, {
-      method: 'POST',
-      headers: {
-        Authorization: `token ${token}`,
-        Accept: 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json',
-        'User-Agent': 'TryPatchBay-Engine',
+    const response = await this.transport.fetch(
+      `https://api.github.com/repos/${owner}/${repo}/pulls`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `token ${token}`,
+          Accept: 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json',
+          'User-Agent': 'TryPatchBay-Engine',
+        },
+        body: JSON.stringify({
+          title,
+          body,
+          head: headBranch,
+          base: baseBranch,
+          draft: true,
+        }),
       },
-      body: JSON.stringify({
-        title,
-        body,
-        head: headBranch,
-        base: baseBranch,
-        draft: true,
-      }),
-    });
+    );
 
     if (!response.ok) {
       const err = await response.text();
       // On 422 Unprocessable Entity ("A pull request already exists for ..."), recover by finding and adopting the existing PR
-      if (response.status === 422 && (err.includes('already exists') || err.includes('A pull request already exists'))) {
+      if (
+        response.status === 422 &&
+        (err.includes('already exists') || err.includes('A pull request already exists'))
+      ) {
         const existing = await this.findPullRequestByBranch(owner, repo, headBranch, token);
         if (existing) {
           return existing;
@@ -524,7 +662,7 @@ export class GitHubClient {
       throw new Error(`GitHub PR creation failed with ${response.status}: ${err}`);
     }
 
-    const data = await response.json() as {
+    const data = (await response.json()) as {
       number: number;
       url: string;
       html_url: string;
@@ -547,13 +685,6 @@ export class GitHubClient {
   }
 
   /**
-   * Registers a mock repository for local verification and testing.
-   */
-  registerMockRepo(repo: GitHubRepoInfo): void {
-    this.mockRepositories.set(repo.fullName, repo);
-  }
-
-  /**
    * Verifies an incoming webhook HMAC signature.
    */
   verifyWebhookSignature(rawBody: Buffer, signature: string | undefined): boolean {
@@ -568,10 +699,12 @@ export class GitHubClient {
       return false;
     }
 
-    const expected = 'sha256=' + crypto
-      .createHmac('sha256', secret)
-      .update(rawBody)
-      .digest('hex');
+    const expected =
+      'sha256=' +
+      crypto
+        .createHmac('sha256', secret)
+        .update(rawBody)
+        .digest('hex');
 
     const sigBuf = Buffer.from(signature);
     const expBuf = Buffer.from(expected);

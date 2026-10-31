@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthContext, getOrchestrator } from '@/app/api/backend';
+import { getAuthContext, getOrchestrator, assertRole } from '@/app/api/backend';
 
 export async function GET(request: NextRequest) {
   const auth = await getAuthContext(request);
@@ -19,6 +19,16 @@ export async function POST(request: NextRequest) {
   const auth = await getAuthContext(request);
   if (!auth) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    assertRole(auth.user, ['owner', 'admin']);
+  } catch (err: unknown) {
+    const errorObj = err as { message?: string; code?: string };
+    return NextResponse.json(
+      { error: errorObj.message || 'Forbidden', code: errorObj.code || 'FORBIDDEN_INSUFFICIENT_ROLE' },
+      { status: 403 },
+    );
   }
 
   const body = await request.json().catch(() => ({}));

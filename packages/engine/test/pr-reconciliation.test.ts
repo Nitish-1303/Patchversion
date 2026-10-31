@@ -3,6 +3,7 @@ import path from 'path';
 import os from 'os';
 import { PatchversionDatabase } from '../src/db/database';
 import { GitHubClient, CreatedPullRequest } from '../src/github/client';
+import { OfflineMockTransport } from '../src';
 import { WorkflowOrchestrator } from '../src/jobs/orchestrator';
 
 describe('GitHub PR Reconciliation & Crash Recovery', () => {
@@ -20,7 +21,46 @@ describe('GitHub PR Reconciliation & Crash Recovery', () => {
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'patchbay-pr-reconcile-test-'));
     db = new PatchversionDatabase(tmpDir);
-    github = new GitHubClient(null); // mock client
+
+    const mockTransport = new OfflineMockTransport();
+
+    mockTransport.get('/repos/acme-org/payment-service/pulls', async () => {
+      return new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+
+    mockTransport.get('/repos/acme-org/payment-service/commits/main', async () => {
+      return new Response(
+        JSON.stringify({ sha: 'base_sha_acme_main_456' }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    });
+
+    mockTransport.post('/repos/acme-org/payment-service/git/refs', async () => {
+      return new Response(
+        JSON.stringify({ ref: 'refs/heads/patchversion/mockpay-2.0.0' }),
+        { status: 201, headers: { 'Content-Type': 'application/json' } },
+      );
+    });
+
+    mockTransport.post('/repos/acme-org/payment-service/pulls', async () => {
+      return new Response(
+        JSON.stringify({
+          number: 501,
+          url: 'https://api.github.com/repos/acme-org/payment-service/pulls/501',
+          html_url: 'https://github.com/acme-org/payment-service/pull/501',
+          head: { sha: 'commit_sha_501', ref: 'patchversion/mockpay-2.0.0' },
+          title: 'fix(mockpay): upgrade to 2.0.0',
+          body: 'Automated fix',
+          state: 'open',
+        }),
+        { status: 201, headers: { 'Content-Type': 'application/json' } },
+      );
+    });
+
+    github = new GitHubClient(null, mockTransport); // mock client with offline transport
     orchestrator = new WorkflowOrchestrator(db, github);
 
     db.createTenant('Reconcile Tenant', tenantId);
