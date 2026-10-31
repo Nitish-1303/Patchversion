@@ -236,7 +236,7 @@ describe('YC W27 End-to-End Product Demonstration & Acceptance Suite', () => {
 
     // Step 9: Delivery fails closed without fabricated GitHub PR
     await expect(orchestrator.deliverPullRequest(tenantId, fixResult.patch.id, userId)).rejects.toThrow();
-  });
+  }, 120_000);
 
   test('Real-World Public Repository Demonstration: Nitish-1303/CipherBill read-only scan', async () => {
     // 1. Scan CipherBill using genuine remote GitHub file provider

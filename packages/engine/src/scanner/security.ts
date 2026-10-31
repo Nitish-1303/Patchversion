@@ -39,9 +39,10 @@ export function assertSafePath(repoRoot: string, relativeOrAbsolutePath: string)
   }
 
   const resolvedRoot = path.resolve(repoRoot);
-  const resolvedTarget = path.isAbsolute(relativeOrAbsolutePath)
-    ? path.resolve(relativeOrAbsolutePath)
-    : path.resolve(resolvedRoot, relativeOrAbsolutePath);
+  const normalizedInput = relativeOrAbsolutePath.replace(/\\/g, '/');
+  const resolvedTarget = path.isAbsolute(normalizedInput)
+    ? path.resolve(normalizedInput)
+    : path.resolve(resolvedRoot, normalizedInput);
 
   // Must start with resolved root
   if (resolvedTarget !== resolvedRoot && !resolvedTarget.startsWith(resolvedRoot + path.sep)) {

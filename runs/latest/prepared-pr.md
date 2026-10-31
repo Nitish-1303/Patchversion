@@ -14,11 +14,11 @@ Branch: `patchversion/mockpay-2.0.0`
 
 ## What this PR does
 
-Updates 0 call sites to work with mockpay@2.0.0.
+Updates 1 call site to work with mockpay@2.0.0.
 
 ### Changed files
 
-- `src/createCharge.js` (0 call sites updated)
+- `src/createCharge.js` (1 call site updated)
 
 ## Proof
 
@@ -30,20 +30,19 @@ This fix was verified in a local process (no isolation) before this PR text was 
 | Tests on 2.0.0 (before fix) | 1/3 passed, 2 failed |
 | Tests on 2.0.0 (after fix) | 3/3 passed, 0 failed |
 
-The fix updated 0 of 1 affected call sites. 2 could not be verified (see below).
+The fix updated all 1 affected call sites, and the full test suite is green after the fix.
 
 ### Not verified
 
 The following call sites could not be verified by the test suite:
 
-- `src\createCharge.js:4` - Affected by the change but the generated fix did not modify this file
-- `src\createCharge.js:14` - Uses the changed package but does not intersect this change; not individually verified
+- `src/createCharge.js:14` - Uses the changed package but does not intersect this change; not individually verified
 
 ### Confidence
 
 - Change classification confidence: 95%
 - Sandbox type: local-process
-- Proof generated: 2026-10-31T03:55:47.148Z
+- Proof generated: 2026-10-31T09:42:15.131Z
 
 ---
 *Prepared by Patchversion. Not submitted to GitHub. Proof recorded from local execution.*

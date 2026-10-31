@@ -35,19 +35,19 @@
   },
   "artifacts": [
     {
-      "relativePath": "prepared-pr.md",
-      "sha256": "8de2741fb98237f0e5e3c0282128e4ceaa396eef849699a1c518f484b84a4d99",
-      "bytes": 1491
+      "relativePath": "transcript.txt",
+      "sha256": "6a1fa0378785f952433f2668a6cf67115867f0b517406dfa6df3a247953fd1af",
+      "bytes": 1245
     },
     {
       "relativePath": "proof.json",
-      "sha256": "0674caabb613be80b80ec883d82abb23f674eaca641536f2257b6387d777cf09",
-      "bytes": 5076
+      "sha256": "c4c95f3b1b15b1ae508ae252f257924f109f8eaaaa3302557525a6c5a988bc41",
+      "bytes": 4688
     },
     {
-      "relativePath": "transcript.txt",
-      "sha256": "c87de3776fc5a6ad22a44609652f34880420cc89993d57a0665b43cb050822f8",
-      "bytes": 1245
+      "relativePath": "prepared-pr.md",
+      "sha256": "e5c89a90814b49175d84ec59d182737380edd2d9c738365f317151e9ae76a49d",
+      "bytes": 1403
     }
   ],
   "tamperEvidentHash": "b5f6870ccf8577d6917440443e4af8614f377aaf8447372a0f5e6ce7a6a1b3f6"

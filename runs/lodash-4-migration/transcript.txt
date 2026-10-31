@@ -1,4 +1,4 @@
-Patchversion proof run - 2026-10-31T03:56:13.616Z
+Patchversion proof run - 2026-10-31T09:39:47.345Z
 Fixture repo: fixtures\lodash-repo
 Change record: fixtures\real-migration\lodash-change-record.json
 
@@ -8,21 +8,21 @@ Notes: BREAKING CHANGE: Renamed `_.contains` to `_.includes`. (lodash v4.0.0 cha
 
 --- USAGE MAP ---
 Files scanned: 3, files using lodash: 1
-  src\membership.js:6  _.contains(ids, id)
-  src\membership.js:10  _.uniq(ids)
+  src/membership.js:6  _.contains(ids, id)
+  src/membership.js:10  _.uniq(ids)
 
 --- IMPACT ---
-Affected call sites: src\membership.js:6
-Potential (broad match, not individually verified): src\membership.js:10
+Affected call sites: src/membership.js:6
+Potential (broad match, not individually verified): src/membership.js:10
 
 --- RED-TO-GREEN PROOF ---
 Baseline (3.10.1):  exit 0 - 3 passed, 0 failed, 3 total
 Bumped (4.17.21):      exit 1 - 1 passed, 2 failed, 3 total
 After fix (4.17.21):   exit 0 - 3 passed, 0 failed, 3 total
 Sandbox: local-process (local process, NO isolation)
-Coverage: fix updated 0 of 1 affected call sites
+Coverage: fix updated 1 of 1 affected call sites
 Files changed by fix: src/membership.js
-Duration: 89.4s
+Duration: 51.5s
 
 --- PREPARED PR ---
 Title: [Patchversion] Fix: lodash 3.10.1 -> 4.17.21 (1 call site)

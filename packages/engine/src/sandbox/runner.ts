@@ -158,6 +158,9 @@ export class SandboxRunner {
     impact: ImpactAnalysis,
     fixDiff: string,
   ): Promise<ProveResult> {
+    // Step 0: Ensure dependencies are installed in workDir if missing
+    this.ensureDependenciesInstalled(workDir);
+
     // Step 1: Baseline - run tests on the old version
     const baselineResult = await this.runTests(workDir);
     if (baselineResult.exitCode !== 0) {
@@ -235,13 +238,17 @@ export class SandboxRunner {
     }
 
     // Step 6: Verified fix - build the proof artifact
-    const fixedFiles = this.filesChangedByDiff(fixDiff);
+    const fixedFiles = this.filesChangedByDiff(fixDiff).map(f => f.replace(/\\/g, '/'));
+    const isFileFixed = (filePath: string) => {
+      const norm = (filePath || '').replace(/\\/g, '/');
+      return fixedFiles.some(f => f === norm || f.endsWith('/' + norm) || norm.endsWith('/' + f));
+    };
     const verified = impact.affectedCallSites.filter(
-      site => fixedFiles.includes(site.filePath),
+      site => isFileFixed(site.filePath),
     );
     const unverifiable: UnverifiableSite[] = [
       ...impact.affectedCallSites
-        .filter(site => !fixedFiles.includes(site.filePath))
+        .filter(site => !isFileFixed(site.filePath))
         .map(site => ({
           callSite: site,
           reason: 'Affected by the change but the generated fix did not modify this file',
@@ -488,6 +495,31 @@ export class SandboxRunner {
   }
 
   /** List the files a unified diff modifies (b/ paths). */
+  private ensureDependenciesInstalled(workDir: string): void {
+    const pkgJsonPath = path.join(workDir, 'package.json');
+    if (!fs.existsSync(pkgJsonPath)) return;
+    try {
+      const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
+      const deps = Object.keys({ ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) });
+      if (deps.length === 0) return;
+      const firstDep = deps[0];
+      const hasFirstDep = fs.existsSync(path.join(workDir, 'node_modules', firstDep)) ||
+                          fs.existsSync(path.join(workDir, 'node_modules', '.bin'));
+      if (!hasFirstDep) {
+        const npm = resolveNpmInvocation(['install', '--install-links', '--no-audit', '--no-fund']);
+        execFileSync(npm.command, npm.args, {
+          cwd: workDir,
+          env: minimalEnv(),
+          stdio: 'ignore',
+          timeout: 120_000,
+          shell: npm.shell,
+        });
+      }
+    } catch {
+      // Best-effort; test run will fail if dependencies cannot be installed
+    }
+  }
+
   private filesChangedByDiff(fixDiff: string): string[] {
     return parsePatch(fixDiff)
       .map(p => (p.newFileName ?? '').replace(/^b\//, ''))

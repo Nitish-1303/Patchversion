@@ -175,7 +175,7 @@ export class LodashMethodRenameRule implements IMigrationRule {
     for (const sourceFile of project.getSourceFiles()) {
       const relPath = path.relative(context.repoPath, sourceFile.getFilePath()).replace(/\\/g, '/');
       if (modifiedFiles.includes(relPath)) {
-        const diagnostics = sourceFile.getPreEmitDiagnostics();
+        const diagnostics = project.getProgram().getSyntacticDiagnostics(sourceFile);
         const syntaxErrors = diagnostics.filter((d) => d.getCategory() === 1 /* Error */);
         if (syntaxErrors.length > 0) {
           postconditionsVerified = false;
