@@ -86,10 +86,11 @@ export function getStorageModeInfo(): {
 }
 
 export function getPostgresStore(): PostgresStore | null {
+  if (postgresInstance) {
+    return postgresInstance;
+  }
   if (process.env.DATABASE_URL || process.env.POSTGRES_URL) {
-    if (!postgresInstance) {
-      postgresInstance = new PostgresStore();
-    }
+    postgresInstance = new PostgresStore();
     return postgresInstance;
   }
   return null;
