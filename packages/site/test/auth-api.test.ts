@@ -207,4 +207,33 @@ describe('/api/auth API Endpoint', () => {
     const checkRes = await GET(checkReq);
     expect(checkRes.status).toBe(401);
   });
+
+  test('demo sign-in cannot impersonate an existing password-protected account', async () => {
+    // 1. Register legitimate customer account
+    const regReq = new NextRequest('http://localhost:3000/api/auth', {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'register',
+        email: 'customer@acmecorp.com',
+        password: 'securePassword789!',
+        tenantName: 'Acme Corp',
+      }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    await POST(regReq);
+
+    // 2. Attempt to demo sign-in using that registered email
+    const demoImpersonationReq = new NextRequest('http://localhost:3000/api/auth', {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'demo',
+        email: 'customer@acmecorp.com',
+      }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const res = await POST(demoImpersonationReq);
+    expect(res.status).toBe(403);
+    const data = await res.json();
+    expect(data.error).toContain('Please sign in with your password');
+  });
 });

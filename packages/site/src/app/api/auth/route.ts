@@ -137,13 +137,19 @@ export async function POST(request: NextRequest) {
     return response;
   }
 
-  // 3. Demo / Development Fallback Flow (Legacy or direct demo login)
-  const defaultEmail = email || 'developer@trypatchbay.dev';
-  let user = await db.getUserByEmail(defaultEmail);
-  if (!user) {
-    const demo = await ensureDemoTenantAndUser();
-    user = demo.user;
+  // 3. Demo / Development Fallback Flow (Strictly isolated demo tenant)
+  if (email && email !== 'developer@trypatchbay.dev' && email !== 'developer@example.com') {
+    const existing = await db.getUserByEmail(email);
+    if (existing && existing.passwordHash) {
+      return NextResponse.json(
+        { error: 'An account with this email exists. Please sign in with your password.' },
+        { status: 403 },
+      );
+    }
   }
+
+  const demo = await ensureDemoTenantAndUser();
+  const user = demo.user;
 
   const session = await db.createSession(user.id);
   const tenant = (await db.getTenant(user.tenantId))!;
