@@ -6,7 +6,7 @@ import { ChangeRecord, ImpactAnalysis, PatchRecord } from '@patchversion/shared'
 import { resolvePermittedFixturePath } from '../src/sandbox/isolated-runner';
 import { PatchversionDatabase } from '../src/db/database';
 import { WorkflowOrchestrator } from '../src/jobs/orchestrator';
-import { GitHubClient } from '../src/github/client';
+import { GitHubClient, OfflineMockTransport } from '../src';
 import { PatchversionEngine } from '../src/engine';
 import { SandboxRunner } from '../src/sandbox/runner';
 import {
@@ -44,11 +44,138 @@ describe('Repository Scan, Tenancy, and Security Regression Tests', () => {
     analyzedAt: new Date().toISOString(),
   };
 
+  const { privateKey: testPrivateKey } = crypto.generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    publicKeyEncoding: { type: 'spki', format: 'pem' },
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+  });
+
+  const testAppConfig = {
+    appId: '176251721',
+    privateKey: testPrivateKey,
+    webhookSecret: 'test_webhook_secret',
+  };
+
   beforeEach(() => {
     tmpDirA = path.join(os.tmpdir(), `test-scan-a-${crypto.randomBytes(6).toString('hex')}`);
     tmpDirB = path.join(os.tmpdir(), `test-scan-b-${crypto.randomBytes(6).toString('hex')}`);
     db = new PatchversionDatabase(tmpDirA);
-    github = new GitHubClient(null); // Mock provider
+
+    const mockTransport = new OfflineMockTransport();
+
+    // Test 1: CipherBill scan routes
+    mockTransport.post('/app/installations/176251721/access_tokens', async () => {
+      return new Response(
+        JSON.stringify({
+          token: 'ghs_test_token_176251721',
+          expires_at: new Date(Date.now() + 3600_000).toISOString(),
+        }),
+        { status: 201, headers: { 'Content-Type': 'application/json' } },
+      );
+    });
+
+    mockTransport.get('/repos/Nitish-1303/CipherBill/git/trees/HEAD', async () => {
+      return new Response(
+        JSON.stringify({
+          sha: '5f160dc1cf6907ce2397d5ef0e0b73590e3c5abf',
+          tree: [
+            { path: 'package.json', type: 'blob' },
+            { path: 'package-lock.json', type: 'blob' },
+          ],
+          truncated: false,
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    });
+
+    mockTransport.get('/repos/Nitish-1303/CipherBill/commits/main', async () => {
+      return new Response(
+        JSON.stringify({ sha: '5f160dc1cf6907ce2397d5ef0e0b73590e3c5abf' }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    });
+
+    const sampleCipherBillPkg = JSON.stringify({
+      name: 'cipherbill',
+      version: '1.0.0',
+      dependencies: {
+        react: '^18.2.0',
+      },
+    });
+    mockTransport.get('/repos/Nitish-1303/CipherBill/contents/package.json', async () => {
+      return new Response(
+        JSON.stringify({
+          content: Buffer.from(sampleCipherBillPkg).toString('base64'),
+          encoding: 'base64',
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    });
+
+    const sampleCipherBillLock = JSON.stringify({
+      name: 'cipherbill',
+      version: '1.0.0',
+      lockfileVersion: 3,
+      packages: {
+        '': {
+          name: 'cipherbill',
+          version: '1.0.0',
+          dependencies: { react: '^18.2.0' },
+        },
+        'node_modules/react': {
+          version: '18.2.0',
+        },
+      },
+    });
+    mockTransport.get('/repos/Nitish-1303/CipherBill/contents/package-lock.json', async () => {
+      return new Response(
+        JSON.stringify({
+          content: Buffer.from(sampleCipherBillLock).toString('base64'),
+          encoding: 'base64',
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    });
+
+    // Test 19: Lock-service concurrent delivery routes
+    mockTransport.post('/app/installations/77711/access_tokens', async () => {
+      return new Response(
+        JSON.stringify({
+          token: 'ghs_test_token_77711',
+          expires_at: new Date(Date.now() + 3600_000).toISOString(),
+        }),
+        { status: 201, headers: { 'Content-Type': 'application/json' } },
+      );
+    });
+
+    mockTransport.get('/repos/acme/lock-service/pulls', async () => {
+      return new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+
+    mockTransport.post('/repos/acme/lock-service/git/refs', async () => {
+      return new Response(
+        JSON.stringify({ ref: 'refs/heads/patchversion/mockpay-2.0.0' }),
+        { status: 201, headers: { 'Content-Type': 'application/json' } },
+      );
+    });
+
+    mockTransport.post('/repos/acme/lock-service/pulls', async () => {
+      return new Response(
+        JSON.stringify({
+          number: 42,
+          url: 'https://api.github.com/repos/acme/lock-service/pulls/42',
+          html_url: 'https://github.com/acme/lock-service/pull/42',
+          head: { sha: 'mock_sha_123', ref: 'patchversion/mockpay-2.0.0' },
+          state: 'open',
+        }),
+        { status: 201, headers: { 'Content-Type': 'application/json' } },
+      );
+    });
+
+    github = new GitHubClient(testAppConfig, mockTransport);
     orchestrator = new WorkflowOrchestrator(db, github);
   });
 

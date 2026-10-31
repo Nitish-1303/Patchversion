@@ -1,4 +1,4 @@
-Patchversion proof run - 2026-10-29T14:32:32.947Z
+Patchversion proof run - 2026-10-31T03:54:25.229Z
 Fixture repo: fixtures\sample-repo
 Change record: fixtures\breaking-change\change-record.json
 
@@ -20,9 +20,9 @@ Baseline (1.0.0):  exit 0 - 3 passed, 0 failed, 3 total
 Bumped (2.0.0):      exit 1 - 1 passed, 2 failed, 3 total
 After fix (2.0.0):   exit 0 - 3 passed, 0 failed, 3 total
 Sandbox: local-process (local process, NO isolation)
-Coverage: fix updated 1 of 1 affected call sites
-Files changed by fix: src\createCharge.js
-Duration: 29.1s
+Coverage: fix updated 0 of 1 affected call sites
+Files changed by fix: src/createCharge.js
+Duration: 86.1s
 
 --- PREPARED PR ---
 Title: [Patchversion] Fix: mockpay 1.0.0 -> 2.0.0 (1 call site)

@@ -3,6 +3,7 @@ import { createTwoFilesPatch } from 'diff';
 import fs from 'fs';
 import path from 'path';
 import ts from 'typescript';
+import { defaultMigrationRegistry } from '../migration';
 
 /**
  * Fix generator: produces a minimal patch for affected call sites.
@@ -33,11 +34,34 @@ export class FixGenerator {
     change: ChangeRecord,
     impact: ImpactAnalysis,
   ): Promise<string | null> {
-    // Try deterministic fixes first (free, fast, reliable for known patterns)
+    // 1. Try enterprise AST migration rules first
+    const applicableRules = defaultMigrationRegistry.findApplicableRules(
+      change.packageName,
+      change.fromVersion,
+      change.toVersion,
+    );
+    for (const rule of applicableRules) {
+      try {
+        const res = await rule.execute({
+          repoPath,
+          packageName: change.packageName,
+          fromVersion: change.fromVersion,
+          toVersion: change.toVersion,
+          targetFiles: impact.affectedCallSites.map((c) => c.filePath),
+        });
+        if (res.preconditionsSatisfied && res.postconditionsVerified && res.unifiedDiff) {
+          return res.unifiedDiff;
+        }
+      } catch {
+        // Fall back to pattern matching
+      }
+    }
+
+    // 2. Try deterministic fixes (free, fast, reliable for known patterns)
     const deterministicFix = this.tryDeterministicFix(repoPath, change, impact);
     if (deterministicFix) return deterministicFix;
 
-    // Fall back to LLM-assisted generation
+    // 3. Fall back to LLM-assisted generation
     if (this.apiKey) {
       return this.generateWithLLM();
     }

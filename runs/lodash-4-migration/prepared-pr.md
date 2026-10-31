@@ -14,11 +14,11 @@ Branch: `patchversion/lodash-4.17.21`
 
 ## What this PR does
 
-Updates 1 call site to work with lodash@4.17.21.
+Updates 0 call sites to work with lodash@4.17.21.
 
 ### Changed files
 
-- `src\membership.js` (1 call site updated)
+- `src/membership.js` (0 call sites updated)
 
 ## Proof
 
@@ -30,19 +30,20 @@ This fix was verified in a local process (no isolation) before this PR text was 
 | Tests on 4.17.21 (before fix) | 1/3 passed, 2 failed |
 | Tests on 4.17.21 (after fix) | 3/3 passed, 0 failed |
 
-The fix updated all 1 affected call sites, and the full test suite is green after the fix.
+The fix updated 0 of 1 affected call sites. 2 could not be verified (see below).
 
 ### Not verified
 
 The following call sites could not be verified by the test suite:
 
+- `src\membership.js:6` - Affected by the change but the generated fix did not modify this file
 - `src\membership.js:10` - Uses the changed package but does not intersect this change; not individually verified
 
 ### Confidence
 
 - Change classification confidence: 90%
 - Sandbox type: local-process
-- Proof generated: 2026-10-29T14:33:50.094Z
+- Proof generated: 2026-10-31T03:57:41.742Z
 
 ---
 *Prepared by Patchversion. Not submitted to GitHub. Proof recorded from local execution.*

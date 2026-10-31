@@ -11,3 +11,8 @@ out/
 .vercel
 *.tsbuildinfo
 .patchversion-state/
+.neon
+.claude/
+.agents/
+skills-lock.json
+runs/archive/

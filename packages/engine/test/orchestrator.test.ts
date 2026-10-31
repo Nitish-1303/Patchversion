@@ -3,7 +3,7 @@ import fs from 'fs';
 import os from 'os';
 import crypto from 'crypto';
 import { PatchversionDatabase } from '../src/db/database';
-import { GitHubClient } from '../src/github/client';
+import { GitHubClient, OfflineMockTransport } from '../src';
 import { WorkflowOrchestrator } from '../src/jobs/orchestrator';
 
 describe('WorkflowOrchestrator - Complete End-to-End Vertical Slice', () => {
@@ -15,6 +15,18 @@ describe('WorkflowOrchestrator - Complete End-to-End Vertical Slice', () => {
   let tenantId: string;
   let userId: string;
   let repoId: string;
+
+  const { privateKey: testPrivateKey } = crypto.generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    publicKeyEncoding: { type: 'spki', format: 'pem' },
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+  });
+
+  const testAppConfig = {
+    appId: '9999',
+    privateKey: testPrivateKey,
+    webhookSecret: 'test_webhook_secret',
+  };
 
   beforeAll(() => {
     const fixtureRepoPath = path.resolve(__dirname, '../../../fixtures/sample-repo');
@@ -31,7 +43,54 @@ describe('WorkflowOrchestrator - Complete End-to-End Vertical Slice', () => {
   beforeEach(() => {
     tmpDir = path.join(os.tmpdir(), `test-orch-${crypto.randomBytes(6).toString('hex')}`);
     db = new PatchversionDatabase(tmpDir);
-    github = new GitHubClient(null); // Mock GitHub provider
+
+    const mockTransport = new OfflineMockTransport();
+
+    mockTransport.post('/app/installations/9999/access_tokens', async () => {
+      return new Response(
+        JSON.stringify({
+          token: 'ghs_test_token_9999',
+          expires_at: new Date(Date.now() + 3600_000).toISOString(),
+        }),
+        { status: 201, headers: { 'Content-Type': 'application/json' } },
+      );
+    });
+
+    mockTransport.get('/repos/acme-payments/checkout-service/pulls', async () => {
+      return new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+
+    mockTransport.get('/repos/acme-payments/checkout-service/commits/main', async () => {
+      return new Response(
+        JSON.stringify({ sha: 'base_checkout_sha_main_123' }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    });
+
+    mockTransport.post('/repos/acme-payments/checkout-service/git/refs', async () => {
+      return new Response(
+        JSON.stringify({ ref: 'refs/heads/patchversion/mockpay-2.0.0' }),
+        { status: 201, headers: { 'Content-Type': 'application/json' } },
+      );
+    });
+
+    mockTransport.post('/repos/acme-payments/checkout-service/pulls', async () => {
+      return new Response(
+        JSON.stringify({
+          number: 101,
+          url: 'https://api.github.com/repos/acme-payments/checkout-service/pulls/101',
+          html_url: 'https://github.com/acme-payments/checkout-service/pull/101',
+          head: { sha: 'patch_sha_checkout_101', ref: 'patchversion/mockpay-2.0.0' },
+          state: 'open',
+        }),
+        { status: 201, headers: { 'Content-Type': 'application/json' } },
+      );
+    });
+
+    github = new GitHubClient(testAppConfig, mockTransport);
     orchestrator = new WorkflowOrchestrator(db, github);
 
     const tenant = db.createTenant('Acme Payments');

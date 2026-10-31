@@ -21,6 +21,15 @@ export { PostgresStore } from './db/postgres-store';
 export type { IPersistenceStore } from './db/store-interface';
 export { migrateJsonToPostgres } from './db/migrator';
 export { GitHubClient } from './github/client';
+export {
+  type GitHubTransport,
+  NetworkGitHubTransport,
+  OfflineMockTransport,
+  UnhandledMockRequestError,
+  GitHubAppNotConfiguredError,
+  RepositoryTreeTruncatedError,
+  type MockHandler,
+} from './github/transport';
 export { IsolatedRunner } from './sandbox/isolated-runner';
 export {
   type IExecutionProvider,
@@ -54,3 +63,35 @@ export {
   type ReadinessReport,
   type ReadinessContext,
 } from './readiness/readiness-evaluator';
+export {
+  RepositoryScanner,
+  buildDependencyMap,
+  detectFrameworks,
+  classifyFrameworkRole,
+  parsePackageLock,
+  parseYarnLock,
+  parsePnpmLock,
+  parsePnpmWorkspace,
+  assertSafePath,
+  assertSafeSymlink,
+  ScanBudget,
+  ScannerSecurityError,
+  DEFAULT_SCAN_LIMITS,
+  type IRepositoryFileProvider,
+  type ScannerOptions,
+  type BuildDependencyMapOptions,
+  type BuiltDependencyMapResult,
+  type FrameworkDetection,
+  type ParsedLockfile,
+  type ParsedLockfilePackage,
+} from './scanner';
+export {
+  MigrationRuleRegistry,
+  defaultMigrationRegistry,
+  LodashMethodRenameRule,
+  MockpayPaymentMethodRule,
+  type IMigrationRule,
+  type MigrationPrecondition,
+  type MigrationResult,
+  type MigrationContext,
+} from './migration';

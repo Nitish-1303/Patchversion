@@ -10,14 +10,15 @@ import {
   ChangeRecord,
   ImpactAnalysis,
   ProveResult,
+  RepositoryScanResult,
 } from '@patchversion/shared';
 import { IPersistenceStore } from '../db/store-interface';
 import { GitHubClient, CreatedPullRequest } from '../github/client';
 import { UsageMapper } from '../usage-map/mapper';
-import { analyzeImpact } from '../break-detector/impact-analyzer';
 import { FixGenerator } from '../fix-generator/generator';
 import { PRBot } from '../pr-bot/bot';
 import { StateStore } from '../state/store';
+import { RepositoryScanner, IRepositoryFileProvider } from '../scanner';
 
 function findRepoRoot(): string {
   let curr = __dirname;
@@ -54,6 +55,7 @@ export class WorkflowOrchestrator {
   private mapper: UsageMapper;
   private fixGen: FixGenerator;
   private prBot: PRBot;
+  private scanner: RepositoryScanner;
   private workerId: string;
   private inFlightDeliveries = new Set<string>();
 
@@ -67,6 +69,7 @@ export class WorkflowOrchestrator {
     this.github = github;
     this.runner = runner ?? new SandboxRunner(loadConfig());
     this.mapper = new UsageMapper();
+    this.scanner = new RepositoryScanner();
     this.fixGen = new FixGenerator(process.env.ANTHROPIC_API_KEY ?? null);
     const stateDir = typeof this.db.getDataDir === 'function' ? this.db.getDataDir() : process.cwd();
     this.prBot = new PRBot(new StateStore(stateDir));
@@ -82,17 +85,19 @@ export class WorkflowOrchestrator {
   }
 
   /**
-   * Stage 1: Discover dependencies and scan repository for upgrade regressions.
+   * Stage 1: Full Repository Scanning & Dependency Mapping.
+   * Performs static AST and manifest scanning, parses lockfiles,
+   * detects frameworks, builds dependency graph, identifies concerns,
+   * detects regressions/breaking changes, and persists the scan result.
    */
-  async scanRepository(
+  async scanRepositoryWithDependencyMap(
     tenantId: string,
     repositoryId: string,
     knownChanges?: ChangeRecord[],
-  ): Promise<FindingRecord[]> {
+  ): Promise<RepositoryScanResult> {
     const repo = await this.db.getRepository(tenantId, repositoryId);
     if (!repo) throw new Error(`Repository ${repositoryId} not found for tenant`);
 
-    let dependencies: Record<string, string> = {};
     let repoPath: string | null = null;
     const isDemoFixture = Boolean(repo.isDemo || repo.fullName === 'patchbay-demo/checkout-service');
     if (isDemoFixture) {
@@ -101,79 +106,74 @@ export class WorkflowOrchestrator {
       repoPath = resolvePermittedFixturePath(findRepoRoot(), repo.localPath);
     }
 
-    if (repoPath && fs.existsSync(path.join(repoPath, 'package.json'))) {
-      const pkg = JSON.parse(fs.readFileSync(path.join(repoPath, 'package.json'), 'utf8'));
-      dependencies = { ...pkg.dependencies, ...pkg.devDependencies };
+    const changesToConsider = knownChanges ?? this.getKnownChangesForRepo();
+    let scanResult: RepositoryScanResult;
+
+    if (repoPath) {
+      scanResult = await this.scanner.scanLocalRepository(tenantId, repo.id, repoPath, {
+        knownChanges: changesToConsider,
+        repositoryFullName: repo.fullName,
+        branch: repo.defaultBranch || 'main',
+      });
     } else {
-      // Fetch package.json from remote GitHub repository
+      // Fetch manifests and lockfiles from remote GitHub repository
       const inst = await this.db.getInstallation(tenantId, repo.installationId);
       if (!inst || inst.status !== 'active') {
         throw new Error(`Cannot scan remote repository: GitHub App installation is not active or has been deleted for repository ${repo.fullName}`);
       }
       const token = await this.github.getInstallationToken(inst.githubInstallationId);
-      const remotePkgJson = await this.github.getRepositoryFileContent(repo.owner, repo.name, 'package.json', token);
-      if (!remotePkgJson) {
-        throw new Error(`package.json not found in repository ${repo.fullName}`);
-      }
-      const pkg = JSON.parse(remotePkgJson);
-      dependencies = { ...pkg.dependencies, ...pkg.devDependencies };
+      const fileProvider: IRepositoryFileProvider = {
+        getFileContent: async (filePath: string): Promise<string | null> => {
+          return await this.github.getRepositoryFileContent(repo.owner, repo.name, filePath, token);
+        },
+        listFiles: async (): Promise<string[]> => {
+          return await this.github.listRepositoryFiles(repo.owner, repo.name, token);
+        },
+        getBranchHeadSha: async (branch?: string): Promise<string> => {
+          return await this.github.getBranchHeadSha(repo.owner, repo.name, branch || repo.defaultBranch || 'main', token);
+        },
+      };
+      scanResult = await this.scanner.scanRemoteRepository(tenantId, repo.id, fileProvider, {
+        knownChanges: changesToConsider,
+        repositoryFullName: repo.fullName,
+        branch: repo.defaultBranch || 'main',
+      });
     }
 
-    const findings: FindingRecord[] = [];
-    const changesToProcess = knownChanges ?? this.getKnownChangesForRepo(dependencies);
-
-    for (const change of changesToProcess) {
-      if (!dependencies[change.packageName]) continue;
-
-      if (repoPath) {
-        const usageMap = this.mapper.mapPackageUsage(repoPath, change.packageName, repo.id);
-        if (usageMap.callSites.length === 0) continue;
-
-        const impact = analyzeImpact(change, usageMap);
-        if (impact.affectedCallSites.length === 0) continue;
-
-        impact.sourceAnalysisPerformed = true;
-        impact.analysisMode = 'local-ast';
-
-        const finding = await this.db.saveFinding(tenantId, repo.id, {
-          packageName: change.packageName,
-          fromVersion: change.fromVersion,
-          toVersion: change.toVersion,
-          isBreaking: change.classification.isBreaking,
-          changeRecord: change,
-          impactAnalysis: impact,
-          status: 'open',
-          sourceAnalysisPerformed: true,
-          analysisMode: 'local-ast',
-        });
-        findings.push(finding);
-      } else {
-        const impact: ImpactAnalysis = {
-          changeId: change.id,
-          repoId: repo.id,
-          affectedCallSites: [],
-          unaffectedCallSites: [],
-          coveragePercent: 0,
-          sourceAnalysisPerformed: false,
-          analysisMode: 'remote-manifest-only',
-          analyzedAt: new Date().toISOString(),
-        };
-        const finding = await this.db.saveFinding(tenantId, repo.id, {
-          packageName: change.packageName,
-          fromVersion: change.fromVersion,
-          toVersion: change.toVersion,
-          isBreaking: change.classification.isBreaking,
-          changeRecord: change,
-          impactAnalysis: impact,
-          status: 'open',
-          sourceAnalysisPerformed: false,
-          analysisMode: 'remote-manifest-only',
-        });
-        findings.push(finding);
-      }
+    // Persist findings to database
+    const savedFindings: FindingRecord[] = [];
+    for (const f of scanResult.findings) {
+      const saved = await this.db.saveFinding(tenantId, repo.id, {
+        packageName: f.packageName,
+        fromVersion: f.fromVersion,
+        toVersion: f.toVersion,
+        isBreaking: f.isBreaking,
+        changeRecord: f.changeRecord,
+        impactAnalysis: f.impactAnalysis,
+        status: f.status,
+        sourceAnalysisPerformed: f.sourceAnalysisPerformed,
+        analysisMode: f.analysisMode,
+      });
+      savedFindings.push(saved);
     }
+    scanResult.findings = savedFindings;
 
-    return findings;
+    // Persist complete scan result
+    await this.db.saveScanResult(tenantId, repositoryId, scanResult);
+
+    return scanResult;
+  }
+
+  /**
+   * Stage 1: Discover dependencies and scan repository for upgrade regressions.
+   */
+  async scanRepository(
+    tenantId: string,
+    repositoryId: string,
+    knownChanges?: ChangeRecord[],
+  ): Promise<FindingRecord[]> {
+    const scanResult = await this.scanRepositoryWithDependencyMap(tenantId, repositoryId, knownChanges);
+    return scanResult.findings;
   }
 
   /**
@@ -445,8 +445,12 @@ export class WorkflowOrchestrator {
     try {
       switch (job.type) {
         case 'scan_dependencies': {
-          const findings = await this.scanRepository(job.tenantId, job.repositoryId);
-          await this.db.completeJob(job.id, { findingsCount: findings.length, findings });
+          const scanResult = await this.scanRepositoryWithDependencyMap(job.tenantId, job.repositoryId);
+          await this.db.completeJob(job.id, {
+            findingsCount: scanResult.findings.length,
+            findings: scanResult.findings,
+            scanResult,
+          });
           break;
         }
         case 'prove_fix': {
@@ -472,10 +476,16 @@ export class WorkflowOrchestrator {
     }
   }
 
-  private getKnownChangesForRepo(dependencies: Record<string, string>): ChangeRecord[] {
+  private getKnownChangesForRepo(dependencies?: Record<string, string>): ChangeRecord[] {
     const changes: ChangeRecord[] = [];
-    if (dependencies['mockpay']) {
+    if (!dependencies || dependencies['mockpay']) {
       const changePath = path.resolve(findRepoRoot(), 'fixtures/breaking-change/change-record.json');
+      if (fs.existsSync(changePath)) {
+        changes.push(JSON.parse(fs.readFileSync(changePath, 'utf8')));
+      }
+    }
+    if (!dependencies || dependencies['lodash']) {
+      const changePath = path.resolve(findRepoRoot(), 'fixtures/real-migration/lodash-change-record.json');
       if (fs.existsSync(changePath)) {
         changes.push(JSON.parse(fs.readFileSync(changePath, 'utf8')));
       }

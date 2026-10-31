@@ -17,6 +17,7 @@ import {
   WatchTargetRecord,
   InstallationOnboardingState,
   DeliveryClaimRecord,
+  RepositoryScanResult,
 } from '@patchversion/shared';
 import { IPersistenceStore } from './store-interface';
 
@@ -1820,5 +1821,38 @@ export class PostgresStore implements IPersistenceStore {
     } finally {
       client.release();
     }
+  }
+
+  async saveScanResult(tenantId: string, repositoryId: string, result: RepositoryScanResult): Promise<void> {
+    const repo = await this.getRepository(tenantId, repositoryId);
+    if (!repo) {
+      throw new Error(`Repository ${repositoryId} not found for tenant ${tenantId}`);
+    }
+    const jobId = `job_scan_${crypto.randomUUID()}`;
+    const now = new Date().toISOString();
+    await this.pool.query(
+      `INSERT INTO jobs (id, tenant_id, repository_id, type, status, payload, result, updated_at)
+       VALUES ($1, $2, $3, 'scan_dependencies', 'completed', $4, $5, $6)`,
+      [
+        jobId,
+        tenantId,
+        repositoryId,
+        JSON.stringify({ repositoryId, scannedAt: result.scannedAt }),
+        JSON.stringify(result),
+        now,
+      ],
+    );
+  }
+
+  async getLatestScanResult(tenantId: string, repositoryId: string): Promise<RepositoryScanResult | null> {
+    const res = await this.pool.query(
+      `SELECT result FROM jobs
+       WHERE tenant_id = $1 AND repository_id = $2 AND type = 'scan_dependencies' AND status = 'completed'
+       ORDER BY created_at DESC LIMIT 1`,
+      [tenantId, repositoryId],
+    );
+    if (res.rows.length === 0 || !res.rows[0].result) return null;
+    const raw = res.rows[0].result;
+    return typeof raw === 'string' ? JSON.parse(raw) : (raw as RepositoryScanResult);
   }
 }

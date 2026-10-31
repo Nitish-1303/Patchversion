@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { BrandIcon } from '../components/BrandIcons';
+import type { RepositoryScanResult } from '@patchversion/shared';
 
 interface UserInfo {
   id: string;
@@ -88,7 +89,10 @@ export default function DashboardPage() {
   const [repositories, setRepositories] = useState<Repository[]>([]);
   const [selectedRepo, setSelectedRepo] = useState<Repository | null>(null);
   const [findings, setFindings] = useState<Finding[]>([]);
-  const [activeTab, setActiveTab] = useState<'Overview' | 'Pull requests' | 'APIs' | 'Activity'>('Overview');
+  const [scanResult, setScanResult] = useState<RepositoryScanResult | null>(null);
+  const [depSearch, setDepSearch] = useState('');
+  const [depFilter, setDepFilter] = useState<'all' | 'direct' | 'transitive' | 'concerns'>('all');
+  const [activeTab, setActiveTab] = useState<'Overview' | 'Dependencies' | 'Pull requests' | 'APIs' | 'Activity'>('Overview');
   const [loading, setLoading] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -235,13 +239,25 @@ export default function DashboardPage() {
     }
   }, [authFetch]);
 
-  // Synchronize findings when selected repository changes
+  const loadScanResult = useCallback(async (repoId: string) => {
+    if (typeof fetch === 'undefined') return;
+    try {
+      const res = await authFetch(`/api/scan?repositoryId=${repoId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setScanResult(data.scan || null);
+      }
+    } catch { /* ignore */ }
+  }, [authFetch]);
+
+  // Synchronize findings and scan result when selected repository changes
   useEffect(() => {
     if (selectedRepo?.id) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      loadFindings(selectedRepo.id);
+      void loadFindings(selectedRepo.id);
+      void loadScanResult(selectedRepo.id);
     }
-  }, [selectedRepo?.id, loadFindings]);
+  }, [selectedRepo?.id, loadFindings, loadScanResult]);
 
   // Check existing session on mount
   useEffect(() => {
@@ -381,8 +397,11 @@ export default function DashboardPage() {
       });
       const data = await res.json();
       if (res.ok) {
+        if (data.scan) {
+          setScanResult(data.scan);
+        }
         if (data.findingsCount === 0) {
-          setActionMessage(`Scan complete: 0 breaking regressions detected in ${selectedRepo.fullName}. Repository dependencies are up to date.`);
+          setActionMessage(`Scan complete: 0 breaking regressions detected in ${selectedRepo.fullName}. Repository dependencies are mapped and up to date.`);
         } else {
           setActionMessage(`Scan complete: ${data.findingsCount} regression candidate(s) analyzed and validated.`);
         }
@@ -448,6 +467,21 @@ export default function DashboardPage() {
       setLoading(false);
     }
   };
+
+  const filteredDependencies = (scanResult?.dependencies || []).filter((dep) => {
+    if (depFilter === 'direct' && dep.type === 'transitive') return false;
+    if (depFilter === 'transitive' && dep.type !== 'transitive') return false;
+    if (depFilter === 'concerns' && dep.concerns.length === 0) return false;
+    if (depSearch.trim()) {
+      const query = depSearch.toLowerCase();
+      const matchName = dep.name.toLowerCase().includes(query);
+      const matchRole = Boolean(dep.frameworkRole && dep.frameworkRole.toLowerCase().includes(query));
+      const matchImport = dep.importingFiles.some(f => f.filePath.toLowerCase().includes(query));
+      const matchConcern = dep.concerns.some(c => c.message.toLowerCase().includes(query));
+      return matchName || matchRole || matchImport || matchConcern;
+    }
+    return true;
+  });
 
   // If unauthenticated: render initial unavailable state with action to authenticate
   if (!authenticated) {
@@ -595,7 +629,7 @@ export default function DashboardPage() {
       )}
 
       <div className="dashboard-tabs" role="tablist" aria-label="Dashboard views">
-        {(['Overview', 'Pull requests', 'APIs', 'Activity'] as const).map(tab => (
+        {(['Overview', 'Dependencies', 'Pull requests', 'APIs', 'Activity'] as const).map(tab => (
           <button
             key={tab}
             role="tab"
@@ -604,6 +638,7 @@ export default function DashboardPage() {
             onClick={() => setActiveTab(tab)}
           >
             {tab}
+            {tab === 'Dependencies' && scanResult ? ` (${scanResult.totalDependencies})` : ''}
           </button>
         ))}
       </div>
@@ -633,6 +668,67 @@ export default function DashboardPage() {
                 <span>created or prepared</span>
               </div>
             </div>
+
+            {scanResult && (
+              <section className="app-card" style={{ marginTop: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+                  <div>
+                    <span className="small-label">ENVIRONMENT & DEPENDENCY GRAPH</span>
+                    <h2>Repository Structure & Tooling</h2>
+                    <p style={{ marginTop: '4px', color: '#475569' }}>
+                      Structure: <strong>{scanResult.projectType}</strong> · Package Manager: <strong>{scanResult.packageManager}</strong> · <strong>{scanResult.totalDependencies}</strong> total dependencies ({scanResult.directCount} direct, {scanResult.transitiveCount} transitive).
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="pill-button"
+                    onClick={() => setActiveTab('Dependencies')}
+                    style={{ fontSize: '11px', minHeight: '36px', padding: '0 16px' }}
+                  >
+                    View Dependency Map ({scanResult.totalDependencies}) →
+                  </button>
+                </div>
+
+                {scanResult.frameworks && scanResult.frameworks.length > 0 && (
+                  <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748b' }}>Detected Frameworks:</span>
+                    {scanResult.frameworks.map((fw, idx) => (
+                      <span
+                        key={idx}
+                        style={{
+                          fontSize: '11px',
+                          padding: '2px 8px',
+                          borderRadius: '12px',
+                          background: '#f8fafc',
+                          border: '1px solid #cbd5e1',
+                          color: '#1e293b',
+                          fontWeight: 600,
+                        }}
+                      >
+                        {fw.name} {fw.version ? `v${fw.version}` : ''} <span style={{ color: '#64748b', fontSize: '9px' }}>({fw.role})</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <div style={{ marginTop: '12px', display: 'flex', gap: '16px', fontSize: '11px', color: '#64748b', flexWrap: 'wrap' }}>
+                  <span>Graph Nodes: <strong>{scanResult.graph.nodes.length}</strong></span>
+                  <span>Graph Edges: <strong>{scanResult.graph.edges.length}</strong></span>
+                  <span>Manifests Parsed: <strong>{scanResult.manifests.length}</strong></span>
+                  <span>Lockfiles: <strong>{scanResult.lockfiles.map(l => l.path).join(', ') || 'none'}</strong></span>
+                </div>
+
+                {scanResult.provenance && (
+                  <div style={{ marginTop: '12px', padding: '8px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '11px', display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+                    <span>Commit: <code style={{ fontFamily: 'monospace' }}>{scanResult.provenance.commitSha ? scanResult.provenance.commitSha.slice(0, 7) : 'head'}</code></span>
+                    <span>Branch: <strong>{scanResult.provenance.branch || 'main'}</strong></span>
+                    <span>Analysis Mode: <span style={{ padding: '2px 6px', borderRadius: '4px', background: scanResult.provenance.astAnalysisStatus === 'complete' ? '#dcfce7' : '#fef3c7', color: scanResult.provenance.astAnalysisStatus === 'complete' ? '#166534' : '#92400e', fontWeight: 600 }}>{scanResult.provenance.astAnalysisStatus.toUpperCase()}</span></span>
+                    <span>Files Inspected: <strong>{scanResult.provenance.filesInspected}</strong></span>
+                    <span>Scanner: <strong>v{scanResult.provenance.scannerVersion}</strong></span>
+                  </div>
+                )}
+              </section>
+            )}
 
             {repositories.length === 0 ? (
               <section className="app-card" style={{ marginTop: '16px' }}>
@@ -766,6 +862,311 @@ export default function DashboardPage() {
               </section>
             )}
           </>
+        )}
+
+        {activeTab === 'Dependencies' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <section className="app-card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+                <div>
+                  <span className="small-label">REPOSITORY DEPENDENCY MAP</span>
+                  <h2>{selectedRepo ? selectedRepo.fullName : 'Repository'} Dependencies</h2>
+                  <p style={{ marginTop: '4px', color: '#475569' }}>
+                    Static AST call sites, lockfile resolution, framework roles, and dependency graph relationships.
+                  </p>
+                </div>
+                {scanResult && (
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', background: '#e0e7ff', color: '#3730a3', fontWeight: 700 }}>
+                      {scanResult.projectType.toUpperCase()}
+                    </span>
+                    <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', background: '#dcfce7', color: '#166534', fontWeight: 700 }}>
+                      PM: {scanResult.packageManager.toUpperCase()}
+                    </span>
+                    <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', background: '#f1f5f9', color: '#475569', fontWeight: 700 }}>
+                      {scanResult.graph.nodes.length} NODES · {scanResult.graph.edges.length} EDGES
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {scanResult?.frameworks && scanResult.frameworks.length > 0 && (
+                <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748b' }}>Detected Frameworks & Tools:</span>
+                  {scanResult.frameworks.map((fw, idx) => (
+                    <span
+                      key={idx}
+                      style={{
+                        fontSize: '11px',
+                        padding: '2px 8px',
+                        borderRadius: '12px',
+                        background: '#f8fafc',
+                        border: '1px solid #cbd5e1',
+                        color: '#1e293b',
+                        fontWeight: 600,
+                      }}
+                    >
+                      {fw.name} {fw.version ? `v${fw.version}` : ''} <span style={{ color: '#64748b', fontSize: '9px' }}>({fw.role})</span>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {scanResult?.warnings && scanResult.warnings.length > 0 && (
+                <div style={{ marginTop: '12px', padding: '8px 12px', borderRadius: '6px', background: '#fffbeb', border: '1px solid #fef3c7' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#92400e', marginBottom: '4px' }}>Scanner Notices:</div>
+                  <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '11px', color: '#b45309' }}>
+                    {scanResult.warnings.map((w, idx) => (
+                      <li key={idx}>{w}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {scanResult?.provenance && (
+                <div style={{ marginTop: '12px', padding: '8px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '11px', display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <span>Commit: <code style={{ fontFamily: 'monospace' }}>{scanResult.provenance.commitSha ? scanResult.provenance.commitSha.slice(0, 7) : 'head'}</code></span>
+                  <span>Branch: <strong>{scanResult.provenance.branch || 'main'}</strong></span>
+                  <span>Analysis Mode: <span style={{ padding: '2px 6px', borderRadius: '4px', background: scanResult.provenance.astAnalysisStatus === 'complete' ? '#dcfce7' : '#fef3c7', color: scanResult.provenance.astAnalysisStatus === 'complete' ? '#166534' : '#92400e', fontWeight: 600 }}>{scanResult.provenance.astAnalysisStatus.toUpperCase()}</span></span>
+                  <span>Files Inspected: <strong>{scanResult.provenance.filesInspected}</strong></span>
+                  <span>Scanner: <strong>v{scanResult.provenance.scannerVersion}</strong></span>
+                </div>
+              )}
+            </section>
+
+            {!scanResult ? (
+              <section className="app-card">
+                <span className="small-label">NO SCAN DATA</span>
+                <h2>No dependency scan on record</h2>
+                <p>Run a scan to extract manifests, parse lockfiles, inspect AST imports, and build the dependency graph.</p>
+                <button
+                  type="button"
+                  className="pill-button pill-button-dark"
+                  onClick={handleScan}
+                  disabled={loading || !selectedRepo}
+                  style={{ marginTop: '12px' }}
+                >
+                  {loading ? 'Scanning...' : 'Scan Repository'}
+                </button>
+              </section>
+            ) : (
+              <section className="app-card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      onClick={() => setDepFilter('all')}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '99px',
+                        border: depFilter === 'all' ? '1px solid #141a39' : '1px solid #cbd5e1',
+                        background: depFilter === 'all' ? '#141a39' : '#ffffff',
+                        color: depFilter === 'all' ? '#ffffff' : '#475569',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      All ({scanResult.totalDependencies})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDepFilter('direct')}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '99px',
+                        border: depFilter === 'direct' ? '1px solid #141a39' : '1px solid #cbd5e1',
+                        background: depFilter === 'direct' ? '#141a39' : '#ffffff',
+                        color: depFilter === 'direct' ? '#ffffff' : '#475569',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Direct ({scanResult.directCount})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDepFilter('transitive')}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '99px',
+                        border: depFilter === 'transitive' ? '1px solid #141a39' : '1px solid #cbd5e1',
+                        background: depFilter === 'transitive' ? '#141a39' : '#ffffff',
+                        color: depFilter === 'transitive' ? '#ffffff' : '#475569',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Transitive ({scanResult.transitiveCount})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDepFilter('concerns')}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '99px',
+                        border: depFilter === 'concerns' ? '1px solid #991b1b' : '1px solid #cbd5e1',
+                        background: depFilter === 'concerns' ? '#fee2e2' : '#ffffff',
+                        color: '#991b1b',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      With Concerns ({scanResult.dependencies.filter(d => d.concerns.length > 0).length})
+                    </button>
+                  </div>
+
+                  <input
+                    type="text"
+                    placeholder="Search packages, imports, or concerns..."
+                    value={depSearch}
+                    onChange={e => setDepSearch(e.target.value)}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '12px',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '6px',
+                      width: '260px',
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {filteredDependencies.length === 0 ? (
+                    <p style={{ color: '#64748b', fontSize: '12px', padding: '16px 0', textAlign: 'center' }}>
+                      No dependencies match your search or filter criteria.
+                    </p>
+                  ) : (
+                    filteredDependencies.map(dep => (
+                      <div
+                        key={dep.id}
+                        style={{
+                          padding: '12px 14px',
+                          border: dep.concerns.length > 0 ? '1px solid #fca5a5' : '1px solid #e2e8f0',
+                          borderRadius: '8px',
+                          background: dep.concerns.length > 0 ? '#fff5f5' : '#ffffff',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '8px',
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <strong style={{ fontSize: '13px', color: '#0f172a' }}>{dep.name}</strong>
+                            <span style={{ fontSize: '11px', color: '#475569', background: '#f1f5f9', padding: '1px 6px', borderRadius: '4px' }}>
+                              declared: {dep.declaredVersion}
+                            </span>
+                            {dep.resolvedVersion && (
+                              <span style={{ fontSize: '11px', color: '#166534', background: '#dcfce7', padding: '1px 6px', borderRadius: '4px' }}>
+                                resolved: {dep.resolvedVersion}
+                              </span>
+                            )}
+                            <span
+                              style={{
+                                fontSize: '10px',
+                                fontWeight: 700,
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                                background: dep.type === 'transitive' ? '#f1f5f9' : '#e0e7ff',
+                                color: dep.type === 'transitive' ? '#475569' : '#3730a3',
+                              }}
+                            >
+                              {dep.type.toUpperCase()}
+                            </span>
+                            {dep.frameworkRole && (
+                              <span
+                                style={{
+                                  fontSize: '10px',
+                                  fontWeight: 700,
+                                  padding: '1px 6px',
+                                  borderRadius: '4px',
+                                  background: '#fef3c7',
+                                  color: '#92400e',
+                                }}
+                              >
+                                {dep.frameworkRole}
+                              </span>
+                            )}
+                          </div>
+                          <span style={{ fontSize: '10px', color: '#64748b' }}>
+                            {dep.manifestPath}
+                          </span>
+                        </div>
+
+                        {/* Concerns */}
+                        {dep.concerns.length > 0 && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            {dep.concerns.map((c, cIdx) => (
+                              <div
+                                key={cIdx}
+                                style={{
+                                  fontSize: '11px',
+                                  padding: '4px 8px',
+                                  borderRadius: '4px',
+                                  background: c.severity === 'critical' ? '#fee2e2' : '#fef3c7',
+                                  color: c.severity === 'critical' ? '#991b1b' : '#92400e',
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                }}
+                              >
+                                <span>⚠ <strong>{c.type.toUpperCase()}:</strong> {c.message}</span>
+                                {c.evidence && <span style={{ fontSize: '10px', opacity: 0.85 }}>({c.evidence})</span>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Importing Files with AST call sites */}
+                        {dep.importingFiles.length > 0 && (
+                          <div style={{ fontSize: '11px', color: '#334155' }}>
+                            <span style={{ fontWeight: 600, color: '#64748b' }}>Imported in:</span>{' '}
+                            {dep.importingFiles.map((loc, lIdx) => (
+                              <code
+                                key={lIdx}
+                                style={{
+                                  marginRight: '6px',
+                                  padding: '2px 5px',
+                                  background: '#f1f5f9',
+                                  borderRadius: '3px',
+                                  fontSize: '10px',
+                                }}
+                              >
+                                {loc.filePath}:{loc.line}:{loc.column}
+                                {loc.symbol ? ` (${loc.symbol})` : ''}
+                              </code>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Direct Dependents & Transitive Dependencies */}
+                        <div style={{ display: 'flex', gap: '16px', fontSize: '11px', color: '#64748b', flexWrap: 'wrap' }}>
+                          {dep.directDependents.length > 0 && (
+                            <span>
+                              Dependents ({dep.directDependents.length}): <code>{dep.directDependents.slice(0, 3).join(', ')}{dep.directDependents.length > 3 ? '...' : ''}</code>
+                            </span>
+                          )}
+                          {dep.transitiveDependencies.length > 0 && (
+                            <span>
+                              Transitive deps: {dep.transitiveDependencies.length}
+                            </span>
+                          )}
+                          {dep.evidence?.detail && (
+                            <span style={{ marginLeft: 'auto', fontSize: '10px', color: '#94a3b8' }}>
+                              Evidence: {dep.evidence.source} ({dep.evidence.detail})
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </section>
+            )}
+          </div>
         )}
 
         {activeTab === 'Pull requests' && (
