@@ -27,10 +27,10 @@ This document specifies the exact scripts and guidelines for the two distinct vi
 
 - **0:32 – 0:48 | Traction & Technical Reality**:
   - "The platform is fully implemented and live in production today on Vercel backed by PostgreSQL.
-  - Our engine has successfully proven full migrations on real-world packages like Lodash 3 to 4, mapping call sites and validating 100% test coverage with zero hallucinations."
+  - My engine has successfully proven full migrations on packages like Lodash 3 to 4 on test fixtures, mapping call sites and validating 100% test coverage with zero hallucinations."
 
 - **0:48 – 1:00 | The Vision & Close**:
-  - "We're turning dependency upgrades from an engineering nightmare into verified, one-click pull requests backed by empirical proof.
+  - "I'm turning dependency upgrades from an engineering nightmare into verified, one-click pull requests backed by empirical proof.
   - Thank you, and I look forward to building TryPatchBay with Y Combinator."
 
 ---
@@ -39,7 +39,7 @@ This document specifies the exact scripts and guidelines for the two distinct vi
 
 ### Narrative Structure
 The product demo clearly distinguishes two distinct components:
-1. **Part A: The Live SaaS Dashboard on Production** using the exclusive real customer repository `Nitish-1303/CipherBill` (read-only, truthful zero findings).
+1. **Part A: The Live SaaS Dashboard on Production** using the authentic open-source demonstration repository `Nitish-1303/CipherBill` (read-only, truthful zero findings).
 2. **Part B: The Genuine Engine Migration Proof** demonstrated via the verified Lodash 3 $\rightarrow$ 4 migration fixture running in the terminal.
 
 ---
@@ -58,9 +58,9 @@ The product demo clearly distinguishes two distinct components:
      - Scanned 27 source files.
      - Extracted dependencies (`next@15.5.23`, `starknet@6.24.1`, etc.).
      - Truthful result: "No breaking changes matched the migration rules currently supported by TryPatchBay."
-     - Emphasize to the reviewer: TryPatchBay does NOT fabricate synthetic findings on customer repositories. It is 100% honest and read-only.
+     - Emphasize to the reviewer: TryPatchBay does NOT fabricate synthetic findings on repositories. It is 100% honest and read-only.
 3. **Enterprise Governance & Security**:
-   - Highlight the sliding-window rate limiting (10 scans/min) and RBAC security protecting production.
+   - Highlight the distributed sliding-window rate limiting (10 scans/min) and RBAC security protecting production.
    - Point out that untrusted customer code execution is fail-closed blocked to prevent host compromise.
 
 #### Part B — The Real Migration Proof Engine (1:30 – 3:00)
@@ -71,10 +71,10 @@ The product demo clearly distinguishes two distinct components:
      npm run prove:real
      ```
 2. **Explain the 3-Stage Proof Loop Output**:
-   - **Baseline Run**: Lodash 3.10.1 is installed. Test suite runs `npm test` $\rightarrow$ Exit code 0, 1 passed.
+   - **Baseline Run**: Lodash 3.10.1 is installed. Test suite runs `npm test` $\rightarrow$ Exit code 0, 3 passed.
    - **Bumped Run (Red)**: Dependency upgraded to Lodash 4.17.21 without patch. Tests run $\rightarrow$ Exit code 1, `TypeError: _.contains is not a function`.
    - **Deterministic AST Patch**: Engine inspects AST, replaces `_.contains(list, item)` with `_.includes(list, item)`.
-   - **Fixed Run (Green)**: Tests re-executed $\rightarrow$ Exit code 0, 1 passed.
+   - **Fixed Run (Green)**: Tests re-executed $\rightarrow$ Exit code 0, 3 passed.
    - **Coverage Verification**: Engine asserts 1 of 1 affected call site verified, 0 unverifiable.
 3. **Closing Summary**:
    - Point to the generated `runs/lodash-4-migration/proof.json` and `prepared-pr.md`.
