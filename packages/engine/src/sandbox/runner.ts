@@ -114,6 +114,13 @@ const KILL_GRACE_MS = 5_000;
  *   allows this for trusted fixture repositories.
  * - docker: BLOCKED. Docker isolation is unverified; selecting it throws.
  */
+export function normalizeRepoRelativePath(filePath: string): string {
+  return (filePath || '')
+    .replace(/\\/g, '/')
+    .replace(/^\.\//, '')
+    .replace(/^\//, '');
+}
+
 export class SandboxRunner {
   private config: EngineConfig;
 
@@ -238,10 +245,10 @@ export class SandboxRunner {
     }
 
     // Step 6: Verified fix - build the proof artifact
-    const fixedFiles = this.filesChangedByDiff(fixDiff).map(f => f.replace(/\\/g, '/'));
+    const fixedFiles = this.filesChangedByDiff(fixDiff).map(normalizeRepoRelativePath);
+    const canonicalFixedFiles = new Set(fixedFiles);
     const isFileFixed = (filePath: string) => {
-      const norm = (filePath || '').replace(/\\/g, '/');
-      return fixedFiles.some(f => f === norm || f.endsWith('/' + norm) || norm.endsWith('/' + f));
+      return canonicalFixedFiles.has(normalizeRepoRelativePath(filePath));
     };
     const verified = impact.affectedCallSites.filter(
       site => isFileFixed(site.filePath),

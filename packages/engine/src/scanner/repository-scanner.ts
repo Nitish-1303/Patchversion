@@ -10,7 +10,7 @@ import {
   ChangeRecord,
   ScanProvenance,
 } from '@patchversion/shared';
-import { assertSafeSymlink, ScanBudget, ScanResourceLimits, ScannerSecurityError } from './security';
+import { assertSafePath, assertSafeSymlink, ScanBudget, ScanResourceLimits, ScannerSecurityError } from './security';
 import { parsePackageLock, ParsedLockfile } from './lockfile-parsers/package-lock';
 import { parseYarnLock } from './lockfile-parsers/yarn-lock';
 import { parsePnpmLock, parsePnpmWorkspace } from './lockfile-parsers/pnpm-lock';
@@ -76,9 +76,7 @@ export class RepositoryScanner {
       warnings.push('Root package.json was not found in the repository.');
     } else {
       try {
-        const stats = fs.statSync(rootPkgPath);
-        budget.recordFile(stats.size);
-        const content = fs.readFileSync(rootPkgPath, 'utf8');
+        const content = this.readFileSafely(resolvedRoot, rootPkgPath, budget);
         const pkg = JSON.parse(content);
         manifests.push(this.normalizeManifest('package.json', pkg, true));
       } catch (err) {
@@ -95,9 +93,7 @@ export class RepositoryScanner {
     if (fs.existsSync(pnpmWsPath)) {
       projectType = 'pnpm-workspace';
       try {
-        const stats = fs.statSync(pnpmWsPath);
-        budget.recordFile(stats.size);
-        const content = fs.readFileSync(pnpmWsPath, 'utf8');
+        const content = this.readFileSafely(resolvedRoot, pnpmWsPath, budget);
         workspacePatterns.push(...parsePnpmWorkspace(content));
       } catch {
         warnings.push('Malformed pnpm-workspace.yaml; defaulted to packages/*');
@@ -135,9 +131,7 @@ export class RepositoryScanner {
       const pkgPath = path.join(resolvedRoot, relDir, 'package.json');
       if (fs.existsSync(pkgPath)) {
         try {
-          const stats = fs.statSync(pkgPath);
-          budget.recordFile(stats.size);
-          const content = fs.readFileSync(pkgPath, 'utf8');
+          const content = this.readFileSafely(resolvedRoot, pkgPath, budget);
           const pkg = JSON.parse(content);
           manifests.push(this.normalizeManifest(path.join(relDir, 'package.json').replace(/\\/g, '/'), pkg, false, relDir));
         } catch (err) {
@@ -156,9 +150,7 @@ export class RepositoryScanner {
     if (fs.existsSync(pkgLockPath)) {
       packageManager = 'npm';
       try {
-        const stats = fs.statSync(pkgLockPath);
-        budget.recordFile(stats.size);
-        const content = fs.readFileSync(pkgLockPath, 'utf8');
+        const content = this.readFileSafely(resolvedRoot, pkgLockPath, budget);
         const parsed = parsePackageLock(content);
         parsedLockfiles.push(parsed);
         lockfileRecords.push({
@@ -177,9 +169,7 @@ export class RepositoryScanner {
     if (fs.existsSync(pnpmLockPath)) {
       packageManager = 'pnpm';
       try {
-        const stats = fs.statSync(pnpmLockPath);
-        budget.recordFile(stats.size);
-        const content = fs.readFileSync(pnpmLockPath, 'utf8');
+        const content = this.readFileSafely(resolvedRoot, pnpmLockPath, budget);
         const parsed = parsePnpmLock(content);
         parsedLockfiles.push(parsed);
         lockfileRecords.push({
@@ -198,9 +188,7 @@ export class RepositoryScanner {
     if (fs.existsSync(yarnLockPath)) {
       packageManager = 'yarn';
       try {
-        const stats = fs.statSync(yarnLockPath);
-        budget.recordFile(stats.size);
-        const content = fs.readFileSync(yarnLockPath, 'utf8');
+        const content = this.readFileSafely(resolvedRoot, yarnLockPath, budget);
         const parsed = parseYarnLock(content);
         parsedLockfiles.push(parsed);
         lockfileRecords.push({
@@ -692,6 +680,15 @@ export class RepositoryScanner {
       peerDependencies: toRecord(raw.peerDependencies),
       optionalDependencies: toRecord(raw.optionalDependencies),
     };
+  }
+
+
+  private readFileSafely(repoRoot: string, targetPath: string, budget: ScanBudget): string {
+    const safePath = assertSafePath(repoRoot, targetPath);
+    assertSafeSymlink(repoRoot, safePath);
+    const stats = fs.statSync(safePath);
+    budget.recordFile(stats.size);
+    return fs.readFileSync(safePath, 'utf8');
   }
 
   private discoverWorkspaceDirectories(repoRoot: string, patterns: string[]): string[] {

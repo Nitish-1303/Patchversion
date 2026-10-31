@@ -7,6 +7,7 @@ import fs from 'fs';
 import os from 'os';
 import { GET as scanGet, POST as scanPost } from '../src/app/api/scan/route';
 import { getDatabase, ensureDemoTenantAndUser, DEMO_REPO_ID, _resetInstancesForTest } from '../src/app/api/backend';
+import { RateLimiter } from '../src/app/api/security/rate-limiter';
 
 describe('/api/scan API Routes (Repository Scanning & Dependency Mapping)', () => {
   jest.setTimeout(60000);
@@ -37,6 +38,10 @@ describe('/api/scan API Routes (Repository Scanning & Dependency Mapping)', () =
     await db.createUser(otherTenantId, 'other@example.com', 'owner', 'other-dev', undefined, otherUserId);
     const otherSession = await db.createSession(otherUserId);
     otherTenantSessionToken = otherSession.token;
+  });
+
+  beforeEach(() => {
+    RateLimiter.resetForTest();
   });
 
   afterAll(() => {
@@ -118,6 +123,25 @@ describe('/api/scan API Routes (Repository Scanning & Dependency Mapping)', () =
       });
       const res = await scanPost(req);
       expect(res.status).toBe(404);
+    });
+
+    test('enforces rate limiting of maximum 10 scan requests per minute per tenant with 429', async () => {
+      for (let i = 0; i < 10; i++) {
+        const req = createAuthedRequest('/api/scan', 'POST', otherTenantSessionToken, {
+          repositoryId: 'fake-unknown-repo-id',
+        });
+        const res = await scanPost(req);
+        expect(res.status).not.toBe(429);
+      }
+
+      const blockedReq = createAuthedRequest('/api/scan', 'POST', otherTenantSessionToken, {
+        repositoryId: 'fake-unknown-repo-id',
+      });
+      const blockedRes = await scanPost(blockedReq);
+      expect(blockedRes.status).toBe(429);
+      const data = await blockedRes.json();
+      expect(data.code).toBe('TOO_MANY_REQUESTS');
+      expect(blockedRes.headers.get('Retry-After')).toBe('60');
     });
 
     test('executes full scan and dependency mapping on demo repository', async () => {

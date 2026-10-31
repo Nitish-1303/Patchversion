@@ -305,6 +305,56 @@ packages:
           // On some Windows environments, symlink creation requires admin rights
           if (e instanceof ScannerSecurityError) throw e;
         }
+
+        // Test directory symlink pointing outside
+        const dirSymlinkPath = path.join(repoRoot, 'outside_dir_link');
+        try {
+          fs.symlinkSync(outsideDir, dirSymlinkPath, 'dir');
+          expect(() => assertSafeSymlink(repoRoot, dirSymlinkPath)).toThrow(ScannerSecurityError);
+
+          // File inside outside directory reached through symlink
+          const nestedPath = path.join(dirSymlinkPath, 'secret.txt');
+          expect(() => assertSafeSymlink(repoRoot, nestedPath)).toThrow(ScannerSecurityError);
+        } catch (e) {
+          if (e instanceof ScannerSecurityError) throw e;
+        }
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    test('assertSafeSymlink permits safe internal symlinks', () => {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'patchbay-sec-safe-'));
+      try {
+        const repoRoot = path.join(tempDir, 'repo');
+        fs.mkdirSync(repoRoot);
+        const internalTarget = path.join(repoRoot, 'package.json');
+        fs.writeFileSync(internalTarget, '{"name":"internal"}');
+        const internalLink = path.join(repoRoot, 'link.json');
+        try {
+          fs.symlinkSync(internalTarget, internalLink, 'file');
+          expect(() => assertSafeSymlink(repoRoot, internalLink)).not.toThrow();
+        } catch (e) {
+          if (e instanceof ScannerSecurityError) throw e;
+        }
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    test('assertSafeSymlink rejects broken symlinks pointing outside repository', () => {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'patchbay-sec-broken-'));
+      try {
+        const repoRoot = path.join(tempDir, 'repo');
+        fs.mkdirSync(repoRoot);
+        const nonExistentOutside = path.join(tempDir, 'does-not-exist.json');
+        const brokenLink = path.join(repoRoot, 'broken-link.json');
+        try {
+          fs.symlinkSync(nonExistentOutside, brokenLink, 'file');
+          expect(() => assertSafeSymlink(repoRoot, brokenLink)).toThrow(ScannerSecurityError);
+        } catch (e) {
+          if (e instanceof ScannerSecurityError) throw e;
+        }
       } finally {
         fs.rmSync(tempDir, { recursive: true, force: true });
       }

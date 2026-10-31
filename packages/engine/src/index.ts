@@ -13,7 +13,7 @@ export { ContractProber } from './probes/contract-probe';
 export { UsageMapper } from './usage-map/mapper';
 export { analyzeImpact } from './break-detector/impact-analyzer';
 export { classifyChange } from './break-detector/classifier';
-export { SandboxRunner } from './sandbox/runner';
+export { SandboxRunner, normalizeRepoRelativePath } from './sandbox/runner';
 export { FixGenerator } from './fix-generator/generator';
 export { PRBot } from './pr-bot/bot';
 export { PatchversionDatabase } from './db/database';

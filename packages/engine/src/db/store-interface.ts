@@ -27,7 +27,7 @@ export interface IPersistenceStore {
   createUser(
     tenantId: string,
     email: string,
-    role?: 'owner' | 'admin' | 'member',
+    role?: 'owner' | 'admin' | 'member' | 'reviewer',
     githubLogin?: string,
     githubUserId?: string,
     id?: string,

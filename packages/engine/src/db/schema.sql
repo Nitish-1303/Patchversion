@@ -229,3 +229,10 @@ CREATE TABLE IF NOT EXISTS watch_targets (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT uq_watch_targets_tenant_package UNIQUE (tenant_id, package_name)
 );
+
+CREATE TABLE IF NOT EXISTS rate_limits (
+  key VARCHAR(255) PRIMARY KEY,
+  count INT NOT NULL DEFAULT 1,
+  first_attempt_at BIGINT NOT NULL,
+  last_attempt_at BIGINT NOT NULL
+);

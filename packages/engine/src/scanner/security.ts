@@ -60,10 +60,34 @@ export function assertSafePath(repoRoot: string, relativeOrAbsolutePath: string)
  * remains within the repository root.
  */
 export function assertSafeSymlink(repoRoot: string, targetPath: string): void {
-  const resolvedRoot = path.resolve(repoRoot);
+  const resolvedRoot = fs.existsSync(repoRoot) ? fs.realpathSync(repoRoot) : path.resolve(repoRoot);
   try {
     const lstat = fs.lstatSync(targetPath);
     if (lstat.isSymbolicLink()) {
+      try {
+        const real = fs.realpathSync(targetPath);
+        if (real !== resolvedRoot && !real.startsWith(resolvedRoot + path.sep)) {
+          throw new ScannerSecurityError(
+            `Symlink target escapes repository boundary: "${targetPath}" -> "${real}"`,
+            'SYMLINK_ESCAPE_DETECTED',
+          );
+        }
+      } catch (realErr) {
+        if (realErr instanceof ScannerSecurityError) throw realErr;
+        // Broken symlink pointing outside
+        const rawTarget = fs.readlinkSync(targetPath);
+        const resolvedLinkTarget = path.isAbsolute(rawTarget)
+          ? path.resolve(rawTarget)
+          : path.resolve(path.dirname(targetPath), rawTarget);
+        if (resolvedLinkTarget !== resolvedRoot && !resolvedLinkTarget.startsWith(resolvedRoot + path.sep)) {
+          throw new ScannerSecurityError(
+            `Symlink target escapes repository boundary: "${targetPath}" -> "${resolvedLinkTarget}"`,
+            'SYMLINK_ESCAPE_DETECTED',
+          );
+        }
+      }
+    } else if (fs.existsSync(targetPath)) {
+      // Regular file or directory: verify realpath to ensure no ancestor directory escaped boundary via symlink
       const real = fs.realpathSync(targetPath);
       if (real !== resolvedRoot && !real.startsWith(resolvedRoot + path.sep)) {
         throw new ScannerSecurityError(
@@ -74,7 +98,12 @@ export function assertSafeSymlink(repoRoot: string, targetPath: string): void {
     }
   } catch (err) {
     if (err instanceof ScannerSecurityError) throw err;
-    // Non-existent files or permission errors will be handled during read
+    if (err && typeof err === 'object' && 'code' in err && (err as { code?: string }).code === 'ELOOP') {
+      throw new ScannerSecurityError(
+        `Symlink loop detected: "${targetPath}"`,
+        'SYMLINK_LOOP_DETECTED',
+      );
+    }
   }
 }
 

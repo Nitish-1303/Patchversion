@@ -134,7 +134,7 @@ export class PostgresStore implements IPersistenceStore {
   async createUser(
     tenantId: string,
     email: string,
-    role: 'owner' | 'admin' | 'member' = 'member',
+    role: 'owner' | 'admin' | 'member' | 'reviewer' = 'member',
     githubLogin?: string,
     githubUserId?: string,
     id?: string,
@@ -165,7 +165,7 @@ export class PostgresStore implements IPersistenceStore {
       id: string;
       tenant_id: string;
       email: string;
-      role: 'owner' | 'admin' | 'member';
+      role: 'owner' | 'admin' | 'member' | 'reviewer';
       github_user_id?: string;
       github_login?: string;
       password_hash?: string;
@@ -189,7 +189,7 @@ export class PostgresStore implements IPersistenceStore {
       id: string;
       tenant_id: string;
       email: string;
-      role: 'owner' | 'admin' | 'member';
+      role: 'owner' | 'admin' | 'member' | 'reviewer';
       github_user_id?: string;
       github_login?: string;
       password_hash?: string;

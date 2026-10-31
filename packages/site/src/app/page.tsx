@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import { ApiMarquee, FeatureCarousel, HeroDashboard, Reveal, UpdatesForm, WorkflowTabs } from './components/Experience';
-import { FeatureGrid, NavyBand, PageHeading, SplitSection } from './components/PageSections';
+import { ApiMarquee, FeatureCarousel, HeroDashboard, Reveal, WorkflowTabs } from './components/Experience';
+import { FeatureGrid, BentoSection, NavyBand, PageHeading, SplitSection } from './components/PageSections';
 
 const homeCards = [
   { title: 'A change summary', body: 'The bundled example explains a recorded parameter rename in plain language with verified breaking change classification.' },
@@ -23,7 +23,12 @@ export default function HomePage() {
           <Reveal><span className="eyebrow-chip">API changes, made reviewable</span></Reveal>
           <Reveal delay={80}><h1>API changes.<br /><span>Proof in view.</span></h1></Reveal>
           <Reveal delay={160}><p>trypatchbay is a dependency migration platform for tracing breaking changes through code, generating deterministic patches, and verifying fixes.</p></Reveal>
-          <Reveal delay={240}><UpdatesForm /></Reveal>
+          <Reveal delay={240}>
+            <div className="hero-cta-group">
+              <Link href="/signup" className="pill-button pill-button-dark hero-cta-btn">Start free scan</Link>
+              <Link href="/dashboard" className="pill-button pill-button-light hero-cta-btn">View live demo</Link>
+            </div>
+          </Reveal>
         </div>
         <Reveal delay={160}><HeroDashboard /></Reveal>
       </section>
@@ -67,7 +72,7 @@ export default function HomePage() {
         href="/how-it-works"
       />
 
-      <FeatureGrid
+      <BentoSection
         eyebrow="WHAT THE PRODUCT DOES"
         title="Evidence you can read before you act."
         description="Core capabilities combine AST static analysis, lockfile dependency mapping, and tamper-evident proof bundles. Untrusted customer code execution remains strictly fail-closed until qualified microVM sandboxes are active."

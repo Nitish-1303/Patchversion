@@ -177,6 +177,29 @@ export interface AuthContext {
   session: Session;
 }
 
+export interface InsufficientRoleError extends Error {
+  statusCode: number;
+  code: string;
+}
+
+/**
+ * Enforces role-based access control (RBAC).
+ * Throws an error with statusCode 403 and code FORBIDDEN_INSUFFICIENT_ROLE if the user's role is not allowed.
+ */
+export function assertRole(
+  user: User,
+  allowedRoles: Array<'owner' | 'admin' | 'member' | 'reviewer'>,
+): void {
+  if (!allowedRoles.includes(user.role)) {
+    const error = new Error(
+      `Forbidden: User role '${user.role}' is not authorized. Required: ${allowedRoles.join(', ')}`,
+    ) as InsufficientRoleError;
+    error.statusCode = 403;
+    error.code = 'FORBIDDEN_INSUFFICIENT_ROLE';
+    throw error;
+  }
+}
+
 /**
  * Extracts and verifies the session token from cookies or Authorization header.
  * Enforces server-side authorization and immediate session revocation. Returns null if unauthenticated.

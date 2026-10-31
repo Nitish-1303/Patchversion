@@ -36,17 +36,17 @@
   "artifacts": [
     {
       "relativePath": "transcript.txt",
-      "sha256": "6a1fa0378785f952433f2668a6cf67115867f0b517406dfa6df3a247953fd1af",
+      "sha256": "7f4c9fee8468f4664b9380e8d60243afa44b0699977fac14255b814e34eea579",
       "bytes": 1245
     },
     {
       "relativePath": "proof.json",
-      "sha256": "c4c95f3b1b15b1ae508ae252f257924f109f8eaaaa3302557525a6c5a988bc41",
-      "bytes": 4688
+      "sha256": "a55e95294d16f48ca3b6bdf438fc7f6b5d5af5ecbcf64d4f033aadb9e003c137",
+      "bytes": 4667
     },
     {
       "relativePath": "prepared-pr.md",
-      "sha256": "e5c89a90814b49175d84ec59d182737380edd2d9c738365f317151e9ae76a49d",
+      "sha256": "a2156a0b25a956f487995ed5eb56f56678b9e1d55629a8659d6f28ca9738065f",
       "bytes": 1403
     }
   ],

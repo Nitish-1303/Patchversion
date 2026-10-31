@@ -219,7 +219,7 @@ export class PatchversionDatabase implements IPersistenceStore {
   createUser(
     tenantId: string,
     email: string,
-    role: 'owner' | 'admin' | 'member' = 'member',
+    role: 'owner' | 'admin' | 'member' | 'reviewer' = 'member',
     githubLogin?: string,
     githubUserId?: string,
     id?: string,

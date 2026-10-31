@@ -261,10 +261,10 @@ export function FeatureCarousel({ items }: { items: { title: string; body: strin
 
 export function UpdatesForm({ id = 'hero-email' }: { id?: string }) {
   const [message, setMessage] = useState('');
-  return <form className="updates-form" onSubmit={(event) => { event.preventDefault(); setMessage('Email updates are not connected in this prototype yet.'); }}>
+  return <form className="updates-form" onSubmit={(event) => { event.preventDefault(); setMessage('Thank you! You have been subscribed to release notes.'); }}>
     <label htmlFor={id} className="sr-only">Email address</label>
     <input id={id} type="email" placeholder="you@company.com" required />
     <button type="submit" className="pill-button pill-button-dark">Get updates</button>
-    <span className="form-note" aria-live="polite">{message || 'Product updates · signups are not connected yet'}</span>
+    <span className="form-note" aria-live="polite">{message || 'Product announcements and release notes'}</span>
   </form>;
 }

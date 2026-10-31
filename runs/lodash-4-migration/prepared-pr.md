@@ -36,13 +36,13 @@ The fix updated all 1 affected call sites, and the full test suite is green afte
 
 The following call sites could not be verified by the test suite:
 
-- `src/membership.js:10` - Uses the changed package but does not intersect this change; not individually verified
+- `src\membership.js:10` - Uses the changed package but does not intersect this change; not individually verified
 
 ### Confidence
 
 - Change classification confidence: 90%
 - Sandbox type: local-process
-- Proof generated: 2026-10-31T09:40:36.253Z
+- Proof generated: 2026-10-31T12:25:54.819Z
 
 ---
 *Prepared by Patchversion. Not submitted to GitHub. Proof recorded from local execution.*

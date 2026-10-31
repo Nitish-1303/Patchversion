@@ -5,6 +5,7 @@ import { UsageMapper } from '../src/usage-map/mapper';
 import { analyzeImpact } from '../src/break-detector/impact-analyzer';
 import { LodashMethodRenameRule } from '../src/migration/rules/lodash-rename';
 import { ChangeRecord } from '@patchversion/shared';
+import { normalizeRepoRelativePath } from '../src/sandbox/runner';
 
 describe('Lodash Proof Metrics Reconciliation', () => {
   const repoRoot = path.resolve(__dirname, '../../..');
@@ -55,7 +56,7 @@ describe('Lodash Proof Metrics Reconciliation', () => {
     expect(result.unifiedDiff).toContain('+  return _.includes(ids, id);');
   });
 
-  test('filesChangedByDiff matches normalized call site filePath so coverageVerified is 1 of 1', () => {
+  test('filesChangedByDiff matches canonical repo-relative path so coverageVerified is 1 of 1', () => {
     const change: ChangeRecord = JSON.parse(fs.readFileSync(changeRecordPath, 'utf8'));
     const mapper = new UsageMapper();
     const usage = mapper.mapPackageUsage(lodashRepo, 'lodash', 'acme/membership');
@@ -70,17 +71,18 @@ describe('Lodash Proof Metrics Reconciliation', () => {
  }
 `;
 
-    // Simulated verified check as in SandboxRunner
-    const fixedFiles = parsePatch(sampleDiff)
-      .map(p => (p.newFileName ?? '').replace(/^b\//, ''))
-      .filter((f: string) => f !== '/dev/null')
-      .map((f: string) => f.replace(/^b\//, ''))
-      .filter((f: string) => f.length > 0)
-      .map((f: string) => f.replace(/\\/g, '/'));
+    // Exact canonical matching as implemented in SandboxRunner
+    const canonicalFixedFiles = new Set(
+      parsePatch(sampleDiff)
+        .map(p => (p.newFileName ?? '').replace(/^b\//, ''))
+        .filter((f: string) => f !== '/dev/null')
+        .map((f: string) => f.replace(/^b\//, ''))
+        .filter((f: string) => f.length > 0)
+        .map(normalizeRepoRelativePath)
+    );
 
     const isFileFixed = (filePath: string) => {
-      const norm = (filePath || '').replace(/\\/g, '/');
-      return fixedFiles.some((f: string) => f === norm || f.endsWith('/' + norm) || norm.endsWith('/' + f));
+      return canonicalFixedFiles.has(normalizeRepoRelativePath(filePath));
     };
 
     const verified = impact.affectedCallSites.filter(site => isFileFixed(site.filePath));
@@ -89,6 +91,60 @@ describe('Lodash Proof Metrics Reconciliation', () => {
     expect(verified.length).toBe(1);
     expect(unverifiableAffected.length).toBe(0);
     expect(impact.affectedCallSites.length).toBe(1);
-    // Verified 1 of 1 affected call sites
+  });
+
+  describe('Regression: Multi-Directory Identical Basename Isolation', () => {
+    test('modifying apps/b/src/util.js does NOT mark apps/a/src/util.js as fixed', () => {
+      const diffModifyingB = '--- a/apps/b/src/util.js\n+++ b/apps/b/src/util.js\n@@ -1,1 +1,1 @@\n-const oldVal = 1;\n+const oldVal = 2;\n';
+      const canonicalFixedFiles = new Set(
+        parsePatch(diffModifyingB)
+          .map(p => (p.newFileName ?? '').replace(/^b\//, ''))
+          .filter((f: string) => f !== '/dev/null')
+          .filter((f: string) => f.length > 0)
+          .map(normalizeRepoRelativePath)
+      );
+
+      const isFileFixed = (filePath: string) => {
+        return canonicalFixedFiles.has(normalizeRepoRelativePath(filePath));
+      };
+
+      // Two call sites in different directories with identical basenames
+      const siteA = { filePath: 'apps/a/src/util.js' };
+      const siteB = { filePath: 'apps/b/src/util.js' };
+      const siteBWindows = { filePath: 'apps\\b\\src\\util.js' };
+
+      // apps/a/src/util.js must NOT be marked as fixed
+      expect(isFileFixed(siteA.filePath)).toBe(false);
+
+      // apps/b/src/util.js MUST be marked as fixed
+      expect(isFileFixed(siteB.filePath)).toBe(true);
+
+      // Windows path notation for apps/b must also match
+      expect(isFileFixed(siteBWindows.filePath)).toBe(true);
+    });
+
+    test('modifying src/util.js does NOT mark apps/a/src/util.js or apps/b/src/util.js as fixed', () => {
+      const diffModifyingRoot = '--- a/src/util.js\n+++ b/src/util.js\n@@ -1,1 +1,1 @@\n-const x = 1;\n+const x = 2;\n';
+      const canonicalFixedFiles = new Set(
+        parsePatch(diffModifyingRoot)
+          .map(p => (p.newFileName ?? '').replace(/^b\//, ''))
+          .filter((f: string) => f !== '/dev/null')
+          .filter((f: string) => f.length > 0)
+          .map(normalizeRepoRelativePath)
+      );
+
+      const isFileFixed = (filePath: string) => {
+        return canonicalFixedFiles.has(normalizeRepoRelativePath(filePath));
+      };
+
+      // Root src/util.js is fixed
+      expect(isFileFixed('src/util.js')).toBe(true);
+      expect(isFileFixed('src\\util.js')).toBe(true);
+
+      // Subdirectory files with same basename are NOT fixed
+      expect(isFileFixed('apps/a/src/util.js')).toBe(false);
+      expect(isFileFixed('apps/b/src/util.js')).toBe(false);
+      expect(isFileFixed('sub/src/util.js')).toBe(false);
+    });
   });
 });

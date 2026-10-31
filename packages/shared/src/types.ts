@@ -181,6 +181,8 @@ export interface Tenant {
   createdAt: string;
 }
 
+export type UserRole = 'owner' | 'admin' | 'member' | 'reviewer';
+
 export interface User {
   id: string;
   tenantId: string;
@@ -188,7 +190,7 @@ export interface User {
   passwordHash?: string;
   githubUserId?: string;
   githubLogin?: string;
-  role: 'owner' | 'admin' | 'member';
+  role: UserRole;
   createdAt: string;
 }
 

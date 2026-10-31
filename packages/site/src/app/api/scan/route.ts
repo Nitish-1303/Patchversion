@@ -7,6 +7,7 @@ import {
   ensureDemoTenantAndUser,
   ensureCheckoutServiceFixtureRepo,
 } from '@/app/api/backend';
+import { checkScanRateLimit } from '@/app/api/security/rate-limiter';
 
 export async function GET(request: NextRequest) {
   const auth = await getAuthContext(request);
@@ -54,6 +55,14 @@ export async function POST(request: NextRequest) {
   const auth = await getAuthContext(request);
   if (!auth) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const rateLimit = await checkScanRateLimit(auth.tenant.id);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: 'Scan rate limit exceeded. Maximum 10 scan requests per minute.', code: 'TOO_MANY_REQUESTS' },
+      { status: 429, headers: { 'Retry-After': '60' } },
+    );
   }
 
   const body = await request.json().catch(() => ({}));
