@@ -77,6 +77,8 @@ export {
   ScanBudget,
   ScannerSecurityError,
   DEFAULT_SCAN_LIMITS,
+  createBundledDemoFileProvider,
+  DEMO_REPO_FILES,
   type IRepositoryFileProvider,
   type ScannerOptions,
   type BuildDependencyMapOptions,

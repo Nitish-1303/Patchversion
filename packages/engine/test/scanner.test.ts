@@ -14,6 +14,7 @@ import {
   ScanBudget,
   ScannerSecurityError,
   IRepositoryFileProvider,
+  createBundledDemoFileProvider,
 } from '../src';
 import { PatchversionDatabase } from '../src/db/database';
 
@@ -415,6 +416,158 @@ packages:
       expect(result.frameworks.some((f) => f.name === 'vitest')).toBe(true);
       expect(result.provenance).toBeDefined();
       expect(result.provenance.astAnalysisStatus).toBe('manifest-only');
+    });
+
+    test('scanRemoteRepository with listFiles performs remote AST call site analysis', async () => {
+      const scanner = new RepositoryScanner();
+      const mockFiles: Record<string, string> = {
+        'package.json': JSON.stringify({
+          name: 'remote-ast-app',
+          version: '1.0.0',
+          dependencies: {
+            mockpay: '^1.0.0',
+          },
+        }),
+        'package-lock.json': JSON.stringify({
+          name: 'remote-ast-app',
+          version: '1.0.0',
+          lockfileVersion: 3,
+          packages: {
+            '': {
+              name: 'remote-ast-app',
+              dependencies: { mockpay: '^1.0.0' },
+            },
+            'node_modules/mockpay': { version: '1.0.0' },
+          },
+        }),
+        'src/charge.js': `const mockpay = require('mockpay');
+function pay(amt) {
+  return mockpay.charges.create({ amount: amt, source: 'tok_visa' });
+}
+module.exports = { pay };`,
+      };
+
+      const mockProvider: IRepositoryFileProvider = {
+        getFileContent: async (p: string) => mockFiles[p] ?? null,
+        listFiles: async () => Object.keys(mockFiles),
+        getBranchHeadSha: async () => 'commit_abc123',
+      };
+
+      const knownChanges = [
+        {
+          id: 'change_mockpay_1_to_2',
+          packageName: 'mockpay',
+          ecosystem: 'npm' as const,
+          fromVersion: '1.0.0',
+          toVersion: '2.0.0',
+          detectedAt: new Date().toISOString(),
+          source: 'registry' as const,
+          sourceUrl: 'https://example.com/mockpay',
+          rawNotes: 'BREAKING: source renamed to payment_method',
+          classification: {
+            isBreaking: true,
+            confidence: 1.0,
+            affectedExports: ['charges.create'],
+            reason: 'Parameter renamed',
+          },
+          severity: 'breaking' as const,
+        },
+      ];
+
+      const result = await scanner.scanRemoteRepository('tenant_ast', 'repo_ast', mockProvider, {
+        knownChanges,
+      });
+
+      expect(result.repositoryId).toBe('repo_ast');
+      expect(result.provenance.astAnalysisStatus).toBe('complete');
+      expect(result.findings.length).toBe(1);
+
+      const finding = result.findings[0];
+      expect(finding.packageName).toBe('mockpay');
+      expect(finding.analysisMode).toBe('remote-ast');
+      expect(finding.sourceAnalysisPerformed).toBe(true);
+      expect(finding.impactAnalysis.affectedCallSites.length).toBe(1);
+      expect(finding.impactAnalysis.affectedCallSites[0].filePath).toBe('src/charge.js');
+      expect(finding.impactAnalysis.affectedCallSites[0].line).toBe(3);
+    });
+
+    test('scanRemoteRepository bounded fetch enforces maxFiles limit and marks status partial', async () => {
+      const scanner = new RepositoryScanner();
+      const mockFiles: Record<string, string> = {
+        'package.json': JSON.stringify({
+          name: 'bounded-app',
+          version: '1.0.0',
+          dependencies: { lodash: '^4.17.21' },
+        }),
+      };
+      // Add 10 source files
+      for (let i = 1; i <= 10; i++) {
+        mockFiles[`src/file${i}.js`] = `console.log(${i});`;
+      }
+
+      const mockProvider: IRepositoryFileProvider = {
+        getFileContent: async (p: string) => mockFiles[p] ?? null,
+        listFiles: async () => Object.keys(mockFiles),
+      };
+
+      // Set maxFiles limit to 3 source files
+      const result = await scanner.scanRemoteRepository('tenant_bounded', 'repo_bounded', mockProvider, {
+        limits: { maxFiles: 3 },
+      });
+
+      expect(result.provenance.astAnalysisStatus).toBe('partial');
+      expect(result.provenance.limitsReached).toBe(true);
+      expect(result.provenance.filesSkipped.length).toBe(7); // 10 eligible - 3 fetched = 7 skipped
+    });
+
+    test('createBundledDemoFileProvider provides complete deterministic in-memory demo repo', async () => {
+      const provider = createBundledDemoFileProvider();
+      const files = await provider.listFiles!();
+      expect(files).toContain('package.json');
+      expect(files).toContain('package-lock.json');
+      expect(files).toContain('src/createCharge.js');
+
+      const pkgJson = await provider.getFileContent('package.json');
+      expect(pkgJson).toBeTruthy();
+      expect(JSON.parse(pkgJson!).name).toBe('acme-payments');
+
+      const chargeJs = await provider.getFileContent('src/createCharge.js');
+      expect(chargeJs).toContain('mockpay.charges.create');
+
+      const sha = await provider.getBranchHeadSha!();
+      expect(sha).toBe('demo-head-c69375d');
+
+      // Now run scanRemoteRepository on this bundled provider
+      const scanner = new RepositoryScanner();
+      const result = await scanner.scanRemoteRepository('ten_demo', 'repo_demo', provider, {
+        knownChanges: [
+          {
+            id: 'change_mockpay_1_to_2',
+            packageName: 'mockpay',
+            ecosystem: 'npm' as const,
+            fromVersion: '1.0.0',
+            toVersion: '2.0.0',
+            detectedAt: new Date().toISOString(),
+            source: 'registry' as const,
+            sourceUrl: 'https://example.com/mockpay',
+            rawNotes: 'BREAKING: source renamed to payment_method',
+            classification: {
+              isBreaking: true,
+              confidence: 1.0,
+              affectedExports: ['charges.create'],
+              reason: 'Parameter renamed',
+            },
+            severity: 'breaking' as const,
+          },
+        ],
+      });
+
+      expect(result.repositoryId).toBe('repo_demo');
+      expect(result.provenance.astAnalysisStatus).toBe('complete');
+      expect(result.findings.length).toBe(1);
+      expect(result.findings[0].analysisMode).toBe('remote-ast');
+      expect(result.findings[0].impactAnalysis.affectedCallSites.length).toBeGreaterThan(0);
+      expect(result.findings[0].impactAnalysis.affectedCallSites[0].filePath).toBe('src/createCharge.js');
     });
 
     test('Database persistence: saveScanResult and getLatestScanResult round-trip', async () => {

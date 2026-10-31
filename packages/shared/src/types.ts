@@ -64,7 +64,7 @@ export interface ImpactAnalysis {
   potentialCallSites?: CallSite[];
   coveragePercent: number;
   sourceAnalysisPerformed?: boolean;
-  analysisMode?: 'local-ast' | 'remote-manifest-only';
+  analysisMode?: 'local-ast' | 'remote-manifest-only' | 'remote-ast';
   analyzedAt: string;
 }
 
@@ -264,7 +264,7 @@ export interface FindingRecord {
   impactAnalysis: ImpactAnalysis;
   status: 'open' | 'fixing' | 'validated' | 'approved' | 'pr_created' | 'dismissed';
   sourceAnalysisPerformed?: boolean;
-  analysisMode?: 'local-ast' | 'remote-manifest-only';
+  analysisMode?: 'local-ast' | 'remote-manifest-only' | 'remote-ast';
   createdAt: string;
 }
 

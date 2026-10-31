@@ -5,3 +5,4 @@ export { parsePackageLock, type ParsedLockfile, type ParsedLockfilePackage } fro
 export { parseYarnLock } from './lockfile-parsers/yarn-lock';
 export { parsePnpmLock, parsePnpmWorkspace } from './lockfile-parsers/pnpm-lock';
 export { assertSafePath, assertSafeSymlink, ScanBudget, ScannerSecurityError, DEFAULT_SCAN_LIMITS } from './security';
+export { createBundledDemoFileProvider, DEMO_REPO_FILES } from './bundled-demo';

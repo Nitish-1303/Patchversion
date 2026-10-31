@@ -885,7 +885,7 @@ export class PostgresStore implements IPersistenceStore {
       impact_analysis: unknown;
       status: 'open' | 'fixing' | 'validated' | 'approved' | 'pr_created' | 'dismissed';
       source_analysis_performed?: boolean;
-      analysis_mode?: 'local-ast' | 'remote-manifest-only';
+      analysis_mode?: 'local-ast' | 'remote-manifest-only' | 'remote-ast';
       created_at: string;
     }>('SELECT * FROM findings WHERE tenant_id = $1 AND id = $2', [tenantId, id]);
     if (!rows[0]) return null;
@@ -924,7 +924,7 @@ export class PostgresStore implements IPersistenceStore {
       impact_analysis: unknown;
       status: 'open' | 'fixing' | 'validated' | 'approved' | 'pr_created' | 'dismissed';
       source_analysis_performed?: boolean;
-      analysis_mode?: 'local-ast' | 'remote-manifest-only';
+      analysis_mode?: 'local-ast' | 'remote-manifest-only' | 'remote-ast';
       created_at: string;
     }>(query, params);
 

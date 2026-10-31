@@ -432,11 +432,125 @@ export class RepositoryScanner {
       }
     }
 
-    // 3. Build Dependency Map & Graph
+    // 3. Remote Source AST Analysis (if provider.listFiles is available)
+    const astImports = new Map<string, DependencySourceLocation[]>();
+    const filesSkipped: Array<{ path: string; reason: string }> = [];
+    const fetchedSourceFiles: Array<{ filePath: string; content: string }> = [];
+    let astAnalysisStatus: 'complete' | 'partial' | 'manifest-only' = 'manifest-only';
+
+    if (provider.listFiles) {
+      try {
+        const fileList = await provider.listFiles();
+        const extensions = ['.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs'];
+        const excludedDirs = ['node_modules/', '.git/', 'dist/', '.next/', 'build/'];
+
+        const eligibleFiles = fileList.filter((f) => {
+          const norm = f.replace(/\\/g, '/');
+          const isSourceExt = extensions.some((ext) => norm.endsWith(ext));
+          const isExcluded =
+            excludedDirs.some((dir) => norm.includes(`/${dir}`) || norm.startsWith(dir)) ||
+            norm.endsWith('.min.js') ||
+            norm.endsWith('.bundle.js');
+          return isSourceExt && !isExcluded;
+        });
+
+        if (eligibleFiles.length > 0) {
+          const MAX_SOURCE_FILES = options?.limits?.maxFiles ?? 25;
+          const MAX_FILE_BYTES = options?.limits?.maxFileSizeBytes ?? 500 * 1024; // 500 KB
+
+          const filesToFetch = eligibleFiles.slice(0, MAX_SOURCE_FILES);
+          const excessFiles = eligibleFiles.slice(MAX_SOURCE_FILES);
+          for (const f of excessFiles) {
+            filesSkipped.push({ path: f, reason: `exceeded maxFiles limit of ${MAX_SOURCE_FILES}` });
+          }
+
+          // Bounded concurrent fetch in batches of 4
+          const CONCURRENCY = 4;
+          for (let i = 0; i < filesToFetch.length; i += CONCURRENCY) {
+            const batch = filesToFetch.slice(i, i + CONCURRENCY);
+            const batchResults = await Promise.all(
+              batch.map(async (filePath) => {
+                try {
+                  const content = await provider.getFileContent(filePath);
+                  if (content !== null) {
+                    if (Buffer.byteLength(content, 'utf8') > MAX_FILE_BYTES) {
+                      filesSkipped.push({ path: filePath, reason: 'exceeded maxFileSizeBytes limit' });
+                      return null;
+                    }
+                    return { filePath, content };
+                  }
+                  return null;
+                } catch (fetchErr) {
+                  filesSkipped.push({
+                    path: filePath,
+                    reason: `fetch error: ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}`,
+                  });
+                  return null;
+                }
+              }),
+            );
+            for (const r of batchResults) {
+              if (r) fetchedSourceFiles.push(r);
+            }
+          }
+
+          // Determine packages to map: known changes, monitored packages, or manifest packages
+          const packagesToMap = new Set<string>();
+          for (const change of options?.knownChanges ?? []) {
+            packagesToMap.add(change.packageName);
+          }
+          for (const m of options?.monitoredPackages ?? []) {
+            packagesToMap.add(m);
+          }
+          if (packagesToMap.size === 0) {
+            for (const m of manifests) {
+              for (const k of Object.keys(m.dependencies)) packagesToMap.add(k);
+              for (const k of Object.keys(m.devDependencies)) packagesToMap.add(k);
+            }
+          }
+
+          for (const pkgName of packagesToMap) {
+            try {
+              const usage = this.mapper.mapPackageUsageInFiles(fetchedSourceFiles, pkgName, repositoryId);
+              if (usage.callSites.length > 0) {
+                astImports.set(
+                  pkgName,
+                  usage.callSites.map((c) => ({
+                    filePath: c.filePath,
+                    line: c.line,
+                    column: c.column,
+                    symbol: c.exportedSymbol,
+                    callExpression: c.callExpression,
+                  })),
+                );
+              }
+            } catch {
+              // Gracefully handle any single-file AST parsing issue
+            }
+          }
+
+          if (filesSkipped.length > 0) {
+            astAnalysisStatus = 'partial';
+          } else {
+            astAnalysisStatus = 'complete';
+          }
+        } else {
+          astAnalysisStatus = 'manifest-only';
+        }
+      } catch (listErr) {
+        warnings.push(
+          `Remote AST analysis unavailable: ${listErr instanceof Error ? listErr.message : String(listErr)}`,
+        );
+        astAnalysisStatus = 'manifest-only';
+      }
+    }
+
+    // 4. Build Dependency Map & Graph
     const mapResult = buildDependencyMap({
       manifests,
       lockfiles: parsedLockfiles,
       packageManager,
+      astImports,
     });
 
     const depMapForFrameworks = new Map<string, string>();
@@ -445,7 +559,7 @@ export class RepositoryScanner {
     }
     const detectedFrameworks = detectFrameworks(depMapForFrameworks);
 
-    // 4. Generate Findings
+    // 5. Generate Findings
     const findings: FindingRecord[] = [];
     const knownChanges = options?.knownChanges ?? [];
 
@@ -453,21 +567,34 @@ export class RepositoryScanner {
       const matchedDep = mapResult.dependencies.find((d) => d.name === change.packageName);
       if (!matchedDep) continue;
 
+      const callSites = matchedDep.importingFiles.map((s) => ({
+        filePath: s.filePath,
+        line: s.line,
+        column: s.column,
+        importStatement: `import from '${matchedDep.name}'`,
+        callExpression: s.callExpression || matchedDep.name,
+        packageName: matchedDep.name,
+        exportedSymbol: s.symbol || 'default',
+      }));
+
       const impact = analyzeImpact(change, {
         repoId: repositoryId,
         packageName: change.packageName,
         mappedAt: new Date().toISOString(),
-        callSites: [],
-        totalFiles: 0,
-        filesWithUsage: 0,
+        callSites,
+        totalFiles: fetchedSourceFiles.length || callSites.length,
+        filesWithUsage: callSites.length > 0 ? 1 : 0,
       });
 
-      if (change.classification.isBreaking) {
+      if (impact.affectedCallSites.length > 0 || change.classification.isBreaking) {
         matchedDep.concerns.push({
           type: 'breaking_change',
           severity: 'critical',
           message: `Breaking upgrade from ${change.fromVersion} to ${change.toVersion} detected: ${change.classification.reason}`,
-          evidence: `Declared in remote manifest with breaking version diff`,
+          evidence:
+            callSites.length > 0
+              ? `${impact.affectedCallSites.length} call site(s) directly impacted`
+              : `Declared in remote manifest with breaking version diff`,
         });
 
         findings.push({
@@ -481,8 +608,8 @@ export class RepositoryScanner {
           changeRecord: change,
           impactAnalysis: impact,
           status: 'open',
-          sourceAnalysisPerformed: false,
-          analysisMode: 'remote-manifest-only',
+          sourceAnalysisPerformed: fetchedSourceFiles.length > 0,
+          analysisMode: fetchedSourceFiles.length > 0 ? 'remote-ast' : 'remote-manifest-only',
           createdAt: new Date().toISOString(),
         });
       }
@@ -498,7 +625,12 @@ export class RepositoryScanner {
     }
 
     const scanTimestamp = new Date().toISOString();
-    const filesFetched = (rootPkgJson ? 1 : 0) + (pkgLockContent ? 1 : 0) + (pnpmLockContent ? 1 : 0) + (yarnLockContent ? 1 : 0);
+    const filesFetched =
+      (rootPkgJson ? 1 : 0) +
+      (pkgLockContent ? 1 : 0) +
+      (pnpmLockContent ? 1 : 0) +
+      (yarnLockContent ? 1 : 0) +
+      fetchedSourceFiles.length;
     const provenance: ScanProvenance = {
       repositoryFullName: options?.repositoryFullName || repositoryId,
       repositoryId,
@@ -507,10 +639,10 @@ export class RepositoryScanner {
       scannedAt: scanTimestamp,
       scannerVersion: '2.4.0',
       filesInspected: filesFetched,
-      filesSkipped: [],
-      limitsReached: false,
+      filesSkipped,
+      limitsReached: filesSkipped.length > 0,
       warnings,
-      astAnalysisStatus: 'manifest-only',
+      astAnalysisStatus,
     };
 
     return {

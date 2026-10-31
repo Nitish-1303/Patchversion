@@ -171,4 +171,88 @@ describe('WorkflowOrchestrator - Complete End-to-End Vertical Slice', () => {
     const attacker = db.createUser(otherTenant.id, 'attacker@evil.com');
     await expect(orchestrator.deliverPullRequest(otherTenant.id, patch.id, attacker.id)).rejects.toThrow();
   });
+
+  test('serverless demo workflow: demo repo without local path scans via bundled provider and validates without hitting GitHub', async () => {
+    // Register demo repo with NO local filesystem path
+    const demoInst = await db.saveInstallation(tenantId, 10001, 'patchbay-demo');
+    const demoRepo = await db.saveRepository(tenantId, demoInst.id, {
+      id: 'repo_demo_checkout_service',
+      githubRepoId: 20001,
+      fullName: 'patchbay-demo/checkout-service',
+      owner: 'patchbay-demo',
+      name: 'checkout-service',
+      defaultBranch: 'main',
+      isPrivate: false,
+      isDemo: true,
+      // intentionally no localPath
+    });
+
+    // 1. Scan demo repo - should succeed via bundled provider without network or GitHub token call
+    const scanResult = await orchestrator.scanRepositoryWithDependencyMap(tenantId, demoRepo.id);
+    expect(scanResult.repositoryId).toBe(demoRepo.id);
+    expect(scanResult.provenance.astAnalysisStatus).toBe('complete');
+    expect(scanResult.findings.length).toBeGreaterThan(0);
+
+    const demoFinding = scanResult.findings[0];
+    expect(demoFinding.packageName).toBe('mockpay');
+    expect(['local-ast', 'remote-ast']).toContain(demoFinding.analysisMode);
+    expect(demoFinding.sourceAnalysisPerformed).toBe(true);
+
+    // 2. Candidate Patch & Validation - should resolve deterministic proof
+    const { patch, validation } = await orchestrator.generateAndValidateFix(tenantId, demoFinding.id);
+    expect(patch.diffContent).toContain('payment_method');
+    expect(validation.status).toBe('passed');
+    expect(validation.proof?.baselineResult.exitCode).toBe(0);
+    expect(validation.proof?.redResult.exitCode).toBe(1);
+    expect(validation.proof?.greenResult.exitCode).toBe(0);
+  });
+
+  test('customer repository execution fails closed when isolated container runner is not available', async () => {
+    const customerInst = await db.saveInstallation(tenantId, 77777, 'acme-corp');
+    const customerRepo = await db.saveRepository(tenantId, customerInst.id, {
+      id: 'repo_customer_api',
+      githubRepoId: 88888,
+      fullName: 'acme-corp/payment-gateway',
+      owner: 'acme-corp',
+      name: 'payment-gateway',
+      defaultBranch: 'main',
+      isPrivate: true,
+      isDemo: false,
+      // no localPath
+    });
+
+    const mockFinding = await db.saveFinding(tenantId, customerRepo.id, {
+      packageName: 'lodash',
+      fromVersion: '3.10.1',
+      toVersion: '4.17.21',
+      isBreaking: true,
+      changeRecord: {
+        id: 'change_lodash_3_to_4',
+        packageName: 'lodash',
+        ecosystem: 'npm',
+        fromVersion: '3.10.1',
+        toVersion: '4.17.21',
+        detectedAt: new Date().toISOString(),
+        source: 'registry',
+        sourceUrl: 'https://example.com',
+        rawNotes: 'Breaking changes in lodash v4',
+        classification: { isBreaking: true, confidence: 1.0, affectedExports: [], reason: 'v4 upgrade' },
+        severity: 'breaking',
+      },
+      impactAnalysis: {
+        changeId: 'change_lodash_3_to_4',
+        repoId: customerRepo.id,
+        affectedCallSites: [],
+        unaffectedCallSites: [],
+        coveragePercent: 1.0,
+        analyzedAt: new Date().toISOString(),
+      },
+      status: 'open',
+    });
+
+    // Customer repo execution must fail closed with explicit isolation error
+    await expect(orchestrator.generateAndValidateFix(tenantId, mockFinding.id)).rejects.toThrow(
+      /execution for live repository "acme-corp\/payment-gateway" is disabled/i,
+    );
+  });
 });

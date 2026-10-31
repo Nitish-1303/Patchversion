@@ -87,6 +87,54 @@ export class UsageMapper {
     return packageNames.map(pkg => this.mapPackageUsage(repoPath, pkg, repoId));
   }
 
+  /**
+   * Map call sites across in-memory files (e.g. boundedly fetched from remote repository).
+   */
+  mapPackageUsageInFiles(
+    files: Array<{ filePath: string; content: string }>,
+    packageName: string,
+    repoId: string,
+  ): UsageMap {
+    const created: Array<{ sourceFile: SourceFile; filePath: string }> = [];
+    try {
+      for (const file of files) {
+        const normalized = file.filePath.replace(/\\/g, '/').replace(/^\//, '');
+        // Virtual absolute path inside project space for ts-morph parser
+        const virtualPath = `/virtual-repo/${normalized}`;
+        const sourceFile = this.project.createSourceFile(virtualPath, file.content, { overwrite: true });
+        created.push({ sourceFile, filePath: normalized });
+      }
+
+      const callSites: CallSite[] = [];
+      let filesWithUsage = 0;
+
+      for (const { sourceFile, filePath } of created) {
+        const bindings = [
+          ...this.findImportBindings(sourceFile, packageName),
+          ...this.findRequireBindings(sourceFile, packageName),
+        ];
+        if (bindings.length === 0) continue;
+
+        filesWithUsage++;
+        const sites = this.findCallSites(sourceFile, bindings, packageName, '', filePath);
+        callSites.push(...sites);
+      }
+
+      return {
+        repoId,
+        packageName,
+        mappedAt: new Date().toISOString(),
+        callSites,
+        totalFiles: files.length,
+        filesWithUsage,
+      };
+    } finally {
+      for (const { sourceFile } of created) {
+        sourceFile.forget();
+      }
+    }
+  }
+
   private loadSourceFiles(repoPath: string): SourceFile[] {
     const extensions = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'];
     const files: string[] = [];
@@ -197,6 +245,7 @@ export class UsageMapper {
     bindings: ImportBinding[],
     packageName: string,
     repoPath: string,
+    overrideFilePath?: string,
   ): CallSite[] {
     const sites: CallSite[] = [];
 
@@ -212,8 +261,11 @@ export class UsageMapper {
       for (const binding of bindings) {
         if (expressionText === binding.localName || expressionText.startsWith(binding.localName + '.')) {
           const pos = sourceFile.getLineAndColumnAtPos(callExpr.getStart());
+          const relPath = overrideFilePath
+            ? overrideFilePath.replace(/\\/g, '/')
+            : (repoPath ? path.relative(repoPath, sourceFile.getFilePath()) : sourceFile.getFilePath());
           sites.push({
-            filePath: path.relative(repoPath, sourceFile.getFilePath()),
+            filePath: relPath,
             line: pos.line,
             column: pos.column,
             importStatement: binding.statementText.split('\n')[0].slice(0, 200),
