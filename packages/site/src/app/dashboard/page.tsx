@@ -346,9 +346,9 @@ export default function DashboardPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          fullName: 'patchbay-demo/checkout-service',
-          owner: 'patchbay-demo',
-          name: 'checkout-service',
+          fullName: 'Nitish-1303/CipherBill',
+          owner: 'Nitish-1303',
+          name: 'CipherBill',
           defaultBranch: 'main',
         }),
       });
@@ -596,7 +596,7 @@ export default function DashboardPage() {
               >
                 {repositories.map(r => (
                   <option key={r.id} value={r.id}>
-                    {r.fullName} - {r.isDemo ? 'Demo Fixture (Full Migration & Proof Demo)' : r.fullName === 'Nitish-1303/CipherBill' ? 'Real Public GitHub (Live 523-Dep AST Scan)' : 'Live GitHub App'}
+                    {r.fullName} - {r.fullName === 'Nitish-1303/CipherBill' ? 'Live Public GitHub (523 Dependencies Mapped)' : 'Live GitHub App'}
                   </option>
                 ))}
               </select>
@@ -758,7 +758,7 @@ export default function DashboardPage() {
                     <div style={{ color: '#64748b', fontSize: '11px', fontWeight: 600 }}>1. REPOSITORY ANALYZED</div>
                     <div style={{ fontWeight: 700, marginTop: '2px', color: '#0f172a' }}>{selectedRepo?.fullName}</div>
                     <div style={{ fontSize: '11px', color: '#475569', marginTop: '2px' }}>
-                      {selectedRepo?.isDemo ? 'Bundled Deterministic Fixture' : selectedRepo?.fullName === 'Nitish-1303/CipherBill' ? 'Live Public GitHub Repository' : 'Authorized GitHub App Workspace'}
+                      {selectedRepo?.fullName === 'Nitish-1303/CipherBill' ? 'Live Public GitHub Repository' : 'Authorized GitHub App Workspace'}
                     </div>
                   </div>
                   <div style={{ padding: '10px', background: '#ffffff', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '12px' }}>
@@ -816,10 +816,10 @@ export default function DashboardPage() {
                   <div style={{ padding: '10px', background: '#ffffff', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '12px' }}>
                     <div style={{ color: '#64748b', fontSize: '11px', fontWeight: 600 }}>8. EXECUTION BOUNDARY &amp; LIMITATIONS</div>
                     <div style={{ fontWeight: 700, marginTop: '2px', color: '#0f172a' }}>
-                      {selectedRepo?.isDemo ? 'Live PR Delivery Skipped' : 'Container Sandbox Required'}
+                      {selectedRepo?.fullName === 'Nitish-1303/CipherBill' ? 'Container Sandbox Required' : 'Live PR Delivery Gated'}
                     </div>
                     <div style={{ fontSize: '11px', color: '#475569', marginTop: '2px' }}>
-                      {selectedRepo?.isDemo ? 'Demo fixture changes are simulated locally without mutating external repos' : 'Customer test suites fail closed until isolated container runner is active'}
+                      {selectedRepo?.fullName === 'Nitish-1303/CipherBill' ? 'Customer test suites fail closed until isolated container runner is active' : 'Test execution is disabled on production host'}
                     </div>
                   </div>
                 </div>

@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
   }
 
   // 3. Demo / Development Fallback Flow (Strictly isolated demo tenant)
-  if (email && email !== 'developer@trypatchbay.dev' && email !== 'developer@example.com') {
+  if (email) {
     const existing = await db.getUserByEmail(email);
     if (existing && existing.passwordHash) {
       return NextResponse.json(

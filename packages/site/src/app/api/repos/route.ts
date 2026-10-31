@@ -47,7 +47,10 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const repos = await db.listRepositories(auth.tenant.id);
+  let repos = await db.listRepositories(auth.tenant.id);
+  if (auth.tenant.id === DEMO_TENANT_ID) {
+    repos = repos.filter(r => r.fullName === 'Nitish-1303/CipherBill');
+  }
   return NextResponse.json({
     repositories: repos,
     storage: getStorageModeInfo(),

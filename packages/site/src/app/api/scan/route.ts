@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthContext, getOrchestrator, DEMO_REPO_ID, CIPHERBILL_REPO_ID, ensureDemoTenantAndUser } from '@/app/api/backend';
+import {
+  getAuthContext,
+  getOrchestrator,
+  DEMO_REPO_ID,
+  CIPHERBILL_REPO_ID,
+  ensureDemoTenantAndUser,
+  ensureCheckoutServiceFixtureRepo,
+} from '@/app/api/backend';
 
 export async function GET(request: NextRequest) {
   const auth = await getAuthContext(request);
@@ -16,9 +23,12 @@ export async function GET(request: NextRequest) {
   const db = orchestrator.getDb();
 
   let repo = await db.getRepository(auth.tenant.id, repositoryId);
-  if (!repo && (repositoryId === DEMO_REPO_ID || repositoryId === 'patchbay-demo/checkout-service' || repositoryId === CIPHERBILL_REPO_ID || repositoryId === 'Nitish-1303/CipherBill')) {
+  if (!repo && (repositoryId === DEMO_REPO_ID || repositoryId === 'patchbay-demo/checkout-service')) {
+    await ensureCheckoutServiceFixtureRepo(auth.tenant.id);
+    repo = await db.getRepository(auth.tenant.id, DEMO_REPO_ID);
+  } else if (!repo && (repositoryId === CIPHERBILL_REPO_ID || repositoryId === 'Nitish-1303/CipherBill')) {
     await ensureDemoTenantAndUser();
-    repo = await db.getRepository(auth.tenant.id, repositoryId) ?? await db.getRepository(auth.tenant.id, CIPHERBILL_REPO_ID);
+    repo = await db.getRepository(auth.tenant.id, CIPHERBILL_REPO_ID);
   }
 
   if (!repo) {
@@ -56,9 +66,12 @@ export async function POST(request: NextRequest) {
   const db = orchestrator.getDb();
 
   let repo = await db.getRepository(auth.tenant.id, repositoryId);
-  if (!repo && (repositoryId === DEMO_REPO_ID || repositoryId === 'patchbay-demo/checkout-service' || repositoryId === CIPHERBILL_REPO_ID || repositoryId === 'Nitish-1303/CipherBill')) {
+  if (!repo && (repositoryId === DEMO_REPO_ID || repositoryId === 'patchbay-demo/checkout-service')) {
+    await ensureCheckoutServiceFixtureRepo(auth.tenant.id);
+    repo = await db.getRepository(auth.tenant.id, DEMO_REPO_ID);
+  } else if (!repo && (repositoryId === CIPHERBILL_REPO_ID || repositoryId === 'Nitish-1303/CipherBill')) {
     await ensureDemoTenantAndUser();
-    repo = await db.getRepository(auth.tenant.id, repositoryId) ?? await db.getRepository(auth.tenant.id, CIPHERBILL_REPO_ID);
+    repo = await db.getRepository(auth.tenant.id, CIPHERBILL_REPO_ID);
   }
 
   if (!repo) {
