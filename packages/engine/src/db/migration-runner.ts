@@ -101,7 +101,7 @@ export function loadMigrationFiles(customDir?: string): MigrationFile[] {
   }
 
   const files = fs
-    .readdirSync(dir)
+    .readdirSync(/*turbopackIgnore: true*/ dir)
     .filter((f) => f.endsWith('.sql'))
     .sort();
 
