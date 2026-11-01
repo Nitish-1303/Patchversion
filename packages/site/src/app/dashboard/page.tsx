@@ -70,6 +70,9 @@ export default function DashboardPage() {
   const [tenant, setTenant] = useState<TenantInfo | null>(null);
   const [repositories, setRepositories] = useState<Repository[]>([]);
   const [selectedRepo, setSelectedRepo] = useState<Repository | null>(null);
+  const [showConnectModal, setShowConnectModal] = useState(false);
+  const [customRepoInput, setCustomRepoInput] = useState('');
+  const [onboardingLoading, setOnboardingLoading] = useState(false);
   const [findings, setFindings] = useState<FindingInfo[]>([]);
   const [scanResult, setScanResult] = useState<RepositoryScanResult | null>(null);
 
@@ -319,6 +322,36 @@ export default function DashboardPage() {
     }
     setActionMessage('Signed out successfully.');
     setLoading(false);
+  };
+
+  const handleInstallGitHubApp = async () => {
+    setOnboardingLoading(true);
+    setActionError(null);
+    try {
+      const res = await authFetch('/api/github/onboarding', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (res.ok && data.installUrl) {
+        window.location.href = data.installUrl;
+      } else {
+        setActionError(data.error || 'GitHub App installation URL unavailable. Ensure GITHUB_APP_SLUG is configured.');
+      }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setOnboardingLoading(false);
+    }
+  };
+
+  const handleConnectCustomRepo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customRepoInput.trim()) return;
+    await handleConnectSpecificRepo(customRepoInput.trim());
+    setCustomRepoInput('');
+    setShowConnectModal(false);
   };
 
   const handleConnectSpecificRepo = async (fullName: string) => {
@@ -612,6 +645,16 @@ export default function DashboardPage() {
 
           {/* Action Buttons with Icons */}
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="pill-button"
+              onClick={() => setShowConnectModal(!showConnectModal)}
+              style={{ fontSize: '12px', minHeight: '40px', padding: '0 16px', background: showConnectModal ? '#eff6ff' : '#ffffff', border: showConnectModal ? '1px solid #2b59ff' : '1px solid #dfe1ef' }}
+            >
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <TopologyIcon size={13} color="var(--navy-deep)" /> {showConnectModal ? 'Close Connect Panel' : '+ Connect Repository'}
+              </span>
+            </button>
             {!repositories.some(r => r.fullName === 'Nitish-1303/CipherBill') && (
               <button
                 type="button"
@@ -637,6 +680,66 @@ export default function DashboardPage() {
             </button>
           </div>
         </div>
+
+        {showConnectModal && (
+          <div
+            style={{
+              margin: '16px 0 20px',
+              padding: '20px',
+              borderRadius: '12px',
+              background: '#ffffff',
+              border: '1px solid #2b59ff',
+              boxShadow: '0 4px 20px rgba(43, 89, 255, 0.08)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+              <div>
+                <strong style={{ fontSize: '14px', color: '#141a39' }}>Connect an Authorized Repository</strong>
+                <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#4e5471' }}>
+                  Authorize your GitHub repositories or link an existing verified installation to your workspace.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleInstallGitHubApp}
+                disabled={onboardingLoading}
+                className="pill-button"
+                style={{ fontSize: '11px', minHeight: '34px', padding: '0 12px', background: '#f8fafc', border: '1px solid #cbd5e1' }}
+              >
+                <BrandIcon name="github" size={12} />
+                <span style={{ marginLeft: 6 }}>{onboardingLoading ? 'Generating link...' : 'Install GitHub App ↗'}</span>
+              </button>
+            </div>
+            <form onSubmit={handleConnectCustomRepo} style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <input
+                type="text"
+                placeholder="owner/repository-name (e.g., acme/payments)"
+                value={customRepoInput}
+                onChange={e => setCustomRepoInput(e.target.value)}
+                style={{
+                  flex: '1',
+                  minWidth: '260px',
+                  height: '38px',
+                  padding: '0 12px',
+                  fontSize: '12px',
+                  borderRadius: '6px',
+                  border: '1px solid #dfe1ef',
+                  background: '#f8f9fb',
+                  color: '#141a39',
+                  fontFamily: 'ui-monospace, monospace',
+                }}
+              />
+              <button
+                type="submit"
+                disabled={loading || !customRepoInput.trim()}
+                className="pill-button pill-button-dark"
+                style={{ fontSize: '12px', minHeight: '38px', padding: '0 16px' }}
+              >
+                Connect Repository
+              </button>
+            </form>
+          </div>
+        )}
 
         {/* Real-time System Telemetry Strip */}
         <TelemetryBar
