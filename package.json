@@ -15,7 +15,10 @@
     "lint": "eslint .",
     "prove": "npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run prove -w @patchversion/engine",
     "prove:real": "npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run prove:real -w @patchversion/engine",
-    "readiness": "npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run readiness -w @patchversion/engine"
+    "readiness": "npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run readiness -w @patchversion/engine",
+    "db:migrate": "npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run db:migrate -w @patchversion/engine",
+    "db:status": "npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run db:status -w @patchversion/engine",
+    "db:verify": "npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run db:verify -w @patchversion/engine"
   },
   "devDependencies": {
     "eslint": "^9.0.0",

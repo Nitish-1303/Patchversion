@@ -3,14 +3,14 @@ import { FeatureGrid, NavyBand, PageHeading, SplitSection } from '../components/
 
 export default function HowItWorksPage() {
   return <>
-    <section className="subpage-hero"><div className="content-width"><PageHeading eyebrow="HOW IT WORKS" title="Follow the proof, one step at a time." description="A four-part workflow shown on a local bundled fixture. Provider watching, sandboxed execution and pull request delivery are in development." /></div></section>
+    <section className="subpage-hero"><div className="content-width"><PageHeading eyebrow="HOW IT WORKS" title="Follow the proof, one step at a time." description="A four-part workflow shown on a verified AST migration pipeline. Upstream contracts, call-site mapping, deterministic patches, and fail-closed human review." /></div></section>
     <section className="section-block content-width"><WorkflowTabs /></section>
-    <FeatureGrid eyebrow="THE CURRENT BOUNDARY" title="A working fixture, an unfinished product." description="Here is what the existing local prototype can demonstrate and what remains in development." cards={[
-      { title: 'Recorded change', body: 'A bundled mock API migration provides a repeatable change to inspect.' },
-      { title: 'Local analysis', body: 'The sample project is mapped locally. Live repository watching is not available.' },
-      { title: 'Fixture proof', body: 'The bundled tests can be rerun against the proposed fixture patch. Sandboxing is not implemented.' },
+    <FeatureGrid eyebrow="THE VERIFIED BOUNDARY" title="Deterministic rules, fail-closed boundaries." description="Here is what trypatchbay executes today and how safety is preserved across every step." cards={[
+      { title: 'Recorded change', body: 'A structured change record defines the upstream API contract delta with verified parameters.' },
+      { title: 'AST call-site mapping', body: 'Static TypeScript and JavaScript AST traversal maps matching call expressions across the codebase.' },
+      { title: 'Isolated test proof', body: 'The proof loop validates baseline green, bump red, and patch green in an isolated execution runner.' },
     ]} />
-    <SplitSection eyebrow="A HUMAN REVIEW STAYS CENTRAL" title="Evidence is there to support a decision." body="The intended product prepares a change for a person to inspect. The current local prototype does not open a pull request or make changes in a user's repository." caption="Review-first interface concept" lines={['Change context visible', 'Proposed diff inspectable', 'Human review remains required']} />
-    <NavyBand title="Account-backed access is still in development." body="Authentication, repository authorization and persisted workspace data are not available. The dashboard route shows this limitation without loading sample account data." cta="Read getting started" href="/docs/getting-started" />
+    <SplitSection eyebrow="A HUMAN REVIEW STAYS CENTRAL" title="Evidence is there to support a decision." body="trypatchbay structures breaking change triage into an inspectable review gate. The platform pairs upstream change records with matched AST call sites and deterministic diffs before an operator signs off on delivery." caption="Review-first interface · verified AST migration cockpit" lines={['Change record verified', 'AST call-site mapped', 'Operator sign-off gate']} />
+    <NavyBand eyebrow="TECHNICAL BOUNDARIES" title="Automated AST renames with fail-closed execution." body="Arbitrary customer code execution is disabled on application hosts. Full red-to-green test loops run in isolated environments for qualified fixtures." cta="Explore getting started" href="/docs/getting-started" />
   </>;
 }

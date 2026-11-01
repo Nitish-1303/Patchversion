@@ -536,30 +536,145 @@ const CAROUSEL_ICONS = [ScanRadarIcon, TopologyIcon, FileDiffIcon, ShieldCheckIc
 
 const CAROUSEL_COVERS = [
   {
-    img: 'https://framerusercontent.com/images/DcLGANZr7CTtr2bUCR0Jj83pU.jpg',
     tag: 'Advisory Record',
     badge: 'mockpay · 1.0 → 2.0',
     meta: 'Upstream breaking contract',
   },
   {
-    img: 'https://framerusercontent.com/images/lVEtI7CzHkjBdZkzMQ7m1DtQRs.jpg',
     tag: 'AST Call-Site',
     badge: 'src/createCharge.js : 42',
     meta: 'Static syntax expression match',
   },
   {
-    img: 'https://framerusercontent.com/images/mrLEe7P95knVWMqyLMC8F9pDNw.jpg',
     tag: 'Deterministic Diff',
     badge: 'sha256:7f160e',
     meta: 'Scoped parameter rename',
   },
   {
-    img: 'https://framerusercontent.com/images/d5DuUDjn3KD2SEYSJsMBHYCFTU.jpg',
     tag: 'Isolated Proof',
     badge: '3 / 3 Passing',
     meta: 'Fail-closed Docker runner',
   },
 ];
+
+function CarouselBlueprintCover({ index }: { index: number }) {
+  if (index === 0) {
+    return (
+      <div className="carousel-blueprint-cover">
+        <div className="cad-grid-overlay" />
+        <div className="blueprint-circuit-traces">
+          <svg className="blueprint-svg-lines" viewBox="0 0 320 180" fill="none">
+            <path d="M 20 90 L 100 90 L 140 40 L 220 40 L 240 70 L 300 70" stroke="rgba(56, 189, 248, 0.4)" strokeWidth="1.5" strokeDasharray="4 4" />
+            <path d="M 40 140 L 120 140 L 160 110 L 260 110" stroke="rgba(43, 89, 255, 0.5)" strokeWidth="1.5" />
+            <circle cx="100" cy="90" r="3" fill="#38bdf8" />
+            <circle cx="140" cy="40" r="3" fill="#38bdf8" />
+            <circle cx="240" cy="70" r="3" fill="#60a5fa" />
+            <circle cx="160" cy="110" r="3" fill="#2b59ff" />
+          </svg>
+        </div>
+        <div className="blueprint-cad-meta-top">
+          <span className="cad-mono-tag">SYS: CONTRACT-DIFF</span>
+          <span className="cad-mono-coords">37.77°N // 122.41°W</span>
+        </div>
+        <div className="blueprint-code-box">
+          <div className="blueprint-line">
+            <span className="bp-del">- export function createCharge(source: string)</span>
+          </div>
+          <div className="blueprint-line">
+            <span className="bp-add">+ export function createCharge(payment_method: string)</span>
+          </div>
+        </div>
+        <div className="blueprint-cad-meta-bottom">
+          <span className="cad-dim-label">LENGTH: 945.2m · CAD-REV: 3.0b</span>
+        </div>
+      </div>
+    );
+  }
+  if (index === 1) {
+    return (
+      <div className="carousel-blueprint-cover">
+        <div className="cad-grid-overlay" />
+        <div className="blueprint-circuit-traces">
+          <svg className="blueprint-svg-lines" viewBox="0 0 320 180" fill="none">
+            <path d="M 60 40 L 120 70 L 180 70 L 240 120" stroke="rgba(56, 189, 248, 0.45)" strokeWidth="1.5" />
+            <path d="M 120 70 L 120 130 L 180 130" stroke="rgba(43, 89, 255, 0.45)" strokeWidth="1.5" strokeDasharray="3 3" />
+            <circle cx="60" cy="40" r="3.5" fill="#38bdf8" />
+            <circle cx="120" cy="70" r="3.5" fill="#38bdf8" />
+            <circle cx="180" cy="70" r="4" fill="#60a5fa" />
+            <circle cx="240" cy="120" r="3.5" fill="#10b981" />
+            <circle cx="180" cy="130" r="3" fill="#64748b" />
+          </svg>
+        </div>
+        <div className="blueprint-cad-meta-top">
+          <span className="cad-mono-tag">AST: SYNTAX-TRAVERSAL</span>
+          <span className="cad-mono-coords">NODE: CallExpr[42]</span>
+        </div>
+        <div className="blueprint-code-box">
+          <div className="blueprint-ast-tree">
+            <span className="ast-node">Program &gt; CallExpression &gt; Property</span>
+            <span className="ast-target">target: Identifier(&quot;source&quot;)</span>
+          </div>
+        </div>
+        <div className="blueprint-cad-meta-bottom">
+          <span className="cad-dim-label">DEPTH: 4 · MATCH: EXACT · SCOPE: FILE</span>
+        </div>
+      </div>
+    );
+  }
+  if (index === 2) {
+    return (
+      <div className="carousel-blueprint-cover">
+        <div className="cad-grid-overlay" />
+        <div className="blueprint-circuit-traces">
+          <svg className="blueprint-svg-lines" viewBox="0 0 320 180" fill="none">
+            <path d="M 30 50 L 90 50 L 130 90 L 210 90 L 250 50 L 290 50" stroke="rgba(56, 189, 248, 0.4)" strokeWidth="1.5" />
+            <circle cx="90" cy="50" r="3" fill="#38bdf8" />
+            <circle cx="130" cy="90" r="3" fill="#ef4444" />
+            <circle cx="210" cy="90" r="3" fill="#10b981" />
+            <circle cx="250" cy="50" r="3" fill="#38bdf8" />
+          </svg>
+        </div>
+        <div className="blueprint-cad-meta-top">
+          <span className="cad-mono-tag">DIFF: DETERMINISTIC-AST</span>
+          <span className="cad-mono-coords">DIGEST: 7f160e</span>
+        </div>
+        <div className="blueprint-code-box">
+          <div className="blueprint-line"><span className="bp-num">42</span><span className="bp-del">- source: source,</span></div>
+          <div className="blueprint-line"><span className="bp-num">42</span><span className="bp-add">+ payment_method: source,</span></div>
+        </div>
+        <div className="blueprint-cad-meta-bottom">
+          <span className="cad-dim-label">TRIVIA-PRESERVED · SINGLE-TARGET</span>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="carousel-blueprint-cover">
+      <div className="cad-grid-overlay" />
+      <div className="blueprint-circuit-traces">
+        <svg className="blueprint-svg-lines" viewBox="0 0 320 180" fill="none">
+          <path d="M 20 70 L 90 70 L 130 110 L 220 110 L 260 60 L 300 60" stroke="rgba(16, 185, 129, 0.45)" strokeWidth="1.5" />
+          <circle cx="90" cy="70" r="3" fill="#10b981" />
+          <circle cx="130" cy="110" r="3" fill="#ef4444" />
+          <circle cx="220" cy="110" r="3" fill="#10b981" />
+          <circle cx="260" cy="60" r="3" fill="#10b981" />
+        </svg>
+      </div>
+      <div className="blueprint-cad-meta-top">
+        <span className="cad-mono-tag">PROOF: ISOLATED-MATRIX</span>
+        <span className="cad-mono-coords">RUNNER: FAIL-CLOSED</span>
+      </div>
+      <div className="blueprint-code-box">
+        <div className="bp-matrix-row"><span className="bp-mat-status pass">PASS</span><span className="bp-mat-name">01 Baseline (v1.0.4)</span><span className="bp-mat-time">124ms</span></div>
+        <div className="bp-matrix-row"><span className="bp-mat-status fail">FAIL</span><span className="bp-mat-name">02 Bumped (v2.0.0)</span><span className="bp-mat-time">18ms</span></div>
+        <div className="bp-matrix-row"><span className="bp-mat-status pass">PASS</span><span className="bp-mat-name">03 Patched (AST fix)</span><span className="bp-mat-time">131ms</span></div>
+      </div>
+      <div className="blueprint-cad-meta-bottom">
+        <span className="cad-dim-label">SHA256:7f160e · EVIDENCE-BUNDLE</span>
+      </div>
+    </div>
+  );
+}
 
 export function FeatureCarousel({ items }: { items: { title: string; body: string }[] }) {
   const [active, setActive] = useState(0);
@@ -594,14 +709,13 @@ export function FeatureCarousel({ items }: { items: { title: string; body: strin
               className={`carousel-card${isActive ? ' active' : ''}`}
               onClick={() => move(index)}
             >
+              <span className="cad-corner cad-corner-tl" aria-hidden="true">+</span>
+              <span className="cad-corner cad-corner-tr" aria-hidden="true">+</span>
+              <span className="cad-corner cad-corner-bl" aria-hidden="true">+</span>
+              <span className="cad-corner cad-corner-br" aria-hidden="true">+</span>
+
               <div className="carousel-card-cover">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={cover.img}
-                  alt={item.title}
-                  className="carousel-card-img"
-                  loading="lazy"
-                />
+                <CarouselBlueprintCover index={index} />
                 <div className="carousel-card-overlay" />
                 <div className="carousel-cover-glass-tag">
                   <Icon size={12} color="#ffffff" />

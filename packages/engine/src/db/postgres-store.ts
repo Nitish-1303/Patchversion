@@ -21,11 +21,20 @@ import {
   RepositoryScanResult,
 } from '@patchversion/shared';
 import { IPersistenceStore } from './store-interface';
+import {
+  runMigrations,
+  getMigrationStatus,
+  verifySchemaIntegrity,
+  type MigrationReport,
+  type MigrationStatusReport,
+  type SchemaIntegrityReport,
+} from './migration-runner';
 
 export interface PostgresStoreConfig {
   connectionString?: string;
   pool?: Pool;
   poolConfig?: PoolConfig;
+  schema?: string;
 }
 
 /**
@@ -39,6 +48,11 @@ export class PostgresStore implements IPersistenceStore {
   constructor(config?: PostgresStoreConfig) {
     if (config?.pool) {
       this.pool = config.pool;
+      if (config.schema) {
+        this.pool.on('connect', (client) => {
+          client.query(`SET search_path TO ${config.schema}, public;`);
+        });
+      }
       return;
     }
     const connectionString =
@@ -54,6 +68,11 @@ export class PostgresStore implements IPersistenceStore {
       connectionTimeoutMillis: 5000,
       ...config?.poolConfig,
     });
+    if (config?.schema) {
+      this.pool.on('connect', (client) => {
+        client.query(`SET search_path TO ${config.schema}, public;`);
+      });
+    }
   }
 
   async close(): Promise<void> {
@@ -76,13 +95,36 @@ export class PostgresStore implements IPersistenceStore {
   }
 
   /**
-   * Initializes database tables and indexes from schema.sql.
+   * Executes all pending versioned SQL migrations using transactional advisory locks.
+   */
+  async runMigrations(customDir?: string): Promise<MigrationReport> {
+    return runMigrations(this.pool, customDir);
+  }
+
+  /**
+   * Retrieves the current migration status and lists any pending migrations.
+   */
+  async getMigrationStatus(customDir?: string): Promise<MigrationStatusReport> {
+    return getMigrationStatus(this.pool, customDir);
+  }
+
+  /**
+   * Verifies that all expected canonical tables exist and schema_migrations is populated.
+   */
+  async verifySchemaHealth(targetSchema = 'public'): Promise<SchemaIntegrityReport> {
+    return verifySchemaIntegrity(this.pool, targetSchema);
+  }
+
+  /**
+   * Initializes database tables and indexes from versioned migrations.
    */
   async initSchema(schemaPath?: string): Promise<void> {
-    const defaultPath = path.resolve(__dirname, 'schema.sql');
-    const resolvedPath = schemaPath || defaultPath;
-    const ddl = fs.readFileSync(/*turbopackIgnore: true*/ resolvedPath, 'utf8');
-    await this.pool.query(ddl);
+    if (schemaPath) {
+      const ddl = fs.readFileSync(/*turbopackIgnore: true*/ schemaPath, 'utf8');
+      await this.pool.query(ddl);
+      return;
+    }
+    await this.runMigrations();
   }
 
   private getSessionSigningSecret(): string {

@@ -5,13 +5,16 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node -e \"require('fs').cpSync('src/db/migrations', 'dist/db/migrations', { recursive: true, force: true }); require('fs').copyFileSync('src/db/schema.sql', 'dist/db/schema.sql')\"",
     "test": "jest --runInBand --passWithNoTests",
     "typecheck": "tsc --noEmit",
     "start": "node dist/index.js",
     "prove": "node dist/prove.js",
     "prove:real": "node dist/prove.js fixtures/lodash-repo fixtures/real-migration/lodash-change-record.json runs/lodash-4-migration acme/membership",
-    "readiness": "node dist/readiness/cli.js"
+    "readiness": "node dist/readiness/cli.js",
+    "db:migrate": "node dist/db/cli-migrate.js up",
+    "db:status": "node dist/db/cli-migrate.js status",
+    "db:verify": "node dist/db/cli-migrate.js verify"
   },
   "dependencies": {
     "@patchversion/shared": "*",

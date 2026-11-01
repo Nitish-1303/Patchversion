@@ -1,3 +1,6 @@
+'use client';
+
+import { useState } from 'react';
 import Link from 'next/link';
 import { ParallaxCard, Reveal } from './Experience';
 import {
@@ -149,6 +152,7 @@ export function SplitSection({
   reverse?: boolean;
   lines?: string[];
 }) {
+  const [inspectorTab, setInspectorTab] = useState<'diff' | 'ast' | 'proof'>('diff');
   const line0 = lines[0] || 'Change context visible';
   const line1 = lines[1] || 'Proposed diff inspectable';
   const line2 = lines[2] || 'Human review remains required';
@@ -162,6 +166,11 @@ export function SplitSection({
       </Reveal>
       <ParallaxCard className="split-art-wrap">
         <div className="split-art-card">
+          <span className="cad-corner cad-corner-tl" aria-hidden="true">+</span>
+          <span className="cad-corner cad-corner-tr" aria-hidden="true">+</span>
+          <span className="cad-corner cad-corner-bl" aria-hidden="true">+</span>
+          <span className="cad-corner cad-corner-br" aria-hidden="true">+</span>
+
           <div className="split-cockpit-header">
             <div className="split-window-controls" aria-hidden="true">
               <span className="split-dot dot-red" />
@@ -179,6 +188,11 @@ export function SplitSection({
                 Human Gate Required
               </span>
             </div>
+          </div>
+
+          <div className="split-cad-subhead">
+            <span className="cad-spec-label">CAD-SPEC: REV 3.0b // LENGTH: 1045.2m</span>
+            <span className="cad-spec-status">URBAN GRID JUNCTION | STATUS: OPTIMIZED</span>
           </div>
 
           <div className="split-cockpit-list">
@@ -212,18 +226,78 @@ export function SplitSection({
                   </span>
                   <span className="checkpoint-title">{line1}</span>
                 </div>
-                <span className="checkpoint-pill blue">AST Call-Site 1 of 1</span>
-              </div>
-              <div className="checkpoint-sub diff-snippet">
-                <div className="mini-diff-line del">
-                  <span className="diff-sign">−</span>
-                  <code>source: source,</code>
+                <div className="checkpoint-tab-group">
+                  <button
+                    type="button"
+                    className={`checkpoint-tab-btn${inspectorTab === 'diff' ? ' active' : ''}`}
+                    onClick={() => setInspectorTab('diff')}
+                  >
+                    Diff Snippet
+                  </button>
+                  <button
+                    type="button"
+                    className={`checkpoint-tab-btn${inspectorTab === 'ast' ? ' active' : ''}`}
+                    onClick={() => setInspectorTab('ast')}
+                  >
+                    AST Topology
+                  </button>
+                  <button
+                    type="button"
+                    className={`checkpoint-tab-btn${inspectorTab === 'proof' ? ' active' : ''}`}
+                    onClick={() => setInspectorTab('proof')}
+                  >
+                    Proof Telemetry
+                  </button>
                 </div>
-                <div className="mini-diff-line add">
-                  <span className="diff-sign">+</span>
-                  <code>payment_method: source,</code>
-                </div>
               </div>
+
+              {inspectorTab === 'diff' && (
+                <div className="checkpoint-sub diff-snippet">
+                  <div className="mini-diff-line del">
+                    <span className="diff-sign">−</span>
+                    <code>source: source,</code>
+                  </div>
+                  <div className="mini-diff-line add">
+                    <span className="diff-sign">+</span>
+                    <code>payment_method: source,</code>
+                  </div>
+                </div>
+              )}
+
+              {inspectorTab === 'ast' && (
+                <div className="checkpoint-sub ast-snippet">
+                  <div className="ast-row">
+                    <span className="ast-type">CallExpr</span>
+                    <code>mockpay.createCharge(&#123; ... &#125;)</code>
+                    <span className="ast-loc">src/createCharge.js:42</span>
+                  </div>
+                  <div className="ast-row child">
+                    <span className="ast-type arrow">↳ Ident</span>
+                    <code>source ➔ payment_method</code>
+                    <span className="ast-badge">Single Target AST Rename</span>
+                  </div>
+                </div>
+              )}
+
+              {inspectorTab === 'proof' && (
+                <div className="checkpoint-sub proof-snippet">
+                  <div className="proof-row">
+                    <span className="proof-tag pass">PASS</span>
+                    <span className="proof-name">Baseline v1.0.4 tests</span>
+                    <span className="proof-time">124ms</span>
+                  </div>
+                  <div className="proof-row">
+                    <span className="proof-tag fail">FAIL</span>
+                    <span className="proof-name">Upstream bump to v2.0.0</span>
+                    <span className="proof-time">18ms</span>
+                  </div>
+                  <div className="proof-row">
+                    <span className="proof-tag pass">PASS</span>
+                    <span className="proof-name">Patched with deterministic AST fix</span>
+                    <span className="proof-time">131ms</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Checkpoint 03 */}

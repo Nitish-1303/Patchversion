@@ -863,3 +863,273 @@
   .pricing-grid-4 { grid-template-columns: 1fr; }
   .dusk-cta-card { padding: 32px 20px; }
 }
+
+/* CAD Blueprint Corner Crosshairs */
+.cad-corner {
+  position: absolute;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: #38bdf8;
+  opacity: 0.65;
+  pointer-events: none;
+  line-height: 1;
+  z-index: 5;
+}
+.cad-corner-tl { top: 8px; left: 8px; }
+.cad-corner-tr { top: 8px; right: 8px; }
+.cad-corner-bl { bottom: 8px; left: 8px; }
+.cad-corner-br { bottom: 8px; right: 8px; }
+
+/* Carousel Blueprint Cover */
+.carousel-blueprint-cover {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #090e1a;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 12px 14px;
+}
+.cad-grid-overlay {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(56, 189, 248, 0.07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(56, 189, 248, 0.07) 1px, transparent 1px);
+  background-size: 18px 18px;
+  pointer-events: none;
+}
+.blueprint-circuit-traces {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.85;
+}
+.blueprint-svg-lines {
+  width: 100%;
+  height: 100%;
+}
+.blueprint-cad-meta-top {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+}
+.cad-mono-tag {
+  color: #38bdf8;
+  font-weight: 700;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.cad-mono-coords {
+  color: #64748b;
+}
+.blueprint-code-box {
+  position: relative;
+  z-index: 2;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10.5px;
+  line-height: 1.5;
+  margin: 6px 0;
+}
+.blueprint-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bp-num {
+  color: #475569;
+  font-size: 9.5px;
+  width: 14px;
+}
+.bp-del {
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.12);
+  padding: 1px 4px;
+  border-radius: 3px;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bp-add {
+  color: #4ade80;
+  background: rgba(34, 197, 94, 0.12);
+  padding: 1px 4px;
+  border-radius: 3px;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.blueprint-ast-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.ast-node {
+  color: #93c5fd;
+  font-size: 10px;
+}
+.ast-target {
+  color: #38bdf8;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+.bp-matrix-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 9.5px;
+}
+.bp-mat-status {
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-weight: 700;
+  font-size: 8.5px;
+}
+.bp-mat-status.pass { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+.bp-mat-status.fail { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+.bp-mat-name { color: #cbd5e1; flex: 1; }
+.bp-mat-time { color: #64748b; }
+.blueprint-cad-meta-bottom {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.cad-dim-label {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 9px;
+  color: #64748b;
+  letter-spacing: 0.05em;
+}
+
+/* Split Section CAD Blueprint Styling */
+.split-cad-subhead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 18px;
+  background: #0b1120;
+  border-bottom: 1px solid rgba(56, 189, 248, 0.15);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
+}
+.cad-spec-label {
+  color: #38bdf8;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.cad-spec-status {
+  color: #64748b;
+}
+.checkpoint-tab-group {
+  display: flex;
+  gap: 4px;
+}
+.checkpoint-tab-btn {
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 600;
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.checkpoint-tab-btn:hover {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+.checkpoint-tab-btn.active {
+  background: #eff6ff;
+  border-color: rgba(43, 89, 255, 0.4);
+  color: #1e40af;
+}
+.ast-snippet {
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+}
+.ast-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #334155;
+}
+.ast-row.child {
+  padding-left: 12px;
+  margin-top: 4px;
+  color: #2b59ff;
+}
+.ast-type {
+  font-weight: 700;
+  color: #64748b;
+}
+.ast-type.arrow {
+  color: #2b59ff;
+}
+.ast-loc {
+  margin-left: auto;
+  font-size: 10px;
+  color: #94a3b8;
+}
+.ast-badge {
+  margin-left: auto;
+  font-size: 9.5px;
+  background: #dbeafe;
+  color: #1e40af;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+.proof-snippet {
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+}
+.proof-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.proof-tag {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+.proof-tag.pass { background: #d1fae5; color: #065f46; }
+.proof-tag.fail { background: #fee2e2; color: #991b1b; }
+.proof-name { color: #334155; flex: 1; }
+.proof-time { color: #94a3b8; font-size: 10px; }
+
