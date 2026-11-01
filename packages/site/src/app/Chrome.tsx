@@ -16,7 +16,14 @@ const LINKS = [
 function Wordmark() {
   return (
     <Link href="/" className="wordmark" aria-label="trypatchbay home">
-      <span className="brand-dot" aria-hidden="true" />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/trypatchbay_icon_square.png"
+        alt="trypatchbay icon"
+        width={22}
+        height={22}
+        style={{ borderRadius: '5px', display: 'inline-block', flexShrink: 0 }}
+      />
       <span className="brand-name">trypatchbay</span>
       <span className="badge badge-light" style={{ marginLeft: '8px', fontSize: '10px' }}>
         PROTOTYPE
