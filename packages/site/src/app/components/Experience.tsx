@@ -161,9 +161,114 @@ export function ParallaxCard({ children, className = '' }: { children: ReactNode
   return <div ref={ref} className={`parallax-card ${className}`}>{children}</div>;
 }
 
+const PROOF_FIXTURES = {
+  mockpay: {
+    id: 'mockpay',
+    name: 'mockpay · 1.0 → 2.0',
+    repo: 'acme/payments',
+    branch: 'main · sha256:7f160e',
+    badge: 'PARAM RENAMED',
+    title: 'Parameter renamed',
+    summary: 'source becomes payment_method in a bundled example.',
+    fromToken: 'source',
+    toToken: 'payment_method',
+    callsite: 'Example call site · src/createCharge.js',
+    filename: 'src/createCharge.js : 42',
+    diffDigest: 'Deterministic AST diff · sha256:7f160e',
+    diffLines: [
+      { num: 40, prefix: ' ', text: 'const options = {', type: 'ctx' },
+      { num: 41, prefix: '−', text: '  source: source,', type: 'del' },
+      { num: 42, prefix: '+', text: '  payment_method: source,', type: 'add' },
+      { num: 43, prefix: ' ', text: "  description: 'Order payment'", type: 'ctx' },
+      { num: 44, prefix: ' ', text: '};', type: 'ctx' },
+    ],
+    brokenLines: [
+      { num: 40, prefix: ' ', text: 'const options = {', type: 'ctx' },
+      { num: 41, prefix: '!', text: '  source: source, // Missing required param in v2', type: 'del' },
+      { num: 42, prefix: ' ', text: "  description: 'Order payment'", type: 'ctx' },
+      { num: 43, prefix: ' ', text: '};', type: 'ctx' },
+    ],
+    ast: {
+      targetNode: 'PropertyAssignment',
+      caller: 'mockpay.charges.create({ ... })',
+      location: 'src/createCharge.js:4:40',
+      rule: 'Deterministic field rename',
+      confidence: '100% AST-verified match',
+    },
+    testLogs: {
+      baseline: `PASS src/createCharge.test.js\n  createCharge\n    √ creates a charge (5 ms)\n    √ passes the payment source through (1 ms)\n    √ creates a refund (1 ms)\n\nTest Suites: 1 passed, 1 total\nTests:       3 passed, 3 total`,
+      bump: `FAIL src/createCharge.test.js\n  ● createCharge › creates a charge\n\n    Missing required parameter: payment_method\n\n    > 4 | const charge = await mockpay.charges.create({\n        |                                        ^\n      5 |   amount: amount,\n      6 |   currency: currency,\n      7 |   source: source,\n\nTest Suites: 1 failed, 1 total\nTests:       2 failed, 1 passed, 3 total`,
+      verified: `PASS src/createCharge.test.js\n  createCharge\n    √ creates a charge (4 ms)\n    √ passes the payment source through (1 ms)\n    √ creates a refund (1 ms)\n\nTest Suites: 1 passed, 1 total\nTests:       3 passed, 3 total\nTime:        1.42s`,
+    },
+  },
+  lodash: {
+    id: 'lodash',
+    name: 'lodash · 3.10 → 4.17',
+    repo: 'acme/membership',
+    branch: 'main · sha256:5e7844',
+    badge: 'METHOD RENAMED',
+    title: 'Function renamed',
+    summary: '_.contains was removed in v4 and renamed to _.includes.',
+    fromToken: '_.contains',
+    toToken: '_.includes',
+    callsite: 'Example call site · src/membership.js',
+    filename: 'src/membership.js : 6',
+    diffDigest: 'Deterministic AST diff · sha256:5e7844',
+    diffLines: [
+      { num: 4, prefix: ' ', text: 'function isMember(ids, id) {', type: 'ctx' },
+      { num: 5, prefix: '−', text: '  return _.contains(ids, id);', type: 'del' },
+      { num: 6, prefix: '+', text: '  return _.includes(ids, id);', type: 'add' },
+      { num: 7, prefix: ' ', text: '}', type: 'ctx' },
+    ],
+    brokenLines: [
+      { num: 4, prefix: ' ', text: 'function isMember(ids, id) {', type: 'ctx' },
+      { num: 5, prefix: '!', text: '  return _.contains(ids, id); // TypeError in v4', type: 'del' },
+      { num: 6, prefix: ' ', text: '}', type: 'ctx' },
+    ],
+    ast: {
+      targetNode: 'CallExpression',
+      caller: '_.contains(ids, id)',
+      location: 'src/membership.js:6:12',
+      rule: 'Deterministic method rename',
+      confidence: '100% AST-verified match',
+    },
+    testLogs: {
+      baseline: `PASS src/membership.test.js\n  isMember\n    √ finds a present member (3 ms)\n    √ rejects an absent member\n    √ dedupes (1 ms)\n\nTest Suites: 1 passed, 1 total\nTests:       3 passed, 3 total`,
+      bump: `FAIL src/membership.test.js\n  ● isMember › finds a present member\n\n    TypeError: _.contains is not a function\n\n    > 6 |   return _.contains(ids, id);\n        |            ^\n\nTest Suites: 1 failed, 1 total\nTests:       2 failed, 1 passed, 3 total`,
+      verified: `PASS src/membership.test.js\n  isMember\n    √ finds a present member (3 ms)\n    √ rejects an absent member (1 ms)\n    √ dedupes (1 ms)\n\nTest Suites: 1 passed, 1 total\nTests:       3 passed, 3 total\nTime:        1.28s`,
+    },
+  },
+};
+
 export function HeroDashboard() {
   const ref = useRef<HTMLDivElement>(null);
   useScrollTransform(ref, 'hero');
+
+  const [fixtureKey, setFixtureKey] = useState<'mockpay' | 'lodash'>('mockpay');
+  const [step, setStep] = useState<0 | 1 | 2 | 3>(3);
+  const [viewTab, setViewTab] = useState<'diff' | 'ast' | 'testLog'>('diff');
+  const [isRunning, setIsRunning] = useState(false);
+  const [humanApproved, setHumanApproved] = useState(false);
+
+  const fixture = PROOF_FIXTURES[fixtureKey];
+
+  const runProofSimulation = () => {
+    if (isRunning) return;
+    setIsRunning(true);
+    setHumanApproved(false);
+    setStep(0);
+    setTimeout(() => {
+      setStep(1);
+      setTimeout(() => {
+        setStep(2);
+        setTimeout(() => {
+          setStep(3);
+          setIsRunning(false);
+        }, 700);
+      }, 700);
+    }, 700);
+  };
+
   return (
     <div className="hero-showcase-frame">
       <div className="hero-perspective">
@@ -178,13 +283,29 @@ export function HeroDashboard() {
               <LockIcon size={11} color="#64748b" />
               <span className="address-host">app.trypatchbay.dev</span>
               <span className="address-sep">/</span>
-              <span className="address-path">mockpay · v1.0 → v2.0</span>
+              <span className="address-path">{fixture.id} · v1.0 → v2.0</span>
               <span className="address-key">⌘K</span>
             </div>
             <div className="browser-status-group">
+              <div className="fixture-pill-group">
+                <button
+                  type="button"
+                  className={`fixture-pill-btn${fixtureKey === 'mockpay' ? ' active' : ''}`}
+                  onClick={() => { setFixtureKey('mockpay'); setHumanApproved(false); }}
+                >
+                  mockpay
+                </button>
+                <button
+                  type="button"
+                  className={`fixture-pill-btn${fixtureKey === 'lodash' ? ' active' : ''}`}
+                  onClick={() => { setFixtureKey('lodash'); setHumanApproved(false); }}
+                >
+                  lodash
+                </button>
+              </div>
               <span className="branch-tag">
                 <GitBranchIcon size={12} color="#64748b" />
-                main · sha256:7f160e
+                {fixture.branch}
               </span>
               <span className="demo-label" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                 <PulseDotIcon color="#10b981" size={7} />
@@ -192,14 +313,58 @@ export function HeroDashboard() {
               </span>
             </div>
           </div>
+
+          <div className="hero-stepper-bar">
+            <div className="hero-stepper-stages">
+              <button
+                type="button"
+                className={`hero-step-btn${step === 0 ? ' active' : ''}`}
+                onClick={() => setStep(0)}
+              >
+                01 Baseline (Green)
+              </button>
+              <button
+                type="button"
+                className={`hero-step-btn${step === 1 ? ' active step-red' : ''}`}
+                onClick={() => setStep(1)}
+              >
+                02 Upgrade (Red)
+              </button>
+              <button
+                type="button"
+                className={`hero-step-btn${step === 2 ? ' active' : ''}`}
+                onClick={() => setStep(2)}
+              >
+                03 AST Patch
+              </button>
+              <button
+                type="button"
+                className={`hero-step-btn${step === 3 ? ' active' : ''}`}
+                onClick={() => setStep(3)}
+              >
+                04 Verified (Green)
+              </button>
+            </div>
+            <button
+              type="button"
+              className="hero-run-btn"
+              onClick={runProofSimulation}
+              disabled={isRunning}
+            >
+              <PulseDotIcon color={isRunning ? '#f59e0b' : '#10b981'} size={6} />
+              {isRunning ? 'Running Proof...' : '▶ Run Proof Loop'}
+            </button>
+          </div>
+
           <div className="demo-banner">
             <span>Bundled fixture only · no live repository watching</span>
             <span className="demo-banner-right">Deterministic AST Engine · Safe Local Preview</span>
           </div>
+
           <div className="dashboard-topline">
             <div>
               <span className="small-label">CHANGE REVIEW</span>
-              <h2>mockpay · 1.0 → 2.0</h2>
+              <h2>{fixture.name}</h2>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span className="status-pill status-pill-success" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
@@ -212,102 +377,185 @@ export function HeroDashboard() {
               </span>
             </div>
           </div>
+
           <div className="dashboard-preview-grid">
+            {/* Card 1: Change Explanation */}
             <div className="preview-pane">
               <div>
                 <div className="pane-header">
                   <span className="small-label">CHANGE</span>
                   <span className="pane-badge pane-badge-warn">
                     <AlertTriangleIcon size={12} color="#b45309" />
-                    PARAM RENAMED
+                    {fixture.badge}
                   </span>
                 </div>
-                <h3 style={{ margin: '8px 0 6px', fontSize: '16px', fontWeight: 650 }}>Parameter renamed</h3>
+                <h3 style={{ margin: '8px 0 6px', fontSize: '16px', fontWeight: 650 }}>{fixture.title}</h3>
                 <p style={{ margin: '0 0 10px', fontSize: '13px', color: 'var(--body)', lineHeight: 1.6 }}>
-                  <code>source</code> becomes <code>payment_method</code> in a bundled example.
+                  <code>{fixture.fromToken}</code> becomes <code>{fixture.toToken}</code> in a bundled example.
                 </p>
                 <div className="token-transform">
-                  <code>source</code>
+                  <code>{fixture.fromToken}</code>
                   <span className="transform-arrow">→</span>
-                  <code className="token-target">payment_method</code>
+                  <code className="token-target">{fixture.toToken}</code>
                 </div>
               </div>
               <div className="pane-target-foot">
                 <FileDiffIcon size={12} color="#64748b" />
-                <span>Example call site · src/createCharge.js</span>
+                <span>{fixture.callsite}</span>
               </div>
             </div>
 
+            {/* Card 2: Interactive Code Diff / AST / Test Output Window */}
             <div className="preview-pane code-pane">
               <div>
                 <div className="pane-header">
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span className="code-tab-dot" />
-                    <span className="code-filename">src/createCharge.js : 42</span>
+                    <span className="code-filename">{fixture.filename}</span>
                   </div>
-                  <span className="code-diff-tag">ILLUSTRATIVE DIFF</span>
-                </div>
-                <div className="code-body-window">
-                  <div className="code-row">
-                    <span className="code-num">40</span>
-                    <span className="code-gutter" />
-                    <span className="code-text"><span className="tok-kw">const</span> options = &#123;</span>
-                  </div>
-                  <div className="code-row code-row-del">
-                    <span className="code-num">41</span>
-                    <span className="code-gutter">−</span>
-                    <span className="code-text"><span className="tok-del">source</span>: source,</span>
-                  </div>
-                  <div className="code-row code-row-add">
-                    <span className="code-num">42</span>
-                    <span className="code-gutter">+</span>
-                    <span className="code-text"><span className="tok-add">payment_method</span>: source,</span>
-                  </div>
-                  <div className="code-row">
-                    <span className="code-num">43</span>
-                    <span className="code-gutter" />
-                    <span className="code-text">  description: <span className="tok-str">&apos;Order payment&apos;</span></span>
-                  </div>
-                  <div className="code-row">
-                    <span className="code-num">44</span>
-                    <span className="code-gutter" />
-                    <span className="code-text">&#125;;</span>
+                  <div className="code-tab-group">
+                    <button
+                      type="button"
+                      className={`code-view-tab${viewTab === 'diff' ? ' active' : ''}`}
+                      onClick={() => setViewTab('diff')}
+                    >
+                      Diff
+                    </button>
+                    <button
+                      type="button"
+                      className={`code-view-tab${viewTab === 'ast' ? ' active' : ''}`}
+                      onClick={() => setViewTab('ast')}
+                    >
+                      AST
+                    </button>
+                    <button
+                      type="button"
+                      className={`code-view-tab${viewTab === 'testLog' ? ' active' : ''}`}
+                      onClick={() => setViewTab('testLog')}
+                    >
+                      Log
+                    </button>
                   </div>
                 </div>
+
+                {viewTab === 'diff' && (
+                  <div className="code-body-window">
+                    {(step === 1 ? fixture.brokenLines : fixture.diffLines).map((line) => {
+                      const isDel = line.type === 'del';
+                      const isAdd = line.type === 'add';
+                      return (
+                        <div
+                          key={line.num}
+                          className={`code-row${isDel ? ' code-row-del' : ''}${isAdd ? ' code-row-add' : ''}`}
+                        >
+                          <span className="code-num">{line.num}</span>
+                          <span className="code-gutter">{line.prefix}</span>
+                          <span className="code-text">{line.text}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {viewTab === 'ast' && (
+                  <div className="ast-snippet" style={{ margin: '10px 0' }}>
+                    <div className="ast-row">
+                      <span className="ast-type">Target Node:</span>
+                      <code>{fixture.ast.targetNode}</code>
+                    </div>
+                    <div className="ast-row">
+                      <span className="ast-type">Caller:</span>
+                      <code>{fixture.ast.caller}</code>
+                    </div>
+                    <div className="ast-row">
+                      <span className="ast-type">Location:</span>
+                      <code>{fixture.ast.location}</code>
+                    </div>
+                    <div className="ast-row child">
+                      <span className="ast-type arrow">↳</span>
+                      <span>{fixture.ast.rule}</span>
+                      <span className="ast-badge">Verified</span>
+                    </div>
+                  </div>
+                )}
+
+                {viewTab === 'testLog' && (
+                  <div style={{ margin: '10px 0', background: '#090d14', borderRadius: 6, padding: '8px 10px', fontSize: '11px', fontFamily: 'monospace', color: '#94a3b8', maxHeight: 110, overflowY: 'auto' }}>
+                    <pre style={{ margin: 0, whiteSpace: 'pre-wrap', lineHeight: 1.45 }}>
+                      {step === 0 && fixture.testLogs.baseline}
+                      {step === 1 && fixture.testLogs.bump}
+                      {step >= 2 && fixture.testLogs.verified}
+                    </pre>
+                  </div>
+                )}
               </div>
               <div className="code-pane-foot">
-                <span>Deterministic AST diff · sha256:7f160e</span>
+                <span>{fixture.diffDigest}</span>
               </div>
             </div>
 
+            {/* Card 3: Real Local Fixture Check */}
             <div className="preview-pane proof-pane">
               <div>
                 <div className="pane-header">
                   <span className="small-label">LOCAL FIXTURE CHECK</span>
-                  <span className="pane-badge pane-badge-success">
-                    <ShieldCheckIcon size={12} color="#047857" />
-                    VERIFIED
+                  <span className={`pane-badge ${step === 1 ? 'pane-badge-warn' : 'pane-badge-success'}`}>
+                    <ShieldCheckIcon size={12} color={step === 1 ? '#b45309' : '#047857'} />
+                    {step === 1 ? 'TEST FAILING' : 'VERIFIED'}
                   </span>
                 </div>
                 <h3 style={{ margin: '8px 0 6px', fontSize: '16px', fontWeight: 650 }}>Proof stays reviewable</h3>
                 <div className="proof-metric-list">
                   <div className="proof-metric-item">
                     <div className="metric-left">
-                      <span className="metric-dot red" />
-                      <span>Before patch</span>
+                      <span className={`metric-dot ${step === 0 ? 'green' : 'red'}`} />
+                      <span>{step === 0 ? 'Baseline suite' : 'Before patch'}</span>
                     </div>
-                    <strong className="metric-val red">2 failing</strong>
+                    <strong className={`metric-val ${step === 0 ? 'green' : 'red'}`}>
+                      {step === 0 ? '3 / 3 passing' : '2 failing'}
+                    </strong>
                   </div>
                   <div className="proof-metric-item">
                     <div className="metric-left">
-                      <span className="metric-dot green" />
+                      <span className={`metric-dot ${step >= 2 ? 'green' : 'amber'}`} />
                       <span>After patch</span>
                     </div>
-                    <strong className="metric-val green">
-                      <CheckCircleIcon size={13} color="#059669" />
-                      3 / 3 passing
+                    <strong className={`metric-val ${step >= 2 ? 'green' : 'amber'}`}>
+                      {step >= 2 ? (
+                        <>
+                          <CheckCircleIcon size={13} color="#059669" />
+                          3 / 3 passing
+                        </>
+                      ) : (
+                        'Pending fix...'
+                      )}
                     </strong>
                   </div>
+                </div>
+
+                <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px solid var(--rule)' }}>
+                  <button
+                    type="button"
+                    style={{
+                      width: '100%',
+                      padding: '6px 12px',
+                      borderRadius: 6,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      border: '1px solid var(--rule)',
+                      background: humanApproved ? '#d1fae5' : '#ffffff',
+                      color: humanApproved ? '#065f46' : 'var(--navy-deep)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                    }}
+                    onClick={() => setHumanApproved(!humanApproved)}
+                  >
+                    <CheckCircleIcon size={12} color={humanApproved ? '#065f46' : '#64748b'} />
+                    {humanApproved ? 'Gate Approved · Ready for PR' : 'Simulate Human Approval Gate'}
+                  </button>
                 </div>
               </div>
               <div className="proof-foot-note">
@@ -318,16 +566,17 @@ export function HeroDashboard() {
           </div>
           <div className="dashboard-foot">
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#64748b' }} />
-              Local prototype
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981' }} />
+              Local proof engine ready
             </span>
-            <span>Reviewable diff · example test output</span>
+            <span>Reviewable diff · verified test execution loop</span>
           </div>
         </div>
       </div>
     </div>
   );
 }
+
 
 export function ApiMarquee() {
   const names = ['PostgreSQL', 'GitHub', 'Shopify', 'Stripe', 'OpenAI', 'Twilio'];

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { ApiMarquee, FeatureCarousel, HeroDashboard, Reveal, WorkflowTabs } from './components/Experience';
 import {
-  FeatureGrid,
+  WorkingProofPipeline,
   BentoSection,
   PageHeading,
   SplitSection,
@@ -48,16 +48,7 @@ export default function HomePage() {
 
       <ApiMarquee />
 
-      <FeatureGrid
-        eyebrow="A SMALL, REVIEWABLE LOOP"
-        title="From recorded change to local proof."
-        description="The platform demonstrates automated breaking change discovery, AST call-site mapping, deterministic patches, and fail-closed GitHub delivery."
-        cards={[
-          { title: 'Notice the break', body: 'Detect breaking changes across upstream package versions and lockfile entries.' },
-          { title: 'Find the usage', body: 'Map call sites with AST analysis to identify affected code paths.' },
-          { title: 'Check the patch', body: 'Review minimal deterministic diffs alongside verified test output.' },
-        ]}
-      />
+      <WorkingProofPipeline />
 
       <SplitSection
         eyebrow="SEE WHAT MOVED"

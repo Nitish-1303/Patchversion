@@ -11,6 +11,7 @@ import {
   AlertTriangleIcon,
   PulseDotIcon,
   LockIcon,
+  CheckCircleIcon,
 } from './UiIcons';
 
 export type FeatureCard = { eyebrow?: string; title: string; body: string };
@@ -549,5 +550,399 @@ export function MarketingPage({
       {callout && <SimpleCallout {...callout} />}
       <DuskCtaBand />
     </>
+  );
+}
+
+const PIPELINE_FIXTURES = {
+  mockpay: {
+    advisoryId: 'ADV-2024-812',
+    pkg: 'mockpay',
+    fromVer: '1.2.4',
+    toVer: '2.0.0',
+    type: 'Parameter Rename',
+    file: 'src/createCharge.js',
+    line: 41,
+    col: 5,
+    oldToken: 'source',
+    newToken: 'payment_method',
+    caller: 'mockpay.charges.create',
+    hash: 'sha256:7f160e',
+    diffLines: [
+      { num: 40, prefix: ' ', text: 'const options = {' },
+      { num: 41, prefix: '−', text: '  source: source,', del: true },
+      { num: 42, prefix: '+', text: '  payment_method: source,', add: true },
+      { num: 43, prefix: ' ', text: "  description: 'Order payment'" },
+      { num: 44, prefix: ' ', text: '};' },
+    ],
+    testError: 'Missing required parameter: payment_method',
+    baselinePassing: 3,
+    redFailed: 2,
+    greenPassing: 3,
+  },
+  lodash: {
+    advisoryId: 'ADV-LODASH-400',
+    pkg: 'lodash',
+    fromVer: '3.10.1',
+    toVer: '4.17.21',
+    type: 'Method Rename',
+    file: 'src/membership.js',
+    line: 6,
+    col: 12,
+    oldToken: '_.contains',
+    newToken: '_.includes',
+    caller: '_.contains(ids, id)',
+    hash: 'sha256:5e7844',
+    diffLines: [
+      { num: 4, prefix: ' ', text: 'function isMember(ids, id) {' },
+      { num: 5, prefix: '−', text: '  return _.contains(ids, id);', del: true },
+      { num: 6, prefix: '+', text: '  return _.includes(ids, id);', add: true },
+      { num: 7, prefix: ' ', text: '}' },
+    ],
+    testError: 'TypeError: _.contains is not a function',
+    baselinePassing: 3,
+    redFailed: 2,
+    greenPassing: 3,
+  },
+};
+
+export function WorkingProofPipeline() {
+  const [activePoint, setActivePoint] = useState<1 | 2 | 3>(1);
+  const [fixtureKey, setFixtureKey] = useState<'mockpay' | 'lodash'>('mockpay');
+  const [isRunning, setIsRunning] = useState(false);
+  const [humanApproved, setHumanApproved] = useState(false);
+
+  const fixture = PIPELINE_FIXTURES[fixtureKey];
+
+  const runProofLoop = () => {
+    if (isRunning) return;
+    setIsRunning(true);
+    setHumanApproved(false);
+    setActivePoint(1);
+    setTimeout(() => {
+      setActivePoint(2);
+      setTimeout(() => {
+        setActivePoint(3);
+        setIsRunning(false);
+      }, 900);
+    }, 900);
+  };
+
+  return (
+    <section className="section-block content-width pipeline-section">
+      <PageHeading
+        eyebrow="A SMALL, REVIEWABLE LOOP"
+        title="From recorded change to local proof."
+        description="The platform demonstrates automated breaking change discovery, AST call-site mapping, deterministic patches, and fail-closed GitHub delivery."
+        eyebrowStyle="label"
+      />
+
+      {/* 3 Interactive Point Cards */}
+      <div className="pipeline-cards-row">
+        <article
+          className={`pipeline-card${activePoint === 1 ? ' active' : ''}`}
+          onClick={() => setActivePoint(1)}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span className="small-label">POINT 01</span>
+            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 10, background: activePoint === 1 ? '#dbeafe' : 'var(--paper)', border: '1px solid var(--lavender-mid)' }}>
+              <ScanRadarIcon size={18} color={activePoint === 1 ? '#1d4ed8' : 'var(--navy-deep)'} />
+            </div>
+          </div>
+          <h3 style={{ margin: '14px 0 8px', fontSize: '18px', fontWeight: 650 }}>Notice the break</h3>
+          <p style={{ margin: 0, fontSize: '13px', color: 'var(--body)', lineHeight: 1.6 }}>
+            Detect breaking changes across upstream package versions and lockfile entries.
+          </p>
+          <div style={{ marginTop: 'auto', paddingTop: '16px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: activePoint === 1 ? '#2b59ff' : '#94a3b8', fontWeight: 600 }}>
+            <PulseDotIcon color={activePoint === 1 ? '#2b59ff' : '#cbd5e1'} size={6} />
+            {activePoint === 1 ? 'Active inspection step' : 'Click to inspect break'}
+          </div>
+        </article>
+
+        <article
+          className={`pipeline-card${activePoint === 2 ? ' active' : ''}`}
+          onClick={() => setActivePoint(2)}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span className="small-label">POINT 02</span>
+            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 10, background: activePoint === 2 ? '#dbeafe' : 'var(--paper)', border: '1px solid var(--lavender-mid)' }}>
+              <TopologyIcon size={18} color={activePoint === 2 ? '#1d4ed8' : 'var(--navy-deep)'} />
+            </div>
+          </div>
+          <h3 style={{ margin: '14px 0 8px', fontSize: '18px', fontWeight: 650 }}>Find the usage</h3>
+          <p style={{ margin: 0, fontSize: '13px', color: 'var(--body)', lineHeight: 1.6 }}>
+            Map call sites with AST analysis to identify affected code paths.
+          </p>
+          <div style={{ marginTop: 'auto', paddingTop: '16px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: activePoint === 2 ? '#2b59ff' : '#94a3b8', fontWeight: 600 }}>
+            <PulseDotIcon color={activePoint === 2 ? '#2b59ff' : '#cbd5e1'} size={6} />
+            {activePoint === 2 ? 'Active inspection step' : 'Click to trace AST usage'}
+          </div>
+        </article>
+
+        <article
+          className={`pipeline-card${activePoint === 3 ? ' active' : ''}`}
+          onClick={() => setActivePoint(3)}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span className="small-label">POINT 03</span>
+            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 10, background: activePoint === 3 ? '#dbeafe' : 'var(--paper)', border: '1px solid var(--lavender-mid)' }}>
+              <FileDiffIcon size={18} color={activePoint === 3 ? '#1d4ed8' : 'var(--navy-deep)'} />
+            </div>
+          </div>
+          <h3 style={{ margin: '14px 0 8px', fontSize: '18px', fontWeight: 650 }}>Check the patch</h3>
+          <p style={{ margin: 0, fontSize: '13px', color: 'var(--body)', lineHeight: 1.6 }}>
+            Review minimal deterministic diffs alongside verified test output.
+          </p>
+          <div style={{ marginTop: 'auto', paddingTop: '16px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: activePoint === 3 ? '#2b59ff' : '#94a3b8', fontWeight: 600 }}>
+            <PulseDotIcon color={activePoint === 3 ? '#2b59ff' : '#cbd5e1'} size={6} />
+            {activePoint === 3 ? 'Active inspection step' : 'Click to inspect proof'}
+          </div>
+        </article>
+      </div>
+
+      {/* Interactive Working Proof Drawer */}
+      <div className="pipeline-drawer">
+        <div className="pipeline-drawer-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span className="small-label" style={{ color: '#2b59ff', background: '#eff6ff', padding: '3px 8px', borderRadius: 4 }}>
+              STAGE 0{activePoint} LIVE PROOF
+            </span>
+            <strong style={{ fontSize: '13px', color: 'var(--navy-deep)' }}>
+              {activePoint === 1 && `Advisory Discovery: ${fixture.pkg} ${fixture.fromVer} → ${fixture.toVer}`}
+              {activePoint === 2 && `AST Call-Site Topology: ${fixture.file}:${fixture.line}`}
+              {activePoint === 3 && `Synthesized AST Patch & Verified Test Output (${fixture.hash})`}
+            </strong>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div className="fixture-pill-group">
+              <button
+                type="button"
+                className={`fixture-pill-btn${fixtureKey === 'mockpay' ? ' active' : ''}`}
+                onClick={() => { setFixtureKey('mockpay'); setHumanApproved(false); }}
+              >
+                mockpay
+              </button>
+              <button
+                type="button"
+                className={`fixture-pill-btn${fixtureKey === 'lodash' ? ' active' : ''}`}
+                onClick={() => { setFixtureKey('lodash'); setHumanApproved(false); }}
+              >
+                lodash
+              </button>
+            </div>
+            <button
+              type="button"
+              className="hero-run-btn"
+              onClick={runProofLoop}
+              disabled={isRunning}
+            >
+              <PulseDotIcon color={isRunning ? '#f59e0b' : '#10b981'} size={6} />
+              {isRunning ? 'Running Proof...' : '▶ Run Proof Loop'}
+            </button>
+          </div>
+        </div>
+
+        <div className="pipeline-drawer-body">
+          {activePoint === 1 && (
+            <div className="pipeline-drawer-grid">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <span className="pane-badge pane-badge-warn" style={{ alignSelf: 'flex-start' }}>
+                  <AlertTriangleIcon size={12} color="#b45309" />
+                  ADVISORY #{fixture.advisoryId} · BREAKING
+                </span>
+                <h4 style={{ margin: 0, fontSize: '16px', color: 'var(--navy-deep)' }}>
+                  Upstream {fixture.type} in {fixture.pkg}
+                </h4>
+                <p style={{ margin: 0, fontSize: '13px', color: 'var(--body)', lineHeight: 1.6 }}>
+                  Upstream release bump from version <code>{fixture.fromVer}</code> to <code>{fixture.toVer}</code> deprecates <code>{fixture.oldToken}</code>. Contract prober identified required replacement: <code>{fixture.newToken}</code>.
+                </p>
+                <div style={{ padding: '12px', background: 'var(--paper)', borderRadius: 8, border: '1px solid var(--rule)', fontSize: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <span style={{ color: '#64748b' }}>Detection method:</span>
+                    <strong>Package manifest & AST contract comparison</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#64748b' }}>Deterministic fix eligibility:</span>
+                    <strong style={{ color: '#059669' }}>Eligible (Parameter rename)</strong>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="pill-button pill-button-light"
+                  style={{ alignSelf: 'flex-start', minHeight: 36, padding: '0 16px', fontSize: 12, marginTop: 4 }}
+                  onClick={() => setActivePoint(2)}
+                >
+                  Next: Map AST Call Sites →
+                </button>
+              </div>
+
+              <div style={{ background: '#0f172a', borderRadius: 10, padding: '14px', color: '#cbd5e1', fontFamily: 'monospace', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', borderBottom: '1px solid #1e293b', paddingBottom: 6 }}>
+                  <span>change-record.json</span>
+                  <span>verified-contract</span>
+                </div>
+                <pre style={{ margin: 0, lineHeight: 1.5, color: '#93c5fd' }}>
+{`{
+  "changeId": "${fixture.pkg}-${fixture.toVer}",
+  "package": "${fixture.pkg}",
+  "versionRange": "${fixture.fromVer} -> ${fixture.toVer}",
+  "classification": "${fixture.type}",
+  "deprecatedSymbol": "${fixture.oldToken}",
+  "replacementSymbol": "${fixture.newToken}",
+  "scope": "call_site_parameter"
+}`}
+                </pre>
+              </div>
+            </div>
+          )}
+
+          {activePoint === 2 && (
+            <div className="pipeline-drawer-grid">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <span className="pane-badge pane-badge-success" style={{ alignSelf: 'flex-start' }}>
+                  <TopologyIcon size={12} color="#047857" />
+                  AST MAPPER · 1 MATCH FOUND
+                </span>
+                <h4 style={{ margin: 0, fontSize: '16px', color: 'var(--navy-deep)' }}>
+                  Call-site located in {fixture.file}
+                </h4>
+                <p style={{ margin: 0, fontSize: '13px', color: 'var(--body)', lineHeight: 1.6 }}>
+                  Static AST analysis mapped all references to <code>{fixture.caller}</code>. Matched identifier on line <code>{fixture.line}</code>, column <code>{fixture.col}</code> with 0 false positives.
+                </p>
+                <div className="ast-snippet">
+                  <div className="ast-row">
+                    <span className="ast-type">File:</span>
+                    <code>{fixture.file}</code>
+                    <span className="ast-loc">L{fixture.line}:C{fixture.col}</span>
+                  </div>
+                  <div className="ast-row">
+                    <span className="ast-type">Expression:</span>
+                    <code>{fixture.caller}</code>
+                  </div>
+                  <div className="ast-row child">
+                    <span className="ast-type arrow">↳</span>
+                    <span>Target AST Node: <code>PropertyAssignment</code></span>
+                    <span className="ast-badge">Verified</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="pill-button pill-button-light"
+                  style={{ alignSelf: 'flex-start', minHeight: 36, padding: '0 16px', fontSize: 12, marginTop: 4 }}
+                  onClick={() => setActivePoint(3)}
+                >
+                  Next: Generate Patch & Proof →
+                </button>
+              </div>
+
+              <div style={{ background: '#0f172a', borderRadius: 10, padding: '14px', color: '#cbd5e1', fontFamily: 'monospace', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', borderBottom: '1px solid #1e293b', paddingBottom: 6 }}>
+                  <span>{fixture.file}</span>
+                  <span>AST Location Map</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 4 }}>
+                  <div style={{ color: '#64748b' }}>40 | const options = &#123;</div>
+                  <div style={{ background: 'rgba(43, 89, 255, 0.2)', padding: '2px 6px', borderRadius: 4, color: '#93c5fd' }}>
+                    41 |   {fixture.oldToken}: {fixture.oldToken}, &nbsp;← AST Identifier mapped
+                  </div>
+                  <div style={{ color: '#64748b' }}>42 |   description: &apos;Order payment&apos;</div>
+                  <div style={{ color: '#64748b' }}>43 | &#125;;</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activePoint === 3 && (
+            <div className="pipeline-drawer-grid">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <span className="pane-badge pane-badge-success" style={{ alignSelf: 'flex-start' }}>
+                  <ShieldCheckIcon size={12} color="#047857" />
+                  DETERMINISTIC PATCH · {fixture.hash}
+                </span>
+                <h4 style={{ margin: 0, fontSize: '16px', color: 'var(--navy-deep)' }}>
+                  Verified Red-to-Green Test Loop
+                </h4>
+                <div className="proof-metric-list">
+                  <div className="proof-metric-item">
+                    <div className="metric-left">
+                      <span className="metric-dot green" />
+                      <span>1. Baseline suite</span>
+                    </div>
+                    <strong className="metric-val green">{fixture.baselinePassing} / {fixture.baselinePassing} passing</strong>
+                  </div>
+                  <div className="proof-metric-item">
+                    <div className="metric-left">
+                      <span className="metric-dot red" />
+                      <span>2. Upstream bump ({fixture.toVer})</span>
+                    </div>
+                    <strong className="metric-val red">{fixture.redFailed} failing (break verified)</strong>
+                  </div>
+                  <div className="proof-metric-item">
+                    <div className="metric-left">
+                      <span className="metric-dot green" />
+                      <span>3. AST patch applied</span>
+                    </div>
+                    <strong className="metric-val green">
+                      <CheckCircleIcon size={13} color="#059669" />
+                      {fixture.greenPassing} / {fixture.greenPassing} passing
+                    </strong>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: '8px' }}>
+                  <button
+                    type="button"
+                    style={{
+                      width: '100%',
+                      padding: '8px 14px',
+                      borderRadius: 6,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      border: '1px solid var(--rule)',
+                      background: humanApproved ? '#d1fae5' : '#ffffff',
+                      color: humanApproved ? '#065f46' : 'var(--navy-deep)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                    }}
+                    onClick={() => setHumanApproved(!humanApproved)}
+                  >
+                    <CheckCircleIcon size={13} color={humanApproved ? '#065f46' : '#64748b'} />
+                    {humanApproved ? 'Gate Approved · Ready for PR Delivery' : 'Simulate Single-Use Human Gate Approval'}
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ background: '#0f172a', borderRadius: 10, padding: '14px', color: '#cbd5e1', fontFamily: 'monospace', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', borderBottom: '1px solid #1e293b', paddingBottom: 6 }}>
+                  <span>patch.diff</span>
+                  <span>{fixture.hash}</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 4 }}>
+                  {fixture.diffLines.map((l) => (
+                    <div
+                      key={l.num}
+                      style={{
+                        display: 'flex',
+                        background: l.del ? 'rgba(239, 68, 68, 0.18)' : l.add ? 'rgba(16, 185, 129, 0.18)' : 'transparent',
+                        color: l.del ? '#fca5a5' : l.add ? '#86efac' : '#cbd5e1',
+                        padding: '1px 6px',
+                        borderRadius: 3,
+                      }}
+                    >
+                      <span style={{ width: 28, color: '#64748b' }}>{l.num}</span>
+                      <span style={{ width: 14 }}>{l.prefix}</span>
+                      <span>{l.text}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }
