@@ -18,8 +18,10 @@ const routes = [
   '/login',
   '/onboarding',
   '/pricing',
+  '/privacy',
   '/product',
   '/signup',
+  '/terms',
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {
