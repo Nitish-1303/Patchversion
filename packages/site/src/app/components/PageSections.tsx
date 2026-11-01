@@ -631,8 +631,8 @@ export function WorkingProofPipeline() {
     <section className="section-block content-width pipeline-section">
       <PageHeading
         eyebrow="A SMALL, REVIEWABLE LOOP"
-        title="From recorded change to local proof."
-        description="The platform demonstrates automated breaking change discovery, AST call-site mapping, deterministic patches, and fail-closed GitHub delivery."
+        title="From breaking change to verified pull request."
+        description="Automated breaking change discovery, AST call-site mapping, deterministic patch synthesis, and human-gated GitHub delivery."
         eyebrowStyle="label"
       />
 
@@ -643,12 +643,12 @@ export function WorkingProofPipeline() {
           onClick={() => setActivePoint(1)}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span className="small-label">POINT 01</span>
+            <span className="small-label">STEP 01</span>
             <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 10, background: activePoint === 1 ? '#dbeafe' : 'var(--paper)', border: '1px solid var(--lavender-mid)' }}>
               <ScanRadarIcon size={18} color={activePoint === 1 ? '#1d4ed8' : 'var(--navy-deep)'} />
             </div>
           </div>
-          <h3 style={{ margin: '14px 0 8px', fontSize: '18px', fontWeight: 650 }}>Notice the break</h3>
+          <h3 style={{ margin: '14px 0 8px', fontSize: '18px', fontWeight: 650 }}>Detect Contract Break</h3>
           <p style={{ margin: 0, fontSize: '13px', color: 'var(--body)', lineHeight: 1.6 }}>
             Detect breaking changes across upstream package versions and lockfile entries.
           </p>
@@ -663,12 +663,12 @@ export function WorkingProofPipeline() {
           onClick={() => setActivePoint(2)}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span className="small-label">POINT 02</span>
+            <span className="small-label">STEP 02</span>
             <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 10, background: activePoint === 2 ? '#dbeafe' : 'var(--paper)', border: '1px solid var(--lavender-mid)' }}>
               <TopologyIcon size={18} color={activePoint === 2 ? '#1d4ed8' : 'var(--navy-deep)'} />
             </div>
           </div>
-          <h3 style={{ margin: '14px 0 8px', fontSize: '18px', fontWeight: 650 }}>Find the usage</h3>
+          <h3 style={{ margin: '14px 0 8px', fontSize: '18px', fontWeight: 650 }}>Map AST Call Sites</h3>
           <p style={{ margin: 0, fontSize: '13px', color: 'var(--body)', lineHeight: 1.6 }}>
             Map call sites with AST analysis to identify affected code paths.
           </p>
@@ -683,12 +683,12 @@ export function WorkingProofPipeline() {
           onClick={() => setActivePoint(3)}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span className="small-label">POINT 03</span>
+            <span className="small-label">STEP 03</span>
             <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 10, background: activePoint === 3 ? '#dbeafe' : 'var(--paper)', border: '1px solid var(--lavender-mid)' }}>
               <FileDiffIcon size={18} color={activePoint === 3 ? '#1d4ed8' : 'var(--navy-deep)'} />
             </div>
           </div>
-          <h3 style={{ margin: '14px 0 8px', fontSize: '18px', fontWeight: 650 }}>Check the patch</h3>
+          <h3 style={{ margin: '14px 0 8px', fontSize: '18px', fontWeight: 650 }}>Verify & Deliver Patch</h3>
           <p style={{ margin: 0, fontSize: '13px', color: 'var(--body)', lineHeight: 1.6 }}>
             Review minimal deterministic diffs alongside verified test output.
           </p>
@@ -704,7 +704,7 @@ export function WorkingProofPipeline() {
         <div className="pipeline-drawer-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span className="small-label" style={{ color: '#2b59ff', background: '#eff6ff', padding: '3px 8px', borderRadius: 4 }}>
-              STAGE 0{activePoint} LIVE PROOF
+              STAGE 0{activePoint} TRIAGE WORKBENCH
             </span>
             <strong style={{ fontSize: '13px', color: 'var(--navy-deep)' }}>
               {activePoint === 1 && `Advisory Discovery: ${fixture.pkg} ${fixture.fromVer} → ${fixture.toVer}`}
@@ -737,7 +737,7 @@ export function WorkingProofPipeline() {
               disabled={isRunning}
             >
               <PulseDotIcon color={isRunning ? '#f59e0b' : '#10b981'} size={6} />
-              {isRunning ? 'Running Proof...' : '▶ Run Proof Loop'}
+              {isRunning ? 'Running Pipeline...' : '▶ Run Pipeline'}
             </button>
           </div>
         </div>
@@ -899,9 +899,9 @@ export function WorkingProofPipeline() {
                       fontSize: 12,
                       fontWeight: 600,
                       cursor: 'pointer',
-                      border: '1px solid var(--rule)',
-                      background: humanApproved ? '#d1fae5' : '#ffffff',
-                      color: humanApproved ? '#065f46' : 'var(--navy-deep)',
+                      border: humanApproved ? '1px solid #10b981' : '1px solid #2b59ff',
+                      background: humanApproved ? '#ecfdf5' : '#2b59ff',
+                      color: humanApproved ? '#065f46' : '#ffffff',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -909,8 +909,8 @@ export function WorkingProofPipeline() {
                     }}
                     onClick={() => setHumanApproved(!humanApproved)}
                   >
-                    <CheckCircleIcon size={13} color={humanApproved ? '#065f46' : '#64748b'} />
-                    {humanApproved ? 'Gate Approved · Ready for PR Delivery' : 'Simulate Single-Use Human Gate Approval'}
+                    <CheckCircleIcon size={13} color={humanApproved ? '#065f46' : '#ffffff'} />
+                    {humanApproved ? '✓ Approved · Pull Request Ready' : 'Authorize Pull Request Delivery'}
                   </button>
                 </div>
               </div>

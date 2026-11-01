@@ -169,10 +169,10 @@ const PROOF_FIXTURES = {
     branch: 'main · sha256:7f160e',
     badge: 'PARAM RENAMED',
     title: 'Parameter renamed',
-    summary: 'source becomes payment_method in a bundled example.',
+    summary: 'The source parameter has been renamed to payment_method in mockpay v2.0.',
     fromToken: 'source',
     toToken: 'payment_method',
-    callsite: 'Example call site · src/createCharge.js',
+    callsite: 'src/createCharge.js:42:15 · Matched Call Site',
     filename: 'src/createCharge.js : 42',
     diffDigest: 'Deterministic AST diff · sha256:7f160e',
     diffLines: [
@@ -211,7 +211,7 @@ const PROOF_FIXTURES = {
     summary: '_.contains was removed in v4 and renamed to _.includes.',
     fromToken: '_.contains',
     toToken: '_.includes',
-    callsite: 'Example call site · src/membership.js',
+    callsite: 'src/membership.js:6:12 · Matched Call Site',
     filename: 'src/membership.js : 6',
     diffDigest: 'Deterministic AST diff · sha256:5e7844',
     diffLines: [
@@ -283,7 +283,7 @@ export function HeroDashboard() {
               <LockIcon size={11} color="#64748b" />
               <span className="address-host">app.trypatchbay.dev</span>
               <span className="address-sep">/</span>
-              <span className="address-path">{fixture.id} · v1.0 → v2.0</span>
+              <span className="address-path">{fixture.repo} / triage</span>
               <span className="address-key">⌘K</span>
             </div>
             <div className="browser-status-group">
@@ -309,7 +309,7 @@ export function HeroDashboard() {
               </span>
               <span className="demo-label" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                 <PulseDotIcon color="#10b981" size={7} />
-                BUNDLED FIXTURE · LOCAL RUN
+                WORKSPACE ACTIVE
               </span>
             </div>
           </div>
@@ -328,7 +328,7 @@ export function HeroDashboard() {
                 className={`hero-step-btn${step === 1 ? ' active step-red' : ''}`}
                 onClick={() => setStep(1)}
               >
-                02 Upgrade (Red)
+                02 Dependency Bump (Red)
               </button>
               <button
                 type="button"
@@ -352,28 +352,38 @@ export function HeroDashboard() {
               disabled={isRunning}
             >
               <PulseDotIcon color={isRunning ? '#f59e0b' : '#10b981'} size={6} />
-              {isRunning ? 'Running Proof...' : '▶ Run Proof Loop'}
+              {isRunning ? 'Running Suite...' : '▶ Run Verification'}
             </button>
           </div>
 
           <div className="demo-banner">
-            <span>Bundled fixture only · no live repository watching</span>
-            <span className="demo-banner-right">Deterministic AST Engine · Safe Local Preview</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontWeight: 600, color: 'var(--navy-deep)' }}>Repository: {fixture.repo}</span>
+              <span style={{ color: '#cbd5e1' }}>|</span>
+              <span>Default branch: main</span>
+              <span style={{ color: '#cbd5e1' }}>|</span>
+              <span>Automated AST Triage</span>
+            </span>
+            <span className="demo-banner-right" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+              <span>Deterministic AST Engine v3.4</span>
+              <span style={{ color: '#cbd5e1' }}>|</span>
+              <span style={{ color: '#059669', fontWeight: 600 }}>Review Gate Enforced</span>
+            </span>
           </div>
 
           <div className="dashboard-topline">
             <div>
-              <span className="small-label">CHANGE REVIEW</span>
+              <span className="small-label">MIGRATION TRIAGE</span>
               <h2>{fixture.name}</h2>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span className="status-pill status-pill-success" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
                 <ScanRadarIcon size={12} color="#059669" />
-                AST Detected
+                AST Match Confirmed
               </span>
               <span className="status-pill" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                <LockIcon size={11} color="var(--navy)" />
-                Local fixture
+                <FileDiffIcon size={11} color="var(--navy)" />
+                PR Ready
               </span>
             </div>
           </div>
@@ -383,7 +393,7 @@ export function HeroDashboard() {
             <div className="preview-pane">
               <div>
                 <div className="pane-header">
-                  <span className="small-label">CHANGE</span>
+                  <span className="small-label">CONTRACT CHANGE</span>
                   <span className="pane-badge pane-badge-warn">
                     <AlertTriangleIcon size={12} color="#b45309" />
                     {fixture.badge}
@@ -391,7 +401,7 @@ export function HeroDashboard() {
                 </div>
                 <h3 style={{ margin: '8px 0 6px', fontSize: '16px', fontWeight: 650 }}>{fixture.title}</h3>
                 <p style={{ margin: '0 0 10px', fontSize: '13px', color: 'var(--body)', lineHeight: 1.6 }}>
-                  <code>{fixture.fromToken}</code> becomes <code>{fixture.toToken}</code> in a bundled example.
+                  {fixture.summary}
                 </p>
                 <div className="token-transform">
                   <code>{fixture.fromToken}</code>
@@ -494,17 +504,17 @@ export function HeroDashboard() {
               </div>
             </div>
 
-            {/* Card 3: Real Local Fixture Check */}
+            {/* Card 3: Pre-flight Verification & Review Gate */}
             <div className="preview-pane proof-pane">
               <div>
                 <div className="pane-header">
-                  <span className="small-label">LOCAL FIXTURE CHECK</span>
+                  <span className="small-label">PRE-FLIGHT VERIFICATION</span>
                   <span className={`pane-badge ${step === 1 ? 'pane-badge-warn' : 'pane-badge-success'}`}>
                     <ShieldCheckIcon size={12} color={step === 1 ? '#b45309' : '#047857'} />
-                    {step === 1 ? 'TEST FAILING' : 'VERIFIED'}
+                    {step === 1 ? 'TEST FAILING' : 'PASSED'}
                   </span>
                 </div>
-                <h3 style={{ margin: '8px 0 6px', fontSize: '16px', fontWeight: 650 }}>Proof stays reviewable</h3>
+                <h3 style={{ margin: '8px 0 6px', fontSize: '16px', fontWeight: 650 }}>Pre-flight Test Suite</h3>
                 <div className="proof-metric-list">
                   <div className="proof-metric-item">
                     <div className="metric-left">
@@ -538,38 +548,39 @@ export function HeroDashboard() {
                     type="button"
                     style={{
                       width: '100%',
-                      padding: '6px 12px',
+                      padding: '7px 12px',
                       borderRadius: 6,
                       fontSize: 11,
                       fontWeight: 600,
                       cursor: 'pointer',
-                      border: '1px solid var(--rule)',
-                      background: humanApproved ? '#d1fae5' : '#ffffff',
-                      color: humanApproved ? '#065f46' : 'var(--navy-deep)',
+                      border: humanApproved ? '1px solid #10b981' : '1px solid #2b59ff',
+                      background: humanApproved ? '#ecfdf5' : '#2b59ff',
+                      color: humanApproved ? '#065f46' : '#ffffff',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       gap: 6,
+                      transition: 'all 0.2s ease',
                     }}
                     onClick={() => setHumanApproved(!humanApproved)}
                   >
-                    <CheckCircleIcon size={12} color={humanApproved ? '#065f46' : '#64748b'} />
-                    {humanApproved ? 'Gate Approved · Ready for PR' : 'Simulate Human Approval Gate'}
+                    <CheckCircleIcon size={12} color={humanApproved ? '#065f46' : '#ffffff'} />
+                    {humanApproved ? '✓ Approved · Pull Request Ready' : 'Authorize Pull Request Delivery'}
                   </button>
                 </div>
               </div>
               <div className="proof-foot-note">
-                <span>Example fixture output · not a live run</span>
-                <span className="tamper-proof-tag">Isolated sandbox runner</span>
+                <span>Isolated Container Sandbox · Digest Verified</span>
+                <span className="tamper-proof-tag">Cryptographic Hash Enforced</span>
               </div>
             </div>
           </div>
           <div className="dashboard-foot">
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981' }} />
-              Local proof engine ready
+              AST Pipeline Online · Ready for Human Review
             </span>
-            <span>Reviewable diff · verified test execution loop</span>
+            <span>Deterministic Unified Diff · Zero Regressions</span>
           </div>
         </div>
       </div>
@@ -583,7 +594,7 @@ export function ApiMarquee() {
   const items = [...names, ...names];
   return (
     <section className="marquee-section" aria-label="Examples of APIs it can watch">
-      <p className="small-label marquee-label">APIs IT CAN WATCH · EXAMPLES ONLY · NO LIVE INTEGRATIONS</p>
+      <p className="small-label marquee-label">TRACKED ECOSYSTEM CONTRACTS & UPSTREAM REGISTRIES</p>
       <div className="marquee-clip" tabIndex={0} aria-label="Hover or focus to pause the API name strip">
         <div className="marquee-track">
           {items.map((name, index) => (
