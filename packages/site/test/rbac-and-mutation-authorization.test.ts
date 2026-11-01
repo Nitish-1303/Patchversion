@@ -5,7 +5,6 @@ import { NextRequest } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import crypto from 'crypto';
 import { POST as approvalsPost } from '../src/app/api/approvals/route';
 import { POST as pullRequestsPost } from '../src/app/api/pull-requests/route';
 import { POST as packagesPost } from '../src/app/api/packages/route';

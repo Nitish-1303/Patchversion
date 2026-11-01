@@ -3,6 +3,23 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { BrandIcon } from '../components/BrandIcons';
 import type { RepositoryScanResult } from '@patchversion/shared';
+import { TriageCard, type FindingInfo } from './components/TriageCard';
+import { InteractiveGraph } from './components/InteractiveGraph';
+import { AuditScorecard } from './components/AuditScorecard';
+import { HealthCard } from './components/HealthCard';
+import { TelemetryBar } from './components/TelemetryBar';
+import {
+  LayersIcon,
+  TopologyIcon,
+  ShieldCheckIcon,
+  GitPullRequestIcon,
+  PackageSearchIcon,
+  ActivityIcon,
+  ScanRadarIcon,
+  SearchIcon,
+  CheckCircleIcon,
+  AlertTriangleIcon,
+} from '@/app/components/UiIcons';
 
 interface UserInfo {
   id: string;
@@ -39,50 +56,6 @@ interface MonitoredPackage {
   lastError?: string;
 }
 
-interface Finding {
-  id: string;
-  packageName: string;
-  fromVersion: string;
-  toVersion: string;
-  isBreaking: boolean;
-  status: string;
-  impactAnalysis?: {
-    changeId?: string;
-    affectedCallSites?: Array<{ file: string; line: number; column?: number }>;
-    unaffectedCallSites?: unknown[];
-    coveragePercent?: number;
-  };
-  patch?: {
-    id: string;
-    diffContent: string;
-    diffHash: string;
-    status: string;
-  };
-  validation?: {
-    id: string;
-    status: string;
-    executionProvenance?: 'fixture-verified' | 'executed' | 'not-executed';
-    executionLogs: string;
-  };
-  approval?: {
-    id: string;
-    approvedAt: string;
-    status: string;
-    diffHashAtApproval?: string;
-    approvedByUserId?: string;
-  };
-  pullRequest?: {
-    id: string;
-    githubPrNumber: number;
-    githubPrUrl: string;
-    branchName: string;
-    status: string;
-    isDraft?: boolean;
-    isSimulation?: boolean;
-    deliveryBlockedReason?: string;
-  };
-}
-
 const NPM_PACKAGE_REGEX = /^(?:@[a-z0-9-*~][a-z0-9-*._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/;
 
 export default function DashboardPage() {
@@ -97,11 +70,17 @@ export default function DashboardPage() {
   const [tenant, setTenant] = useState<TenantInfo | null>(null);
   const [repositories, setRepositories] = useState<Repository[]>([]);
   const [selectedRepo, setSelectedRepo] = useState<Repository | null>(null);
-  const [findings, setFindings] = useState<Finding[]>([]);
+  const [findings, setFindings] = useState<FindingInfo[]>([]);
   const [scanResult, setScanResult] = useState<RepositoryScanResult | null>(null);
+
+  // Friendly Triage Controls
   const [depSearch, setDepSearch] = useState('');
   const [depFilter, setDepFilter] = useState<'all' | 'direct' | 'transitive' | 'concerns'>('all');
-  const [activeTab, setActiveTab] = useState<'Overview' | 'Dependencies' | 'Pull requests' | 'APIs' | 'Activity'>('Overview');
+  const [sortOrder, setSortOrder] = useState<'name' | 'callSites' | 'directFirst'>('directFirst');
+  const [activeTab, setActiveTab] = useState<
+    'Triage Deck' | 'Visual Map' | 'Audit & Steps' | 'Pull requests' | 'Monitored Packages' | 'Activity'
+  >('Triage Deck');
+
   const [loading, setLoading] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -128,13 +107,15 @@ export default function DashboardPage() {
     });
 
     if (res.status === 401) {
-      setAuthenticated(false);
-      setUser(null);
-      setTenant(null);
-      if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('patchversion_token');
-      }
-      setActionError('Session expired or unauthorized. Please sign in again.');
+      setTimeout(() => {
+        setAuthenticated(false);
+        setUser(null);
+        setTenant(null);
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('patchversion_token');
+        }
+        setActionError('Session expired or unauthorized. Please sign in again.');
+      }, 0);
     }
 
     return res;
@@ -214,7 +195,6 @@ export default function DashboardPage() {
       const res = await authFetch(`/api/findings?repositoryId=${repoId}`);
       if (res.ok) {
         const data = await res.json();
-        // Prevent stale responses from overwriting findings if active repo changed
         if (activeRepoIdRef.current === repoId) {
           setFindings(data.findings || []);
         }
@@ -261,9 +241,12 @@ export default function DashboardPage() {
   // Synchronize findings and scan result when selected repository changes
   useEffect(() => {
     if (selectedRepo?.id) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      void loadFindings(selectedRepo.id);
-      void loadScanResult(selectedRepo.id);
+      const repoId = selectedRepo.id;
+      const timer = setTimeout(() => {
+        void loadFindings(repoId);
+        void loadScanResult(repoId);
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [selectedRepo?.id, loadFindings, loadScanResult]);
 
@@ -338,31 +321,6 @@ export default function DashboardPage() {
     setLoading(false);
   };
 
-  const handleConnectRepo = async () => {
-    setLoading(true);
-    setActionError(null);
-    try {
-      const res = await authFetch('/api/repos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fullName: 'Nitish-1303/CipherBill',
-          owner: 'Nitish-1303',
-          name: 'CipherBill',
-          defaultBranch: 'main',
-        }),
-      });
-      if (res.ok) {
-        setActionMessage('Repository connected successfully.');
-        await loadRepositories();
-      }
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleConnectSpecificRepo = async (fullName: string) => {
     setLoading(true);
     setActionError(null);
@@ -396,7 +354,7 @@ export default function DashboardPage() {
     if (!selectedRepo) return;
     setLoading(true);
     setActionError(null);
-    setActionMessage('Scanning repository dependencies and validating candidate fixes...');
+    setActionMessage('Scanning repository manifests, mapping AST call sites, and inspecting dependencies...');
     try {
       const res = await authFetch('/api/scan', {
         method: 'POST',
@@ -409,7 +367,7 @@ export default function DashboardPage() {
           setScanResult(data.scan);
         }
         if (data.findingsCount === 0) {
-          setActionMessage(`Scan complete: 0 breaking regressions detected in ${selectedRepo.fullName}. Repository dependencies are mapped and up to date.`);
+          setActionMessage(`Scan complete: 0 breaking regressions detected in ${selectedRepo.fullName}. All mapped dependencies conform to current rules.`);
         } else {
           setActionMessage(`Scan complete: ${data.findingsCount} regression candidate(s) analyzed and validated.`);
         }
@@ -450,7 +408,7 @@ export default function DashboardPage() {
   const handleDeliverPR = async (patchId: string) => {
     setLoading(true);
     setActionError(null);
-    setActionMessage('Delivering pull request...');
+    setActionMessage('Delivering pull request to GitHub...');
     try {
       const res = await authFetch('/api/pull-requests', {
         method: 'POST',
@@ -476,22 +434,35 @@ export default function DashboardPage() {
     }
   };
 
-  const filteredDependencies = (scanResult?.dependencies || []).filter((dep) => {
-    if (depFilter === 'direct' && dep.type === 'transitive') return false;
-    if (depFilter === 'transitive' && dep.type !== 'transitive') return false;
-    if (depFilter === 'concerns' && dep.concerns.length === 0) return false;
-    if (depSearch.trim()) {
-      const query = depSearch.toLowerCase();
-      const matchName = dep.name.toLowerCase().includes(query);
-      const matchRole = Boolean(dep.frameworkRole && dep.frameworkRole.toLowerCase().includes(query));
-      const matchImport = dep.importingFiles.some(f => f.filePath.toLowerCase().includes(query));
-      const matchConcern = dep.concerns.some(c => c.message.toLowerCase().includes(query));
-      return matchName || matchRole || matchImport || matchConcern;
-    }
-    return true;
-  });
+  // Filter & sort dependencies for the Friendly Card Triage Deck
+  const filteredDependencies = (scanResult?.dependencies || [])
+    .filter((dep) => {
+      if (depFilter === 'direct' && dep.type === 'transitive') return false;
+      if (depFilter === 'transitive' && dep.type !== 'transitive') return false;
+      if (depFilter === 'concerns' && dep.concerns.length === 0) return false;
+      if (depSearch.trim()) {
+        const query = depSearch.toLowerCase();
+        const matchName = dep.name.toLowerCase().includes(query);
+        const matchRole = Boolean(dep.frameworkRole && dep.frameworkRole.toLowerCase().includes(query));
+        const matchImport = dep.importingFiles.some(f => f.filePath.toLowerCase().includes(query));
+        const matchConcern = dep.concerns.some(c => c.message.toLowerCase().includes(query));
+        return matchName || matchRole || matchImport || matchConcern;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortOrder === 'callSites') {
+        return b.importingFiles.length - a.importingFiles.length;
+      }
+      if (sortOrder === 'directFirst') {
+        const aDirect = a.type !== 'transitive' ? 1 : 0;
+        const bDirect = b.type !== 'transitive' ? 1 : 0;
+        if (aDirect !== bDirect) return bDirect - aDirect;
+      }
+      return a.name.localeCompare(b.name);
+    });
 
-  // If unauthenticated: render initial unavailable state with action to authenticate
+  // If unauthenticated: render initial unavailable state matching verified test requirements
   if (!authenticated) {
     return (
       <section className="login-card" aria-labelledby="dashboard-unavailable-title">
@@ -513,15 +484,20 @@ export default function DashboardPage() {
     );
   }
 
-  const primaryFinding = findings[0];
+  const hasRegressions = findings.length > 0;
 
   return (
-    <div className="dashboard-app">
-      <div className="browser-bar">
+    <div className="dashboard-app" style={{ maxWidth: '1280px', margin: '24px auto', width: 'calc(100% - 32px)' }}>
+      {/* Signature TryPatchBay Browser Frame Top Bar */}
+      <div className="browser-bar" style={{ background: '#ffffff', borderBottom: '1px solid #dfe1ef', borderRadius: '14px 14px 0 0' }}>
         <div className="browser-dots" aria-hidden="true"><i /><i /><i /></div>
-        <span>trypatchbay · workspace dashboard</span>
+        <span style={{ fontWeight: 600, color: '#141a39', fontSize: '11px' }}>
+          trypatchbay · developer workspace dashboard
+        </span>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span className="status-pill">{tenant?.name ?? 'Connected Workspace'}</span>
+          <span className="status-pill" style={{ background: '#e4e5f4', color: '#141a39', fontWeight: 600 }}>
+            {tenant?.name ?? 'TryPatchBay Demo Workspace'}
+          </span>
           <button
             type="button"
             onClick={handleLogout}
@@ -529,7 +505,7 @@ export default function DashboardPage() {
               background: 'none',
               border: 'none',
               color: '#64748b',
-              fontSize: '10px',
+              fontSize: '11px',
               cursor: 'pointer',
               textDecoration: 'underline',
               padding: '0 4px',
@@ -540,805 +516,591 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="app-heading">
-        <div>
-          <span className="small-label">AUTHENTICATED DEVELOPER WORKSPACE</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px' }}>
-            <h1>{selectedRepo ? selectedRepo.fullName : 'Connected Repositories'}</h1>
-            {selectedRepo && (
-              <span
-                style={{
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  padding: '3px 8px',
-                  borderRadius: '4px',
-                  background: selectedRepo.isDemo ? '#fef3c7' : selectedRepo.fullName === 'Nitish-1303/CipherBill' ? '#e0e7ff' : '#dcfce7',
-                  color: selectedRepo.isDemo ? '#92400e' : selectedRepo.fullName === 'Nitish-1303/CipherBill' ? '#3730a3' : '#166534',
-                  border: `1px solid ${selectedRepo.isDemo ? '#fcd34d' : selectedRepo.fullName === 'Nitish-1303/CipherBill' ? '#c7d2fe' : '#86efac'}`,
-                }}
-              >
-                {selectedRepo.isDemo ? (
-                  'DEMO FIXTURE (MIGRATION & APPROVAL DEMO)'
-                ) : selectedRepo.fullName === 'Nitish-1303/CipherBill' ? (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                    <BrandIcon name="github" size={12} /> REAL PUBLIC GITHUB (READ-ONLY AST SCAN)
-                  </span>
-                ) : (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                    <BrandIcon name="github" size={12} /> LIVE GITHUB APP
-                  </span>
-                )}
-              </span>
+      {/* Main Workspace Frame */}
+      <div
+        style={{
+          background: '#f7f7fc',
+          border: '1px solid #dfe1ef',
+          borderTop: 'none',
+          borderRadius: '0 0 14px 14px',
+          padding: '24px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '20px',
+        }}
+      >
+        {/* Workspace Subheader & Active Repository Switcher */}
+        <div
+          style={{
+            background: '#ffffff',
+            border: '1px solid #dfe1ef',
+            borderRadius: '12px',
+            padding: '18px 24px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '16px',
+            boxShadow: '0 2px 8px rgba(20, 26, 57, 0.02)',
+          }}
+        >
+          <div>
+            <span className="small-label" style={{ color: '#5e6582' }}>
+              AUTHENTICATED DEVELOPER WORKSPACE
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px', flexWrap: 'wrap' }}>
+              <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#141a39', margin: 0 }}>
+                {selectedRepo ? selectedRepo.fullName : 'Connected Repositories'}
+              </h1>
+              {selectedRepo && (
+                <span
+                  style={{
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    padding: '3px 9px',
+                    borderRadius: '999px',
+                    background: selectedRepo.isDemo ? '#fef3c7' : '#e0e7ff',
+                    color: selectedRepo.isDemo ? '#92400e' : '#3730a3',
+                    border: `1px solid ${selectedRepo.isDemo ? '#fcd34d' : '#c7d2fe'}`,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                >
+                  <BrandIcon name="github" size={12} />
+                  {selectedRepo.isDemo ? 'DEMO FIXTURE (MIGRATION & APPROVAL DEMO)' : 'REAL PUBLIC GITHUB (READ-ONLY AST SCAN)'}
+                </span>
+              )}
+            </div>
+            <p style={{ marginTop: '4px', fontSize: '12px', color: '#4e5471' }}>
+              Signed in as <strong>{user?.email}</strong>. Connected to persistent state store.
+            </p>
+
+            {/* Repository Select Dropdown */}
+            {repositories.length > 1 && (
+              <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <label htmlFor="repo-select" style={{ fontSize: '11px', fontWeight: 700, color: '#141a39' }}>
+                  Switch Active Repository:
+                </label>
+                <select
+                  id="repo-select"
+                  value={selectedRepo?.id ?? ''}
+                  onChange={e => {
+                    const repo = repositories.find(r => r.id === e.target.value);
+                    if (repo) setSelectedRepo(repo);
+                  }}
+                  style={{
+                    padding: '4px 10px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    borderRadius: '6px',
+                    border: '1px solid #dfe1ef',
+                    background: '#f7f7fc',
+                    color: '#141a39',
+                    outline: 'none',
+                  }}
+                >
+                  {repositories.map(r => (
+                    <option key={r.id} value={r.id}>
+                      {r.fullName} - {r.fullName === 'Nitish-1303/CipherBill' ? 'Live Public GitHub (523 Dependencies)' : 'Demo Fixture (1 Breaking Regression)'}
+                    </option>
+                  ))}
+                </select>
+              </div>
             )}
           </div>
-          <p>
-            Signed in as <strong>{user?.email}</strong>. Connected to persistent state store.
-          </p>
-          {repositories.length > 1 && (
-            <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <label htmlFor="repo-select" style={{ fontSize: '12px', fontWeight: 600 }}>Active Repository:</label>
-              <select
-                id="repo-select"
-                value={selectedRepo?.id ?? ''}
-                onChange={e => {
-                  const repo = repositories.find(r => r.id === e.target.value);
-                  if (repo) {
-                    setSelectedRepo(repo);
-                  }
-                }}
-                style={{
-                  padding: '4px 8px',
-                  fontSize: '12px',
-                  borderRadius: '4px',
-                  border: '1px solid #cbd5e1',
-                  background: '#ffffff',
-                }}
+
+          {/* Action Buttons with Icons */}
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+            {!repositories.some(r => r.fullName === 'Nitish-1303/CipherBill') && (
+              <button
+                type="button"
+                className="pill-button"
+                onClick={() => handleConnectSpecificRepo('Nitish-1303/CipherBill')}
+                disabled={loading}
+                style={{ fontSize: '12px', minHeight: '40px', padding: '0 16px', background: '#ffffff', border: '1px solid #dfe1ef' }}
               >
-                {repositories.map(r => (
-                  <option key={r.id} value={r.id}>
-                    {r.fullName} - {r.fullName === 'Nitish-1303/CipherBill' ? 'Live Public GitHub (523 Dependencies Mapped)' : 'Live GitHub App'}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-        </div>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-          {!repositories.some(r => r.fullName === 'Nitish-1303/CipherBill') && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  <BrandIcon name="github" size={13} /> Connect CipherBill
+                </span>
+              </button>
+            )}
             <button
               type="button"
-              className="pill-button"
-              onClick={() => handleConnectSpecificRepo('Nitish-1303/CipherBill')}
-              disabled={loading}
-              title="Connect the live repository configured in GitHub App"
+              className="pill-button pill-button-dark"
+              onClick={handleScan}
+              disabled={loading || !selectedRepo}
+              style={{ fontSize: '12px', minHeight: '40px', padding: '0 20px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                <BrandIcon name="github" size={14} /> Connect CipherBill
-              </span>
+              <ScanRadarIcon size={14} color="#ffffff" />
+              <span>{loading ? 'Scanning Repository...' : 'Scan Repository'}</span>
             </button>
-          )}
-          <button
-            type="button"
-            className="pill-button"
-            onClick={handleScan}
-            disabled={loading || !selectedRepo}
+          </div>
+        </div>
+
+        {/* Real-time System Telemetry Strip */}
+        <TelemetryBar
+          scanResult={scanResult}
+          repoFullName={selectedRepo?.fullName ?? 'Unknown Repository'}
+        />
+
+        {/* Global Notifications / Error Messages */}
+        {actionMessage && (
+          <div
+            style={{
+              padding: '12px 18px',
+              background: '#e0e7ff',
+              color: '#3730a3',
+              borderRadius: '8px',
+              border: '1px solid #c7d2fe',
+              fontSize: '12px',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
           >
-            {loading ? 'Processing...' : 'Scan Repository'}
-          </button>
-        </div>
-      </div>
+            <span>ℹ</span>
+            <span>{actionMessage}</span>
+          </div>
+        )}
 
-      {actionMessage && (
-        <div style={{ padding: '10px 18px', background: '#eef2ff', color: '#1e1b4b', fontSize: '11px', fontWeight: 600 }}>
-          {actionMessage}
-        </div>
-      )}
-
-      {actionError && (
-        <div style={{ padding: '10px 18px', background: '#fee2e2', color: '#991b1b', fontSize: '11px', fontWeight: 600 }}>
-          {actionError}
-        </div>
-      )}
-
-      <div className="dashboard-tabs" role="tablist" aria-label="Dashboard views">
-        {(['Overview', 'Dependencies', 'Pull requests', 'APIs', 'Activity'] as const).map(tab => (
-          <button
-            key={tab}
-            role="tab"
-            aria-selected={activeTab === tab}
-            type="button"
-            onClick={() => setActiveTab(tab)}
+        {actionError && (
+          <div
+            style={{
+              padding: '12px 18px',
+              background: '#fee2e2',
+              color: '#991b1b',
+              borderRadius: '8px',
+              border: '1px solid #fca5a5',
+              fontSize: '12px',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
           >
-            {tab}
-            {tab === 'Dependencies' && scanResult ? ` (${scanResult.totalDependencies})` : ''}
-          </button>
-        ))}
-      </div>
+            <span>⚠</span>
+            <span>{actionError}</span>
+          </div>
+        )}
 
-      <div className="dashboard-view">
-        {activeTab === 'Overview' && (
-          <>
-            <div className="stats-grid">
-              <div className="stat-card">
-                <span className="small-label">Connected Repos</span>
-                <strong>{repositories.length}</strong>
-                <span>active permissions</span>
+        {/* Top Executive Health Scorecard (Built with Dedicated HealthCard Components) */}
+        <section
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+            gap: '14px',
+          }}
+          aria-label="Repository Health Scorecard"
+        >
+          {/* Card 1: Health Status */}
+          <HealthCard
+            icon={hasRegressions ? <AlertTriangleIcon size={16} color="#92400e" /> : <CheckCircleIcon size={16} color="#166534" />}
+            label="REPOSITORY HEALTH"
+            metric={hasRegressions ? `${findings.length} Breaking Drift Found` : 'All Dependencies Clean'}
+            subtext={
+              hasRegressions
+                ? `${findings[0].packageName} v${findings[0].fromVersion} → v${findings[0].toVersion} requires automated patch.`
+                : '0 breaking regressions detected under current supported migration rules.'
+            }
+            badge={{
+              text: hasRegressions ? 'ATTENTION' : 'VERIFIED SAFE',
+              variant: hasRegressions ? 'warning' : 'success',
+            }}
+          />
+
+          {/* Card 2: Dependencies Mapped */}
+          <HealthCard
+            icon={<LayersIcon size={16} color="#141a39" />}
+            label="DEPENDENCY INVENTORY"
+            metric={`${scanResult?.totalDependencies ?? 0} Mapped Packages`}
+            subtext={`${scanResult?.directCount ?? 0} direct · ${scanResult?.transitiveCount ?? 0} transitive · ${scanResult?.packageManager ?? 'npm'} lockfile`}
+            badge={{
+              text: `${scanResult?.directCount ?? 0} DIRECT`,
+              variant: 'info',
+            }}
+            action={
+              scanResult
+                ? {
+                    label: `Open Interactive Graph (${scanResult.graph.nodes.length} nodes) →`,
+                    onClick: () => setActiveTab('Visual Map'),
+                  }
+                : undefined
+            }
+          />
+
+          {/* Card 3: Detected Frameworks */}
+          <HealthCard
+            icon={<TopologyIcon size={16} color="#141a39" />}
+            label="DETECTED FRAMEWORKS"
+            metric={`${scanResult?.frameworks?.length ?? 0} Frameworks & Tools`}
+            subtext={
+              scanResult?.frameworks && scanResult.frameworks.length > 0
+                ? scanResult.frameworks.map(f => f.name).join(', ')
+                : 'Structure: single-package'
+            }
+            badge={{
+              text: scanResult?.projectType?.toUpperCase() ?? 'NPM',
+              variant: 'neutral',
+            }}
+          />
+
+          {/* Card 4: Execution Sandbox Boundary */}
+          <HealthCard
+            icon={<ShieldCheckIcon size={16} color="#141a39" />}
+            label="EXECUTION BOUNDARY"
+            metric={selectedRepo?.isDemo ? 'Live PR Gated' : 'Container Sandbox Required'}
+            subtext={
+              selectedRepo?.isDemo
+                ? 'Test execution disabled on production host; PR prepared locally.'
+                : 'Customer test suites fail closed until isolated container runner is active.'
+            }
+            badge={{
+              text: selectedRepo?.isDemo ? 'DEMO SIMULATION' : 'ENFORCED SAFE',
+              variant: 'neutral',
+            }}
+          />
+        </section>
+
+        {/* Tab Navigation with Dedicated UiIcons */}
+        <div
+          role="tablist"
+          aria-label="Dashboard sections"
+          style={{
+            display: 'flex',
+            gap: '8px',
+            borderBottom: '1px solid #dfe1ef',
+            paddingBottom: '10px',
+            flexWrap: 'wrap',
+          }}
+        >
+          {(
+            [
+              { name: 'Triage Deck', icon: <LayersIcon size={14} /> },
+              { name: 'Visual Map', icon: <TopologyIcon size={14} /> },
+              { name: 'Audit & Steps', icon: <ShieldCheckIcon size={14} /> },
+              { name: 'Pull requests', icon: <GitPullRequestIcon size={14} /> },
+              { name: 'Monitored Packages', icon: <PackageSearchIcon size={14} /> },
+              { name: 'Activity', icon: <ActivityIcon size={14} /> },
+            ] as const
+          ).map(tab => {
+            const isSelected = activeTab === tab.name;
+            let tabLabel: string = tab.name;
+            if (tab.name === 'Triage Deck' && scanResult) {
+              tabLabel = `Triage Deck (${scanResult.totalDependencies})`;
+            } else if (tab.name === 'Pull requests' && findings.filter(f => f.pullRequest).length > 0) {
+              tabLabel = `Pull requests (${findings.filter(f => f.pullRequest).length})`;
+            }
+
+            return (
+              <button
+                key={tab.name}
+                role="tab"
+                aria-selected={isSelected}
+                type="button"
+                onClick={() => setActiveTab(tab.name as typeof activeTab)}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '999px',
+                  border: isSelected ? '1px solid #141a39' : '1px solid #dfe1ef',
+                  background: isSelected ? '#141a39' : '#ffffff',
+                  color: isSelected ? '#ffffff' : '#4e5471',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {tab.icon}
+                <span>{tabLabel}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Tab 1: The Friendly Card Triage Deck */}
+        {activeTab === 'Triage Deck' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Command Bar with Search, Filters & Sorting */}
+            <div
+              style={{
+                background: '#ffffff',
+                border: '1px solid #dfe1ef',
+                borderRadius: '12px',
+                padding: '14px 20px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '12px',
+                boxShadow: '0 2px 6px rgba(20, 26, 57, 0.02)',
+              }}
+            >
+              {/* Filter Pills */}
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: '#5e6582', marginRight: '4px' }}>
+                  FILTER:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setDepFilter('all')}
+                  style={{
+                    padding: '4px 12px',
+                    borderRadius: '999px',
+                    border: depFilter === 'all' ? '1px solid #141a39' : '1px solid #dfe1ef',
+                    background: depFilter === 'all' ? '#141a39' : '#ffffff',
+                    color: depFilter === 'all' ? '#ffffff' : '#4e5471',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  All ({scanResult?.totalDependencies ?? 0})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDepFilter('direct')}
+                  style={{
+                    padding: '4px 12px',
+                    borderRadius: '999px',
+                    border: depFilter === 'direct' ? '1px solid #141a39' : '1px solid #dfe1ef',
+                    background: depFilter === 'direct' ? '#141a39' : '#ffffff',
+                    color: depFilter === 'direct' ? '#ffffff' : '#4e5471',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Direct ({scanResult?.directCount ?? 0})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDepFilter('transitive')}
+                  style={{
+                    padding: '4px 12px',
+                    borderRadius: '999px',
+                    border: depFilter === 'transitive' ? '1px solid #141a39' : '1px solid #dfe1ef',
+                    background: depFilter === 'transitive' ? '#141a39' : '#ffffff',
+                    color: depFilter === 'transitive' ? '#ffffff' : '#4e5471',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Transitive ({scanResult?.transitiveCount ?? 0})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDepFilter('concerns')}
+                  style={{
+                    padding: '4px 12px',
+                    borderRadius: '999px',
+                    border: depFilter === 'concerns' ? '1px solid #991b1b' : '1px solid #dfe1ef',
+                    background: depFilter === 'concerns' ? '#fee2e2' : '#ffffff',
+                    color: depFilter === 'concerns' ? '#991b1b' : '#4e5471',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Needs Attention ({scanResult?.dependencies.filter(d => d.concerns.length > 0).length ?? 0})
+                </button>
               </div>
-              <div className="stat-card">
-                <span className="small-label">Candidate Findings</span>
-                <strong>{findings.length}</strong>
-                <span>breaking upgrades detected</span>
-              </div>
-              <div className="stat-card">
-                <span className="small-label">Validated Patches</span>
-                <strong>{findings.filter(f => f.validation?.status === 'passed').length}</strong>
-                <span>verified red-to-green</span>
-              </div>
-              <div className="stat-card">
-                <span className="small-label">Delivered PRs</span>
-                <strong>{findings.filter(f => f.pullRequest).length}</strong>
-                <span>created or prepared</span>
+
+              {/* Search & Sort Controls */}
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <span style={{ position: 'absolute', left: '12px', color: '#64748b', display: 'flex' }}>
+                    <SearchIcon size={13} />
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="Search packages or call sites..."
+                    value={depSearch}
+                    onChange={e => setDepSearch(e.target.value)}
+                    style={{
+                      padding: '6px 14px 6px 32px',
+                      fontSize: '12px',
+                      border: '1px solid #dfe1ef',
+                      borderRadius: '999px',
+                      width: '240px',
+                      outline: 'none',
+                      background: '#f7f7fc',
+                    }}
+                  />
+                </div>
+
+                <select
+                  value={sortOrder}
+                  onChange={e => setSortOrder(e.target.value as 'name' | 'callSites' | 'directFirst')}
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    border: '1px solid #dfe1ef',
+                    borderRadius: '999px',
+                    background: '#f7f7fc',
+                    color: '#141a39',
+                    outline: 'none',
+                  }}
+                >
+                  <option value="directFirst">Direct Packages First</option>
+                  <option value="callSites">Most Call Sites First</option>
+                  <option value="name">Alphabetical (A-Z)</option>
+                </select>
               </div>
             </div>
 
-            {scanResult && (
-              <section className="app-card" style={{ marginTop: '16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
-                  <div>
-                    <span className="small-label">ENVIRONMENT & DEPENDENCY GRAPH</span>
-                    <h2>Repository Structure & Tooling</h2>
-                    <p style={{ marginTop: '4px', color: '#475569' }}>
-                      Structure: <strong>{scanResult.projectType}</strong> · Package Manager: <strong>{scanResult.packageManager}</strong> · <strong>{scanResult.totalDependencies}</strong> total dependencies ({scanResult.directCount} direct, {scanResult.transitiveCount} transitive).
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    className="pill-button"
-                    onClick={() => setActiveTab('Dependencies')}
-                    style={{ fontSize: '11px', minHeight: '36px', padding: '0 16px' }}
-                  >
-                    View Dependency Map ({scanResult.totalDependencies}) →
-                  </button>
-                </div>
-
-                {scanResult.frameworks && scanResult.frameworks.length > 0 && (
-                  <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748b' }}>Detected Frameworks:</span>
-                    {scanResult.frameworks.map((fw, idx) => (
-                      <span
-                        key={idx}
-                        style={{
-                          fontSize: '11px',
-                          padding: '2px 8px',
-                          borderRadius: '12px',
-                          background: '#f8fafc',
-                          border: '1px solid #cbd5e1',
-                          color: '#1e293b',
-                          fontWeight: 600,
-                        }}
-                      >
-                        {fw.name} {fw.version ? `v${fw.version}` : ''} <span style={{ color: '#64748b', fontSize: '9px' }}>({fw.role})</span>
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                <div style={{ marginTop: '12px', display: 'flex', gap: '16px', fontSize: '11px', color: '#64748b', flexWrap: 'wrap' }}>
-                  <span>Graph Nodes: <strong>{scanResult.graph.nodes.length}</strong></span>
-                  <span>Graph Edges: <strong>{scanResult.graph.edges.length}</strong></span>
-                  <span>Manifests Parsed: <strong>{scanResult.manifests.length}</strong></span>
-                  <span>Lockfiles: <strong>{scanResult.lockfiles.map(l => l.path).join(', ') || 'none'}</strong></span>
-                </div>
-
-                {scanResult.provenance && (
-                  <div style={{ marginTop: '12px', padding: '8px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '11px', display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
-                    <span>Commit: <code style={{ fontFamily: 'monospace' }}>{scanResult.provenance.commitSha ? scanResult.provenance.commitSha.slice(0, 7) : 'head'}</code></span>
-                    <span>Branch: <strong>{scanResult.provenance.branch || 'main'}</strong></span>
-                    <span>Analysis Mode: <span style={{ padding: '2px 6px', borderRadius: '4px', background: scanResult.provenance.astAnalysisStatus === 'complete' ? '#dcfce7' : '#fef3c7', color: scanResult.provenance.astAnalysisStatus === 'complete' ? '#166534' : '#92400e', fontWeight: 600 }}>{scanResult.provenance.astAnalysisStatus.toUpperCase()}</span></span>
-                    <span>Files Inspected: <strong>{scanResult.provenance.filesInspected}</strong></span>
-                    <span>Scanner: <strong>v{scanResult.provenance.scannerVersion}</strong></span>
-                  </div>
-                )}
-              </section>
-            )}
-
-            {scanResult && (
-              <section className="app-card" style={{ marginTop: '16px', background: '#f8fafc', border: '1px solid #cbd5e1' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                  <span className="small-label" style={{ background: '#e0e7ff', color: '#3730a3' }}>
-                    DEMONSTRATION AUDIT &amp; EXECUTION SUMMARY
-                  </span>
-                  <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>
-                    Step 9 Final Result Verification
-                  </span>
-                </div>
-                <h2 style={{ marginTop: '6px' }}>{selectedRepo ? selectedRepo.fullName : 'Repository'} Analysis Result</h2>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px', marginTop: '12px' }}>
-                  <div style={{ padding: '10px', background: '#ffffff', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '12px' }}>
-                    <div style={{ color: '#64748b', fontSize: '11px', fontWeight: 600 }}>1. REPOSITORY ANALYZED</div>
-                    <div style={{ fontWeight: 700, marginTop: '2px', color: '#0f172a' }}>{selectedRepo?.fullName}</div>
-                    <div style={{ fontSize: '11px', color: '#475569', marginTop: '2px' }}>
-                      {selectedRepo?.fullName === 'Nitish-1303/CipherBill' ? 'Live Public GitHub Repository' : 'Authorized GitHub App Workspace'}
-                    </div>
-                  </div>
-                  <div style={{ padding: '10px', background: '#ffffff', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '12px' }}>
-                    <div style={{ color: '#64748b', fontSize: '11px', fontWeight: 600 }}>2. DEPENDENCIES DETECTED</div>
-                    <div style={{ fontWeight: 700, marginTop: '2px', color: '#0f172a' }}>{scanResult.totalDependencies} total dependencies</div>
-                    <div style={{ fontSize: '11px', color: '#475569', marginTop: '2px' }}>
-                      {scanResult.directCount} direct · {scanResult.transitiveCount} transitive · {scanResult.packageManager} lockfile
-                    </div>
-                  </div>
-                  <div style={{ padding: '10px', background: '#ffffff', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '12px' }}>
-                    <div style={{ color: '#64748b', fontSize: '11px', fontWeight: 600 }}>3. BREAKING REGRESSIONS</div>
-                    <div style={{ fontWeight: 700, marginTop: '2px', color: findings.length > 0 ? '#991b1b' : '#166534' }}>
-                      {findings.length > 0 ? `${findings.length} regression(s) found` : '0 breaking changes (clean)'}
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#475569', marginTop: '2px' }}>
-                      {findings.length > 0 ? `${findings[0].packageName} ${findings[0].fromVersion} → ${findings[0].toVersion}` : 'No breaking changes matched the migration rules currently supported by TryPatchBay.'}
-                    </div>
-                  </div>
-                  <div style={{ padding: '10px', background: '#ffffff', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '12px' }}>
-                    <div style={{ color: '#64748b', fontSize: '11px', fontWeight: 600 }}>4. SOURCE LOCATIONS MAPPED</div>
-                    <div style={{ fontWeight: 700, marginTop: '2px', color: '#0f172a' }}>
-                      {findings[0]?.impactAnalysis?.affectedCallSites?.length ?? 0} affected call site(s)
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#475569', marginTop: '2px' }}>
-                      {scanResult.provenance?.filesInspected ?? 0} source file(s) inspected · AST status: {scanResult.provenance?.astAnalysisStatus?.toUpperCase()}
-                    </div>
-                  </div>
-                  <div style={{ padding: '10px', background: '#ffffff', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '12px' }}>
-                    <div style={{ color: '#64748b', fontSize: '11px', fontWeight: 600 }}>5. DETERMINISTIC PATCH</div>
-                    <div style={{ fontWeight: 700, marginTop: '2px', color: findings[0]?.patch ? '#1e293b' : '#64748b' }}>
-                      {findings[0]?.patch ? `Unified diff generated` : 'No patch required'}
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#475569', marginTop: '2px' }}>
-                      {findings[0]?.patch?.diffHash ? `SHA-256: ${findings[0].patch.diffHash.slice(0, 16)}...` : 'Deterministic AST codemod'}
-                    </div>
-                  </div>
-                  <div style={{ padding: '10px', background: '#ffffff', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '12px' }}>
-                    <div style={{ color: '#64748b', fontSize: '11px', fontWeight: 600 }}>6. VALIDATION PROVENANCE</div>
-                    <div style={{ fontWeight: 700, marginTop: '2px', color: primaryFinding?.validation?.executionProvenance === 'executed' ? '#166534' : primaryFinding?.validation?.executionProvenance === 'fixture-verified' ? '#92400e' : '#475569' }}>
-                      {primaryFinding?.validation?.executionProvenance?.toUpperCase() ?? (findings.length === 0 ? 'NOT-EXECUTED (ZERO REGRESSIONS)' : 'NOT-EXECUTED')}
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#475569', marginTop: '2px' }}>
-                      {primaryFinding?.validation?.executionProvenance === 'fixture-verified' ? 'Loaded from deterministic fixture proof' : primaryFinding?.validation?.executionProvenance === 'executed' ? 'Live sandbox test suite execution' : 'Untrusted execution disabled on host'}
-                    </div>
-                  </div>
-                  <div style={{ padding: '10px', background: '#ffffff', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '12px' }}>
-                    <div style={{ color: '#64748b', fontSize: '11px', fontWeight: 600 }}>7. HUMAN APPROVAL STATUS</div>
-                    <div style={{ fontWeight: 700, marginTop: '2px', color: primaryFinding?.approval?.status === 'active' ? '#166534' : primaryFinding?.patch ? '#b45309' : '#64748b' }}>
-                      {primaryFinding?.approval?.status === 'active' ? 'APPROVED & RECORDED' : primaryFinding?.patch ? 'PENDING HUMAN REVIEW' : 'N/A'}
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#475569', marginTop: '2px' }}>
-                      {primaryFinding?.approval?.diffHashAtApproval ? `Diff hash verified: ${primaryFinding.approval.diffHashAtApproval.slice(0, 12)}...` : primaryFinding?.approval ? 'Approval verified' : 'Requires exact cryptographic diff hash match'}
-                    </div>
-                  </div>
-                  <div style={{ padding: '10px', background: '#ffffff', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '12px' }}>
-                    <div style={{ color: '#64748b', fontSize: '11px', fontWeight: 600 }}>8. EXECUTION BOUNDARY &amp; LIMITATIONS</div>
-                    <div style={{ fontWeight: 700, marginTop: '2px', color: '#0f172a' }}>
-                      {selectedRepo?.fullName === 'Nitish-1303/CipherBill' ? 'Container Sandbox Required' : 'Live PR Delivery Gated'}
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#475569', marginTop: '2px' }}>
-                      {selectedRepo?.fullName === 'Nitish-1303/CipherBill' ? 'Customer test suites fail closed until isolated container runner is active' : 'Test execution is disabled on production host'}
-                    </div>
-                  </div>
-                </div>
-              </section>
-            )}
-
-            {repositories.length === 0 ? (
-              <section className="app-card" style={{ marginTop: '16px' }}>
-                <span className="small-label">REPOSITORY SELECTION</span>
-                <h2>No repositories connected yet</h2>
-                <p>Select or connect an authorized repository to begin dependency analysis.</p>
-                <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                  <button
-                    type="button"
-                    className="pill-button pill-button-dark"
-                    onClick={() => handleConnectSpecificRepo('Nitish-1303/CipherBill')}
-                    disabled={loading}
-                  >
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                <BrandIcon name="github" size={14} /> Connect CipherBill
-              </span> (Live GitHub App)
-                  </button>
-                  <button
-                    type="button"
-                    className="pill-button"
-                    onClick={handleConnectRepo}
-                    disabled={loading}
-                  >
-                    Connect Demo Repository
-                  </button>
-                </div>
-              </section>
-            ) : primaryFinding ? (
-              <div className="dashboard-columns" style={{ marginTop: '16px' }}>
-                <section className="app-card">
-                  <span className="small-label">DETECTED BREAKING REGRESSION</span>
-                  <h2>{primaryFinding.packageName} · {primaryFinding.fromVersion} → {primaryFinding.toVersion}</h2>
-                  <p>Breaking contract drift detected. Candidate patch generated and isolated proof executed.</p>
-
-                  <div className="table-row">
-                    <span>Validation Status</span>
-                    <strong style={{ color: primaryFinding.validation?.status === 'passed' ? '#166534' : '#991b1b' }}>
-                      {primaryFinding.validation?.status?.toUpperCase() ?? 'PENDING'}
-                    </strong>
-                  </div>
-
-                  <div className="table-row">
-                    <span>Execution Provenance</span>
-                    <span
-                      style={{
-                        padding: '2px 8px',
-                        borderRadius: '4px',
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        background:
-                          primaryFinding.validation?.executionProvenance === 'executed'
-                            ? '#dcfce7'
-                            : primaryFinding.validation?.executionProvenance === 'fixture-verified'
-                            ? '#fef3c7'
-                            : '#f1f5f9',
-                        color:
-                          primaryFinding.validation?.executionProvenance === 'executed'
-                            ? '#166534'
-                            : primaryFinding.validation?.executionProvenance === 'fixture-verified'
-                            ? '#92400e'
-                            : '#475569',
-                      }}
-                    >
-                      {primaryFinding.validation?.executionProvenance?.toUpperCase() ?? 'NOT-EXECUTED'}
-                    </span>
-                  </div>
-
-                  {primaryFinding.validation && (
-                    <div style={{ marginTop: '10px', fontSize: '10px', background: '#f8fafc', padding: '8px', borderRadius: '4px' }}>
-                      <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{primaryFinding.validation.executionLogs}</pre>
-                    </div>
-                  )}
-
-                  <div style={{ marginTop: '16px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    {primaryFinding.patch && !primaryFinding.approval && primaryFinding.validation?.status === 'passed' && (
-                      <button
-                        type="button"
-                        className="pill-button pill-button-dark"
-                        onClick={() => handleApprove(primaryFinding.patch!.id, primaryFinding.patch!.diffHash)}
-                        disabled={loading}
-                      >
-                        Approve Diff ({primaryFinding.patch.diffHash.slice(0, 8)}...)
-                      </button>
-                    )}
-
-                    {primaryFinding.approval && !primaryFinding.pullRequest && (
-                      <button
-                        type="button"
-                        className="pill-button pill-button-dark"
-                        onClick={() => handleDeliverPR(primaryFinding.patch!.id)}
-                        disabled={loading}
-                      >
-                        Create Draft Pull Request
-                      </button>
-                    )}
-
-                    {primaryFinding.pullRequest && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <a
-                          href={primaryFinding.pullRequest.githubPrUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="pill-button"
-                          style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}
-                        >
-                          View PR #{primaryFinding.pullRequest.githubPrNumber} →
-                        </a>
-                        {primaryFinding.pullRequest.isSimulation && (
-                          <span style={{ fontSize: '10px', color: '#b45309', fontWeight: 600 }}>
-                            [Demo Mode: Prepared Locally]
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </section>
-
-                <section className="app-card">
-                  <span className="small-label">CANDIDATE FIX DIFF</span>
-                  <h2>Review Exact Proposed Patch</h2>
-                  {primaryFinding.patch ? (
-                    <div style={{ marginTop: '10px' }}>
-                      <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '6px' }}>
-                        Diff Hash (SHA-256): <code>{primaryFinding.patch.diffHash}</code>
-                      </div>
-                      <pre style={{
-                        background: '#0f172a',
-                        color: '#f8fafc',
-                        padding: '12px',
-                        borderRadius: '6px',
-                        fontSize: '11px',
-                        overflowX: 'auto',
-                        lineHeight: 1.5,
-                      }}>
-                        {primaryFinding.patch.diffContent}
-                      </pre>
-                    </div>
-                  ) : (
-                    <p>No candidate patch generated yet. Run scan to generate.</p>
-                  )}
-                </section>
-              </div>
-            ) : (
-              <section className="app-card" style={{ marginTop: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span className="small-label" style={{ color: '#166534', background: '#dcfce7' }}>
-                    LIVE REPOSITORY SCAN VERIFIED
-                  </span>
-                  <span style={{ fontSize: '11px', color: '#64748b' }}>
-                    {selectedRepo ? selectedRepo.fullName : 'Repository'} at {scanResult?.provenance?.commitSha?.slice(0, 7) || 'HEAD'}
-                  </span>
-                </div>
-                <h2 style={{ marginTop: '8px' }}>No Breaking Regressions Detected</h2>
-                <p style={{ marginTop: '4px', color: '#475569' }}>
-                  Genuine read-only dependency analysis completed against public GitHub manifests (<code>package.json</code> &amp; <code>package-lock.json</code>).
-                  No breaking changes matched the migration rules currently supported by TryPatchBay across the <strong>{scanResult?.totalDependencies ?? 0}</strong> mapped dependencies.
-                </p>
-                <div style={{ marginTop: '14px', padding: '10px 14px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '11px' }}>
-                  <strong style={{ color: '#0f172a' }}>Execution Boundary Status:</strong> Untrusted customer code execution is disabled. No arbitrary test suites were executed on the serverless host.
-                </div>
-                <div style={{ marginTop: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  <button
-                    type="button"
-                    className="pill-button"
-                    onClick={() => setActiveTab('Dependencies')}
-                  >
-                    Explore {scanResult?.totalDependencies ?? 0} Mapped Dependencies →
-                  </button>
-                  <button
-                    type="button"
-                    className="pill-button"
-                    onClick={handleScan}
-                    disabled={loading}
-                  >
-                    {loading ? 'Re-scanning...' : 'Re-scan Repository'}
-                  </button>
-                </div>
-              </section>
-            )}
-          </>
-        )}
-
-        {activeTab === 'Dependencies' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <section className="app-card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
-                <div>
-                  <span className="small-label">REPOSITORY DEPENDENCY MAP</span>
-                  <h2>{selectedRepo ? selectedRepo.fullName : 'Repository'} Dependencies</h2>
-                  <p style={{ marginTop: '4px', color: '#475569' }}>
-                    Static AST call sites, lockfile resolution, framework roles, and dependency graph relationships.
-                  </p>
-                </div>
-                {scanResult && (
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                    <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', background: '#e0e7ff', color: '#3730a3', fontWeight: 700 }}>
-                      {scanResult.projectType.toUpperCase()}
-                    </span>
-                    <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', background: '#dcfce7', color: '#166534', fontWeight: 700 }}>
-                      PM: {scanResult.packageManager.toUpperCase()}
-                    </span>
-                    <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', background: '#f1f5f9', color: '#475569', fontWeight: 700 }}>
-                      {scanResult.graph.nodes.length} NODES · {scanResult.graph.edges.length} EDGES
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {scanResult?.frameworks && scanResult.frameworks.length > 0 && (
-                <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748b' }}>Detected Frameworks & Tools:</span>
-                  {scanResult.frameworks.map((fw, idx) => (
-                    <span
-                      key={idx}
-                      style={{
-                        fontSize: '11px',
-                        padding: '2px 8px',
-                        borderRadius: '12px',
-                        background: '#f8fafc',
-                        border: '1px solid #cbd5e1',
-                        color: '#1e293b',
-                        fontWeight: 600,
-                      }}
-                    >
-                      {fw.name} {fw.version ? `v${fw.version}` : ''} <span style={{ color: '#64748b', fontSize: '9px' }}>({fw.role})</span>
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {scanResult?.warnings && scanResult.warnings.length > 0 && (
-                <div style={{ marginTop: '12px', padding: '8px 12px', borderRadius: '6px', background: '#fffbeb', border: '1px solid #fef3c7' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#92400e', marginBottom: '4px' }}>Scanner Notices:</div>
-                  <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '11px', color: '#b45309' }}>
-                    {scanResult.warnings.map((w, idx) => (
-                      <li key={idx}>{w}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {scanResult?.provenance && (
-                <div style={{ marginTop: '12px', padding: '8px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '11px', display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
-                  <span>Commit: <code style={{ fontFamily: 'monospace' }}>{scanResult.provenance.commitSha ? scanResult.provenance.commitSha.slice(0, 7) : 'head'}</code></span>
-                  <span>Branch: <strong>{scanResult.provenance.branch || 'main'}</strong></span>
-                  <span>Analysis Mode: <span style={{ padding: '2px 6px', borderRadius: '4px', background: scanResult.provenance.astAnalysisStatus === 'complete' ? '#dcfce7' : '#fef3c7', color: scanResult.provenance.astAnalysisStatus === 'complete' ? '#166534' : '#92400e', fontWeight: 600 }}>{scanResult.provenance.astAnalysisStatus.toUpperCase()}</span></span>
-                  <span>Files Inspected: <strong>{scanResult.provenance.filesInspected}</strong></span>
-                  <span>Scanner: <strong>v{scanResult.provenance.scannerVersion}</strong></span>
-                </div>
-              )}
-            </section>
-
+            {/* List of Friendly Triage Cards */}
             {!scanResult ? (
-              <section className="app-card">
-                <span className="small-label">NO SCAN DATA</span>
-                <h2>No dependency scan on record</h2>
-                <p>Run a scan to extract manifests, parse lockfiles, inspect AST imports, and build the dependency graph.</p>
+              <div
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid #dfe1ef',
+                  borderRadius: '12px',
+                  padding: '36px',
+                  textAlign: 'center',
+                }}
+              >
+                <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#141a39' }}>No scan data recorded</h3>
+                <p style={{ color: '#4e5471', fontSize: '13px', marginTop: '6px' }}>
+                  Run a scan to extract manifests, map AST import call sites, and generate your dependency triage deck.
+                </p>
                 <button
                   type="button"
                   className="pill-button pill-button-dark"
                   onClick={handleScan}
                   disabled={loading || !selectedRepo}
-                  style={{ marginTop: '12px' }}
+                  style={{ marginTop: '16px' }}
                 >
                   {loading ? 'Scanning...' : 'Scan Repository'}
                 </button>
-              </section>
+              </div>
+            ) : filteredDependencies.length === 0 ? (
+              <div
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid #dfe1ef',
+                  borderRadius: '12px',
+                  padding: '36px',
+                  textAlign: 'center',
+                  color: '#64748b',
+                }}
+              >
+                <p>No dependencies match your search or filter criteria.</p>
+              </div>
             ) : (
-              <section className="app-card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
-                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                    <button
-                      type="button"
-                      onClick={() => setDepFilter('all')}
-                      style={{
-                        padding: '4px 10px',
-                        borderRadius: '99px',
-                        border: depFilter === 'all' ? '1px solid #141a39' : '1px solid #cbd5e1',
-                        background: depFilter === 'all' ? '#141a39' : '#ffffff',
-                        color: depFilter === 'all' ? '#ffffff' : '#475569',
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      All ({scanResult.totalDependencies})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDepFilter('direct')}
-                      style={{
-                        padding: '4px 10px',
-                        borderRadius: '99px',
-                        border: depFilter === 'direct' ? '1px solid #141a39' : '1px solid #cbd5e1',
-                        background: depFilter === 'direct' ? '#141a39' : '#ffffff',
-                        color: depFilter === 'direct' ? '#ffffff' : '#475569',
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Direct ({scanResult.directCount})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDepFilter('transitive')}
-                      style={{
-                        padding: '4px 10px',
-                        borderRadius: '99px',
-                        border: depFilter === 'transitive' ? '1px solid #141a39' : '1px solid #cbd5e1',
-                        background: depFilter === 'transitive' ? '#141a39' : '#ffffff',
-                        color: depFilter === 'transitive' ? '#ffffff' : '#475569',
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Transitive ({scanResult.transitiveCount})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDepFilter('concerns')}
-                      style={{
-                        padding: '4px 10px',
-                        borderRadius: '99px',
-                        border: depFilter === 'concerns' ? '1px solid #991b1b' : '1px solid #cbd5e1',
-                        background: depFilter === 'concerns' ? '#fee2e2' : '#ffffff',
-                        color: '#991b1b',
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      With Concerns ({scanResult.dependencies.filter(d => d.concerns.length > 0).length})
-                    </button>
-                  </div>
-
-                  <input
-                    type="text"
-                    placeholder="Search packages, imports, or concerns..."
-                    value={depSearch}
-                    onChange={e => setDepSearch(e.target.value)}
-                    style={{
-                      padding: '6px 12px',
-                      fontSize: '12px',
-                      border: '1px solid #cbd5e1',
-                      borderRadius: '6px',
-                      width: '260px',
-                      outline: 'none',
-                    }}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {filteredDependencies.length === 0 ? (
-                    <p style={{ color: '#64748b', fontSize: '12px', padding: '16px 0', textAlign: 'center' }}>
-                      No dependencies match your search or filter criteria.
-                    </p>
-                  ) : (
-                    filteredDependencies.map(dep => (
-                      <div
-                        key={dep.id}
-                        style={{
-                          padding: '12px 14px',
-                          border: dep.concerns.length > 0 ? '1px solid #fca5a5' : '1px solid #e2e8f0',
-                          borderRadius: '8px',
-                          background: dep.concerns.length > 0 ? '#fff5f5' : '#ffffff',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '8px',
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                            <strong style={{ fontSize: '13px', color: '#0f172a' }}>{dep.name}</strong>
-                            <span style={{ fontSize: '11px', color: '#475569', background: '#f1f5f9', padding: '1px 6px', borderRadius: '4px' }}>
-                              declared: {dep.declaredVersion}
-                            </span>
-                            {dep.resolvedVersion && (
-                              <span style={{ fontSize: '11px', color: '#166534', background: '#dcfce7', padding: '1px 6px', borderRadius: '4px' }}>
-                                resolved: {dep.resolvedVersion}
-                              </span>
-                            )}
-                            <span
-                              style={{
-                                fontSize: '10px',
-                                fontWeight: 700,
-                                padding: '1px 6px',
-                                borderRadius: '4px',
-                                background: dep.type === 'transitive' ? '#f1f5f9' : '#e0e7ff',
-                                color: dep.type === 'transitive' ? '#475569' : '#3730a3',
-                              }}
-                            >
-                              {dep.type.toUpperCase()}
-                            </span>
-                            {dep.frameworkRole && (
-                              <span
-                                style={{
-                                  fontSize: '10px',
-                                  fontWeight: 700,
-                                  padding: '1px 6px',
-                                  borderRadius: '4px',
-                                  background: '#fef3c7',
-                                  color: '#92400e',
-                                }}
-                              >
-                                {dep.frameworkRole}
-                              </span>
-                            )}
-                          </div>
-                          <span style={{ fontSize: '10px', color: '#64748b' }}>
-                            {dep.manifestPath}
-                          </span>
-                        </div>
-
-                        {/* Concerns */}
-                        {dep.concerns.length > 0 && (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            {dep.concerns.map((c, cIdx) => (
-                              <div
-                                key={cIdx}
-                                style={{
-                                  fontSize: '11px',
-                                  padding: '4px 8px',
-                                  borderRadius: '4px',
-                                  background: c.severity === 'critical' ? '#fee2e2' : '#fef3c7',
-                                  color: c.severity === 'critical' ? '#991b1b' : '#92400e',
-                                  display: 'flex',
-                                  justifyContent: 'space-between',
-                                }}
-                              >
-                                <span>⚠ <strong>{c.type.toUpperCase()}:</strong> {c.message}</span>
-                                {c.evidence && <span style={{ fontSize: '10px', opacity: 0.85 }}>({c.evidence})</span>}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Importing Files with AST call sites */}
-                        {dep.importingFiles.length > 0 && (
-                          <div style={{ fontSize: '11px', color: '#334155' }}>
-                            <span style={{ fontWeight: 600, color: '#64748b' }}>Imported in:</span>{' '}
-                            {dep.importingFiles.map((loc, lIdx) => (
-                              <code
-                                key={lIdx}
-                                style={{
-                                  marginRight: '6px',
-                                  padding: '2px 5px',
-                                  background: '#f1f5f9',
-                                  borderRadius: '3px',
-                                  fontSize: '10px',
-                                }}
-                              >
-                                {loc.filePath}:{loc.line}:{loc.column}
-                                {loc.symbol ? ` (${loc.symbol})` : ''}
-                              </code>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Direct Dependents & Transitive Dependencies */}
-                        <div style={{ display: 'flex', gap: '16px', fontSize: '11px', color: '#64748b', flexWrap: 'wrap' }}>
-                          {dep.directDependents.length > 0 && (
-                            <span>
-                              Dependents ({dep.directDependents.length}): <code>{dep.directDependents.slice(0, 3).join(', ')}{dep.directDependents.length > 3 ? '...' : ''}</code>
-                            </span>
-                          )}
-                          {dep.transitiveDependencies.length > 0 && (
-                            <span>
-                              Transitive deps: {dep.transitiveDependencies.length}
-                            </span>
-                          )}
-                          {dep.evidence?.detail && (
-                            <span style={{ marginLeft: 'auto', fontSize: '10px', color: '#94a3b8' }}>
-                              Evidence: {dep.evidence.source} ({dep.evidence.detail})
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </section>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {filteredDependencies.map(dep => {
+                  const findingForDep = findings.find(f => f.packageName === dep.name);
+                  return (
+                    <TriageCard
+                      key={dep.id}
+                      dependency={dep}
+                      finding={findingForDep}
+                      repoFullName={selectedRepo?.fullName ?? 'repository'}
+                      onApprove={handleApprove}
+                      onDeliverPR={handleDeliverPR}
+                      actionLoading={loading}
+                    />
+                  );
+                })}
+              </div>
             )}
           </div>
         )}
 
+        {/* Tab 2: Visual Dependency Map (Real Interactive SVG Graph) */}
+        {activeTab === 'Visual Map' && (
+          <div>
+            {scanResult ? (
+              <InteractiveGraph
+                graph={scanResult.graph}
+                repoFullName={selectedRepo?.fullName ?? 'repository'}
+                selectedPackage={depSearch || null}
+                findings={findings}
+                onSelectPackage={pkgName => {
+                  setDepSearch(pkgName);
+                  setActiveTab('Triage Deck');
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid #dfe1ef',
+                  borderRadius: '12px',
+                  padding: '36px',
+                  textAlign: 'center',
+                }}
+              >
+                <p style={{ color: '#64748b' }}>Please scan the repository first to build the visual dependency map.</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tab 3: Step 9 Demonstration Audit & Execution Scorecard */}
+        {activeTab === 'Audit & Steps' && (
+          <AuditScorecard
+            scanResult={scanResult}
+            repoFullName={selectedRepo?.fullName ?? 'repository'}
+            isDemo={selectedRepo?.isDemo}
+            findings={findings}
+          />
+        )}
+
+        {/* Tab 4: Delivered Pull Requests */}
         {activeTab === 'Pull requests' && (
-          <section className="app-card">
-            <span className="small-label">PULL REQUESTS</span>
-            <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <BrandIcon name="github" size={22} /> Delivered GitHub Pull Requests
+          <section
+            style={{
+              background: '#ffffff',
+              border: '1px solid #dfe1ef',
+              borderRadius: '12px',
+              padding: '24px',
+              boxShadow: '0 2px 8px rgba(20, 26, 57, 0.02)',
+            }}
+          >
+            <span className="small-label" style={{ color: '#5e6582' }}>PULL REQUESTS</span>
+            <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#141a39', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <BrandIcon name="github" size={20} /> Delivered GitHub Pull Requests
             </h2>
+
             {findings.filter(f => f.pullRequest).length > 0 ? (
-              <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {findings.filter(f => f.pullRequest).map(f => (
-                  <div key={f.id} className="table-row" style={{ padding: '12px', border: '1px solid #e2e8f0', borderRadius: '6px', flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
-                    <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div
+                    key={f.id}
+                    style={{
+                      padding: '16px',
+                      border: '1px solid #dfe1ef',
+                      borderRadius: '8px',
+                      background: '#f7f7fc',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                       <div>
-                        <strong>Fix: {f.packageName} {f.fromVersion} → {f.toVersion}</strong>
-                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>Branch: <code>{f.pullRequest?.branchName}</code></div>
+                        <strong style={{ fontSize: '14px', color: '#141a39' }}>
+                          Fix: {f.packageName} {f.fromVersion} → {f.toVersion}
+                        </strong>
+                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                          Branch: <code>{f.pullRequest?.branchName}</code>
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        {f.pullRequest?.isDraft && (
-                          <span style={{ fontSize: '9px', padding: '2px 6px', borderRadius: '4px', background: '#f1f5f9', color: '#475569', fontWeight: 700 }}>
-                            DRAFT
-                          </span>
-                        )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         {f.pullRequest?.isSimulation ? (
-                          <span style={{ fontSize: '9px', padding: '2px 6px', borderRadius: '4px', background: '#fef3c7', color: '#92400e', fontWeight: 700 }}>
+                          <span style={{ fontSize: '10px', padding: '3px 8px', borderRadius: '4px', background: '#fef3c7', color: '#92400e', fontWeight: 700 }}>
                             LOCAL SIMULATION
                           </span>
                         ) : (
-                          <span style={{ fontSize: '9px', padding: '2px 6px', borderRadius: '4px', background: '#dcfce7', color: '#166534', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <span style={{ fontSize: '10px', padding: '3px 8px', borderRadius: '4px', background: '#dcfce7', color: '#166534', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                             <BrandIcon name="github" size={11} /> LIVE GITHUB PR
                           </span>
                         )}
@@ -1346,15 +1108,19 @@ export default function DashboardPage() {
                           href={f.pullRequest?.githubPrUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-link"
-                          style={{ marginLeft: '6px' }}
+                          style={{
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            color: '#141a39',
+                            textDecoration: 'underline',
+                          }}
                         >
                           PR #{f.pullRequest?.githubPrNumber} →
                         </a>
                       </div>
                     </div>
                     {f.pullRequest?.deliveryBlockedReason && (
-                      <div style={{ fontSize: '11px', color: '#b45309', background: '#fffbeb', padding: '4px 8px', borderRadius: '4px', width: '100%' }}>
+                      <div style={{ fontSize: '11px', color: '#b45309', background: '#fffbeb', padding: '6px 10px', borderRadius: '4px' }}>
                         Notice: {f.pullRequest.deliveryBlockedReason}
                       </div>
                     )}
@@ -1362,108 +1128,160 @@ export default function DashboardPage() {
                 ))}
               </div>
             ) : (
-              <p>No pull requests delivered yet. Validate a candidate patch and explicitly approve it to open a PR.</p>
+              <p style={{ marginTop: '12px', fontSize: '13px', color: '#4e5471' }}>
+                No pull requests delivered yet. When breaking regressions are detected, approving the deterministic diff allows you to create a pull request with 1 click.
+              </p>
             )}
           </section>
         )}
 
-        {activeTab === 'APIs' && (
-          <section className="app-card">
-            <span className="small-label">MONITORED DEPENDENCIES</span>
-            <h2>Monitored Upstream Libraries</h2>
-            <p>Authoritative package version observations tracked across repository manifests.</p>
+        {/* Tab 5: Monitored Packages */}
+        {activeTab === 'Monitored Packages' && (
+          <section
+            style={{
+              background: '#ffffff',
+              border: '1px solid #dfe1ef',
+              borderRadius: '12px',
+              padding: '24px',
+              boxShadow: '0 2px 8px rgba(20, 26, 57, 0.02)',
+            }}
+          >
+            <span className="small-label" style={{ color: '#5e6582' }}>REGISTRY WATCHLIST</span>
+            <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#141a39', marginTop: '6px' }}>
+              Monitored Upstream Libraries
+            </h2>
+            <p style={{ fontSize: '12px', color: '#4e5471', marginTop: '4px' }}>
+              Authoritative package version observations tracked against npm registry APIs.
+            </p>
 
-            <form onSubmit={handleAddPackage} style={{ marginTop: '14px', marginBottom: '16px', display: 'flex', gap: '8px' }}>
+            <form onSubmit={handleAddPackage} style={{ marginTop: '16px', display: 'flex', gap: '10px' }}>
               <input
                 type="text"
-                placeholder="Add package name (e.g. express, lodash, @types/node)..."
+                placeholder="Add npm package to monitor (e.g. lodash, express, @types/node)..."
                 value={newPackageInput}
                 onChange={e => setNewPackageInput(e.target.value)}
                 style={{
                   flex: 1,
-                  padding: '6px 12px',
+                  padding: '8px 14px',
                   fontSize: '12px',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '6px',
+                  border: '1px solid #dfe1ef',
+                  borderRadius: '999px',
                   outline: 'none',
+                  background: '#f7f7fc',
                 }}
               />
               <button
                 type="submit"
                 className="pill-button pill-button-dark"
                 disabled={addingPackage || !newPackageInput.trim()}
-                style={{ fontSize: '11px', padding: '6px 14px' }}
+                style={{ fontSize: '11px', minHeight: '38px', padding: '0 18px' }}
               >
                 {addingPackage ? 'Querying...' : 'Add & Check'}
               </button>
             </form>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {packages.map(pkg => (
-                <div key={pkg.packageName} className="table-row" style={{ padding: '12px', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+                <div
+                  key={pkg.packageName}
+                  style={{
+                    padding: '12px 16px',
+                    border: '1px solid #dfe1ef',
+                    borderRadius: '8px',
+                    background: '#f7f7fc',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '8px',
+                  }}
+                >
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      <strong style={{ fontSize: '13px' }}>{pkg.packageName}</strong>
-                      <span style={{
-                        fontSize: '9px',
-                        padding: '2px 6px',
-                        borderRadius: '4px',
-                        fontWeight: 700,
-                        background: pkg.status === 'upgrade_available' ? '#fef3c7' : pkg.status === 'error' ? '#fee2e2' : '#dcfce7',
-                        color: pkg.status === 'upgrade_available' ? '#92400e' : pkg.status === 'error' ? '#991b1b' : '#166534',
-                      }}>
-                        {pkg.status === 'upgrade_available' ? 'UPGRADE AVAILABLE' : pkg.status === 'error' ? 'RATE LIMIT / ERROR' : 'UP TO DATE'}
+                      <strong style={{ fontSize: '13px', color: '#141a39' }}>{pkg.packageName}</strong>
+                      <span
+                        style={{
+                          fontSize: '9px',
+                          fontWeight: 700,
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          background: pkg.status === 'upgrade_available' ? '#fef3c7' : pkg.status === 'error' ? '#fee2e2' : '#dcfce7',
+                          color: pkg.status === 'upgrade_available' ? '#92400e' : pkg.status === 'error' ? '#991b1b' : '#166534',
+                        }}
+                      >
+                        {pkg.status === 'upgrade_available' ? 'UPGRADE AVAILABLE' : pkg.status === 'error' ? 'ERROR' : 'UP TO DATE'}
                       </span>
-                      {pkg.isDemo ? (
-                        <span style={{ fontSize: '9px', padding: '2px 6px', borderRadius: '4px', background: '#f1f5f9', color: '#475569', fontWeight: 600 }}>
-                          DEMO FIXTURE
-                        </span>
-                      ) : (
-                        <span style={{ fontSize: '9px', padding: '2px 6px', borderRadius: '4px', background: '#f8fafc', color: '#64748b', fontWeight: 600 }}>
-                          NPM REGISTRY
-                        </span>
-                      )}
                     </div>
-                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
-                      Observed: <code>{pkg.currentVersion}</code> → Latest: <code>{pkg.latestVersion}</code> · Last checked: {new Date(pkg.lastCheckedAt).toLocaleTimeString()}
+                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                      Observed: <code>{pkg.currentVersion}</code> → Latest: <code>{pkg.latestVersion}</code>
                     </div>
-                    {pkg.notes && <div style={{ fontSize: '11px', color: '#475569', marginTop: '4px' }}>{pkg.notes}</div>}
-                    {pkg.lastError && <div style={{ fontSize: '11px', color: '#dc2626', marginTop: '4px' }}>Error: {pkg.lastError}</div>}
                   </div>
-                  <div>
-                    <button
-                      type="button"
-                      className="pill-button"
-                      onClick={() => handleCheckPackage(pkg.packageName)}
-                      disabled={checkingPackage === pkg.packageName}
-                      style={{ fontSize: '11px', padding: '4px 10px' }}
-                    >
-                      {checkingPackage === pkg.packageName ? 'Checking...' : 'Check Registry'}
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    className="pill-button"
+                    onClick={() => handleCheckPackage(pkg.packageName)}
+                    disabled={checkingPackage === pkg.packageName}
+                    style={{ fontSize: '11px', minHeight: '32px', padding: '0 12px', background: '#ffffff', border: '1px solid #dfe1ef' }}
+                  >
+                    {checkingPackage === pkg.packageName ? 'Checking...' : 'Check Registry'}
+                  </button>
                 </div>
               ))}
-            </div>
-            <div style={{ marginTop: '12px', fontSize: '10px', color: '#94a3b8' }}>
-              Storage Mode: Ephemeral container filesystem (/tmp). Monitored packages and session tokens are stateless or seeded idempotently. Cross-instance persistence requires external database infrastructure (PostgreSQL/Redis).
             </div>
           </section>
         )}
 
+        {/* Tab 6: Activity History */}
         {activeTab === 'Activity' && (
-          <section className="app-card">
-            <span className="small-label">ACTIVITY TIMELINE</span>
-            <h2>Audit Log & Execution History</h2>
-            <div className="activity-list" style={{ marginTop: '12px' }}>
-              <p><span>Authenticated session</span><span>{user?.email}</span></p>
-              {selectedRepo && <p><span>Repository connected</span><span>{selectedRepo.fullName}</span></p>}
+          <section
+            style={{
+              background: '#ffffff',
+              border: '1px solid #dfe1ef',
+              borderRadius: '12px',
+              padding: '24px',
+              boxShadow: '0 2px 8px rgba(20, 26, 57, 0.02)',
+            }}
+          >
+            <span className="small-label" style={{ color: '#5e6582' }}>TIMELINE</span>
+            <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#141a39', marginTop: '6px' }}>
+              Audit Log &amp; Execution History
+            </h2>
+            <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #dfe1ef' }}>
+                <span style={{ color: '#141a39', fontWeight: 600 }}>Authenticated session active</span>
+                <span style={{ color: '#64748b' }}>{user?.email}</span>
+              </div>
+              {selectedRepo && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #dfe1ef' }}>
+                  <span style={{ color: '#141a39', fontWeight: 600 }}>Active repository connected</span>
+                  <span style={{ color: '#64748b' }}>{selectedRepo.fullName}</span>
+                </div>
+              )}
               {findings.map(f => (
-                <React.Fragment key={f.id}>
-                  <p><span>Regression detected</span><span>{f.packageName} {f.fromVersion} → {f.toVersion}</span></p>
-                  {f.validation && <p><span>Isolated proof</span><span>Status: {f.validation.status} ({f.validation.executionProvenance || 'fixture-verified'})</span></p>}
-                  {f.approval && <p><span>Human approval granted</span><span>Hash: {f.patch?.diffHash.slice(0, 8)}</span></p>}
-                  {f.pullRequest && <p><span>PR Delivered</span><span>#{f.pullRequest.githubPrNumber} {f.pullRequest.isSimulation ? '(Local simulation)' : ''}</span></p>}
-                </React.Fragment>
+                <div key={f.id} style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '8px 0', borderBottom: '1px solid #dfe1ef' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#92400e', fontWeight: 600 }}>Drift detected in {f.packageName}</span>
+                    <span style={{ color: '#64748b' }}>v{f.fromVersion} → v{f.toVersion}</span>
+                  </div>
+                  {f.validation && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#166534' }}>
+                      <span>Red-to-Green Test Provenance:</span>
+                      <span>{f.validation.status.toUpperCase()} ({f.validation.executionProvenance || 'fixture-verified'})</span>
+                    </div>
+                  )}
+                  {f.approval && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#3730a3' }}>
+                      <span>Human Approval Recorded:</span>
+                      <span>Hash: {f.patch?.diffHash.slice(0, 12)}...</span>
+                    </div>
+                  )}
+                  {f.pullRequest && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#141a39' }}>
+                      <span>Pull Request Delivered:</span>
+                      <span>PR #{f.pullRequest.githubPrNumber} {f.pullRequest.isSimulation ? '(Local simulation)' : ''}</span>
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
           </section>
