@@ -1,6 +1,4 @@
 import { Pool } from 'pg';
-import fs from 'fs';
-import path from 'path';
 import crypto from 'crypto';
 import { PostgresStore } from '../src/db/postgres-store';
 
@@ -34,20 +32,22 @@ describeLive('PostgreSQL Real Database Live Integration', () => {
     const schemaSuffix = crypto.randomBytes(4).toString('hex');
     testSchema = `patchbay_live_test_${schemaSuffix}`;
 
+    // Fix connection pool isolation: Ensure EVERY pooled connection checked out uses testSchema
+    pool.on('connect', (client) => {
+      client.query(`SET search_path TO ${testSchema}, public;`);
+    });
+
     const client = await pool.connect();
     try {
       await client.query(`CREATE SCHEMA ${testSchema};`);
       await client.query(`SET search_path TO ${testSchema}, public;`);
-
-      // Execute schema.sql in this schema
-      const schemaSqlPath = path.resolve(__dirname, '../src/db/schema.sql');
-      const schemaSql = fs.readFileSync(schemaSqlPath, 'utf8');
-      await client.query(schemaSql);
     } finally {
       client.release();
     }
 
-    store = new PostgresStore({ pool });
+    store = new PostgresStore({ pool, schema: testSchema });
+    // Run versioned migrations inside the isolated test schema
+    await store.runMigrations();
   });
 
   afterAll(async () => {
@@ -62,23 +62,39 @@ describeLive('PostgreSQL Real Database Live Integration', () => {
     }
   });
 
-  test('1. Fresh schema creation and repeatable migrations', async () => {
-    const client = await pool.connect();
+  test('1. Fresh schema creation, repeatable migrations, and pooled connection isolation', async () => {
+    // 1. Verify schema integrity and migration status
+    const status = await store.getMigrationStatus();
+    expect(status.currentVersion).toBe('001');
+    expect(status.pendingCount).toBe(0);
+
+    const integrity = await store.verifySchemaHealth(testSchema);
+    expect(integrity.ok).toBe(true);
+    expect(integrity.missingTables).toHaveLength(0);
+
+    // 2. Verify repeatable migration execution is idempotent and safe
+    const repeat = await store.runMigrations();
+    expect(repeat.applied).toHaveLength(0);
+    expect(repeat.alreadyApplied).toContain('001');
+
+    // 3. Verify pooled-connection isolation: acquire multiple connections concurrently
+    // Every pooled connection must see testSchema in its search_path
+    const conn1 = await pool.connect();
+    const conn2 = await pool.connect();
     try {
-      await client.query(`SET search_path TO ${testSchema}, public;`);
-      const res = await client.query(`
-        SELECT table_name FROM information_schema.tables 
-        WHERE table_schema = $1;
-      `, [testSchema]);
-      const tableNames = res.rows.map(r => r.table_name);
-      expect(tableNames).toContain('tenants');
-      expect(tableNames).toContain('installations');
-      expect(tableNames).toContain('repositories');
-      expect(tableNames).toContain('findings');
-      expect(tableNames).toContain('patches');
-      expect(tableNames).toContain('pull_requests');
+      const r1 = await conn1.query('SHOW search_path;');
+      const r2 = await conn2.query('SHOW search_path;');
+      expect(r1.rows[0].search_path).toContain(testSchema);
+      expect(r2.rows[0].search_path).toContain(testSchema);
+
+      // Verify tables query succeeds on all connections without manual SET search_path
+      const tables1 = await conn1.query('SELECT count(*) FROM tenants;');
+      const tables2 = await conn2.query('SELECT count(*) FROM tenants;');
+      expect(Number(tables1.rows[0].count)).toBe(0);
+      expect(Number(tables2.rows[0].count)).toBe(0);
     } finally {
-      client.release();
+      conn1.release();
+      conn2.release();
     }
   });
 

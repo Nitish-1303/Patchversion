@@ -20,6 +20,16 @@ export { PatchversionDatabase } from './db/database';
 export { PostgresStore } from './db/postgres-store';
 export type { IPersistenceStore } from './db/store-interface';
 export { migrateJsonToPostgres } from './db/migrator';
+export {
+  runMigrations,
+  getMigrationStatus,
+  verifySchemaIntegrity,
+  type MigrationReport,
+  type MigrationStatusReport,
+  type SchemaIntegrityReport,
+  MIGRATION_ADVISORY_LOCK_ID,
+  CANONICAL_TABLES,
+} from './db/migration-runner';
 export { GitHubClient } from './github/client';
 export {
   type GitHubTransport,
