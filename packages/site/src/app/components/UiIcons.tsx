@@ -271,3 +271,17 @@ export function PulseDotIcon({ color = '#10b981', size = 8 }: { color?: string; 
     </span>
   );
 }
+
+export function TrypatchbayMark({ size = 22, className = '' }: { size?: number; className?: string }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/trypatchbay_icon_square.png"
+      alt="trypatchbay"
+      width={size}
+      height={size}
+      className={className}
+      style={{ display: 'inline-block', verticalAlign: 'middle', borderRadius: size > 32 ? 8 : 5 }}
+    />
+  );
+}
