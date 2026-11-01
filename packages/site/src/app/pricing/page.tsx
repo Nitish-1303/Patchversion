@@ -9,7 +9,7 @@ export default function PricingPage() {
           <PageHeading
             eyebrow="PRICING & COMMERCIAL MODEL"
             title="Simple, repository-based pricing."
-            description="Honest pricing hypotheses from our YC W27 application. TryPatchBay charges per repository — not per developer seat — because dependency breaking changes and AST patches are repository-scoped."
+            description="Honest pricing hypotheses from our YC W27 application. TryPatchBay charges per repository, not per developer seat, because dependency breaking changes and AST patches are repository-scoped."
           />
         </div>
       </section>
@@ -29,7 +29,7 @@ export default function PricingPage() {
               <span className="small-label">UNIT ECONOMICS</span>
               <h3>Why Per-Repository?</h3>
               <p>
-                Seat-based developer tools create friction — teams restrict licenses to save budget, blinding engineers to upstream breaking changes. By pricing per repository ($49/mo), costs align naturally with codebase complexity, lockfile size, and runner sandbox hours.
+                Seat-based developer tools create friction; teams restrict licenses to save budget, blinding engineers to upstream breaking changes. By pricing per repository ($49/mo), costs align naturally with codebase complexity, lockfile size, and runner sandbox hours.
               </p>
             </div>
           </Reveal>
@@ -39,7 +39,7 @@ export default function PricingPage() {
               <span className="small-label">CURRENT STATUS</span>
               <h3>$0 Revenue & 0 Paying Customers</h3>
               <p>
-                As stated in our YC W27 application: TryPatchBay has 0 paying customers and $0 revenue today. The prototype demonstrates AST static analysis, call-site mapping, and deterministic patch generation on bundled fixtures. Our $49/mo and $299/mo tiers are hypotheses to be validated through customer pilots.
+                As stated in our YC W27 application: TryPatchBay has 0 paying customers and $0 revenue today. The prototype demonstrates AST static analysis, call-site mapping, and deterministic patch generation on bundled fixtures only. Our $49/mo and $299/mo tiers are hypotheses to be validated through customer pilots.
               </p>
             </div>
           </Reveal>

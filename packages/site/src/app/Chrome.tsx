@@ -145,6 +145,9 @@ function Footer() {
           <Link href="/integrations">Integrations</Link>
           <Link href="/pricing">Pricing</Link>
           <Link href="/changelog">Changelog</Link>
+          <span style={{ display: 'none' }}>API Monitoring (planned)</span>
+          <span style={{ display: 'none' }}>Impact Analysis (prototype)</span>
+          <span style={{ display: 'none' }}>AI Remediation (planned)</span>
         </div>
         <div>
           <h3>Company</h3>

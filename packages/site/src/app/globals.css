@@ -18,6 +18,17 @@
   --card-shadow: 0 20px 40px -16px rgba(21, 23, 28, 0.08), 0 0 0 1px #e3e6eb;
   --card-shadow-hover: 0 30px 60px -20px rgba(21, 23, 28, 0.12), 0 0 0 1px rgba(43, 89, 255, 0.25);
   --hero-shadow: 0 40px 80px -24px rgba(21, 23, 28, 0.16), 0 0 0 1px rgba(21, 23, 28, 0.06);
+
+  /* Shared token palette definitions */
+  --token-bg: #f7f7fc;
+  --token-surface: #ffffff;
+  --token-ink: #141a39;
+  --token-accent: #252b50;
+  --token-accent-light: #e4e5f4;
+  --token-accent-muted: #cfd1e8;
+  --token-border: #dfe1ef;
+  --token-text-secondary: #4e5471;
+  --token-warning-bg: #efeff9;
 }
 
 @layer base {
