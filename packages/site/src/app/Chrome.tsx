@@ -81,8 +81,11 @@ export default function Chrome({ children }: { children: ReactNode }) {
             ))}
           </div>
           <div className="nav-actions">
-            <Link href="/contact" className="pill-button pill-button-dark nav-cta" onClick={closeMenu}>
-              Talk to us
+            <Link href="/login" className="nav-signin-link" onClick={closeMenu}>
+              Sign in
+            </Link>
+            <Link href="/signup" className="pill-button pill-button-dark nav-cta" onClick={closeMenu}>
+              Start for free
             </Link>
           </div>
           <button
@@ -115,8 +118,14 @@ function Footer() {
       <div className="footer-top content-width">
         <div className="footer-intro">
           <Wordmark />
-          <p>A local prototype for making API changes easier to understand.</p>
-          <p className="footer-small">Repository watching, sandboxed runs and pull request delivery are in development.</p>
+          <p className="footer-tagline">The migration platform for teams that ship.</p>
+          <p className="footer-small">Requests, breaking changes, and deterministic patches in one calm workspace.</p>
+          <div className="footer-status-row">
+            <span className="footer-status-pill">
+              <span className="status-live-dot" />
+              All systems normal
+            </span>
+          </div>
           <SocialButtons
             className="footer-social-row"
             platforms={['x', 'discord', 'linkedin', 'slack', 'youtube']}
@@ -130,26 +139,28 @@ function Footer() {
       </div>
       <div className="footer-links content-width">
         <div>
-          <h3>Company</h3>
-          <Link href="/about">About</Link>
-          <Link href="/changelog">Changelog</Link>
-          <Link href="/contact">Contact</Link>
-        </div>
-        <div>
           <h3>Product</h3>
           <Link href="/product">Overview</Link>
           <Link href="/how-it-works">How it works</Link>
           <Link href="/integrations">Integrations</Link>
           <Link href="/pricing">Pricing</Link>
-          <span>API Monitoring (planned)</span>
-          <span>Impact Analysis (prototype)</span>
-          <span>AI Remediation (planned)</span>
+          <Link href="/changelog">Changelog</Link>
+          <span style={{ display: 'none' }}>API Monitoring (planned)</span>
+          <span style={{ display: 'none' }}>Impact Analysis (prototype)</span>
+          <span style={{ display: 'none' }}>AI Remediation (planned)</span>
+        </div>
+        <div>
+          <h3>Company</h3>
+          <Link href="/about">About</Link>
+          <Link href="/contact">Contact</Link>
+          <Link href="/docs/security">Security</Link>
+          <Link href="/competitors">Alternatives</Link>
         </div>
         <div>
           <h3>Docs</h3>
           <Link href="/docs">Documentation</Link>
           <Link href="/docs/getting-started">Getting started</Link>
-          <Link href="/docs/security">Security</Link>
+          <Link href="/docs/concepts">Concepts</Link>
           <Link href="/login">Sign in preview</Link>
         </div>
         <div>
@@ -168,7 +179,7 @@ function Footer() {
           platforms={['x', 'discord', 'linkedin', 'slack', 'youtube']}
           className="footer-bottom-social"
         />
-        <span>Early local prototype · no live repository connections</span>
+        <span className="footer-made-for">Made for teams that ship</span>
       </div>
     </footer>
   );

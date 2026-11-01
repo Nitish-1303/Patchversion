@@ -10,6 +10,17 @@ import {
 } from 'react';
 
 import { BrandIcon } from './BrandIcons';
+import {
+  ScanRadarIcon,
+  TopologyIcon,
+  FileDiffIcon,
+  ShieldCheckIcon,
+  GitBranchIcon,
+  PulseDotIcon,
+  CheckCircleIcon,
+  AlertTriangleIcon,
+  LockIcon,
+} from './UiIcons';
 
 export function useReducedMotionPreference() {
   const [reduced, setReduced] = useState(false);
@@ -154,21 +165,165 @@ export function HeroDashboard() {
   const ref = useRef<HTMLDivElement>(null);
   useScrollTransform(ref, 'hero');
   return (
-    <div className="hero-perspective">
-      <div ref={ref} className="dashboard-browser hero-dashboard">
-        <div className="browser-bar">
-          <div className="browser-dots" aria-hidden="true"><i /><i /><i /></div>
-          <span>trypatchbay · local proof preview</span>
-          <span className="demo-label">BUNDLED FIXTURE · LOCAL RUN</span>
+    <div className="hero-showcase-frame">
+      <div className="hero-perspective">
+        <div ref={ref} className="dashboard-browser hero-dashboard">
+          <div className="browser-bar">
+            <div className="browser-dots" aria-hidden="true">
+              <i style={{ background: '#ff5f56' }} />
+              <i style={{ background: '#ffbd2e' }} />
+              <i style={{ background: '#27c93f' }} />
+            </div>
+            <div className="browser-address-bar">
+              <LockIcon size={11} color="#64748b" />
+              <span className="address-host">app.trypatchbay.dev</span>
+              <span className="address-sep">/</span>
+              <span className="address-path">mockpay · v1.0 → v2.0</span>
+              <span className="address-key">⌘K</span>
+            </div>
+            <div className="browser-status-group">
+              <span className="branch-tag">
+                <GitBranchIcon size={12} color="#64748b" />
+                main · sha256:7f160e
+              </span>
+              <span className="demo-label" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <PulseDotIcon color="#10b981" size={7} />
+                BUNDLED FIXTURE · LOCAL RUN
+              </span>
+            </div>
+          </div>
+          <div className="demo-banner">
+            <span>Bundled fixture only · no live repository watching</span>
+            <span className="demo-banner-right">Deterministic AST Engine · Safe Local Preview</span>
+          </div>
+          <div className="dashboard-topline">
+            <div>
+              <span className="small-label">CHANGE REVIEW</span>
+              <h2>mockpay · 1.0 → 2.0</h2>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span className="status-pill status-pill-success" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                <ScanRadarIcon size={12} color="#059669" />
+                AST Detected
+              </span>
+              <span className="status-pill" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <LockIcon size={11} color="var(--navy)" />
+                Local fixture
+              </span>
+            </div>
+          </div>
+          <div className="dashboard-preview-grid">
+            <div className="preview-pane">
+              <div>
+                <div className="pane-header">
+                  <span className="small-label">CHANGE</span>
+                  <span className="pane-badge pane-badge-warn">
+                    <AlertTriangleIcon size={12} color="#b45309" />
+                    PARAM RENAMED
+                  </span>
+                </div>
+                <h3 style={{ margin: '8px 0 6px', fontSize: '16px', fontWeight: 650 }}>Parameter renamed</h3>
+                <p style={{ margin: '0 0 10px', fontSize: '13px', color: 'var(--body)', lineHeight: 1.6 }}>
+                  <code>source</code> becomes <code>payment_method</code> in a bundled example.
+                </p>
+                <div className="token-transform">
+                  <code>source</code>
+                  <span className="transform-arrow">→</span>
+                  <code className="token-target">payment_method</code>
+                </div>
+              </div>
+              <div className="pane-target-foot">
+                <FileDiffIcon size={12} color="#64748b" />
+                <span>Example call site · src/createCharge.js</span>
+              </div>
+            </div>
+
+            <div className="preview-pane code-pane">
+              <div>
+                <div className="pane-header">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span className="code-tab-dot" />
+                    <span className="code-filename">src/createCharge.js : 42</span>
+                  </div>
+                  <span className="code-diff-tag">ILLUSTRATIVE DIFF</span>
+                </div>
+                <div className="code-body-window">
+                  <div className="code-row">
+                    <span className="code-num">40</span>
+                    <span className="code-gutter" />
+                    <span className="code-text"><span className="tok-kw">const</span> options = &#123;</span>
+                  </div>
+                  <div className="code-row code-row-del">
+                    <span className="code-num">41</span>
+                    <span className="code-gutter">−</span>
+                    <span className="code-text"><span className="tok-del">source</span>: source,</span>
+                  </div>
+                  <div className="code-row code-row-add">
+                    <span className="code-num">42</span>
+                    <span className="code-gutter">+</span>
+                    <span className="code-text"><span className="tok-add">payment_method</span>: source,</span>
+                  </div>
+                  <div className="code-row">
+                    <span className="code-num">43</span>
+                    <span className="code-gutter" />
+                    <span className="code-text">  description: <span className="tok-str">&apos;Order payment&apos;</span></span>
+                  </div>
+                  <div className="code-row">
+                    <span className="code-num">44</span>
+                    <span className="code-gutter" />
+                    <span className="code-text">&#125;;</span>
+                  </div>
+                </div>
+              </div>
+              <div className="code-pane-foot">
+                <span>Deterministic AST diff · sha256:7f160e</span>
+              </div>
+            </div>
+
+            <div className="preview-pane proof-pane">
+              <div>
+                <div className="pane-header">
+                  <span className="small-label">LOCAL FIXTURE CHECK</span>
+                  <span className="pane-badge pane-badge-success">
+                    <ShieldCheckIcon size={12} color="#047857" />
+                    VERIFIED
+                  </span>
+                </div>
+                <h3 style={{ margin: '8px 0 6px', fontSize: '16px', fontWeight: 650 }}>Proof stays reviewable</h3>
+                <div className="proof-metric-list">
+                  <div className="proof-metric-item">
+                    <div className="metric-left">
+                      <span className="metric-dot red" />
+                      <span>Before patch</span>
+                    </div>
+                    <strong className="metric-val red">2 failing</strong>
+                  </div>
+                  <div className="proof-metric-item">
+                    <div className="metric-left">
+                      <span className="metric-dot green" />
+                      <span>After patch</span>
+                    </div>
+                    <strong className="metric-val green">
+                      <CheckCircleIcon size={13} color="#059669" />
+                      3 / 3 passing
+                    </strong>
+                  </div>
+                </div>
+              </div>
+              <div className="proof-foot-note">
+                <span>Example fixture output · not a live run</span>
+                <span className="tamper-proof-tag">Isolated sandbox runner</span>
+              </div>
+            </div>
+          </div>
+          <div className="dashboard-foot">
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#64748b' }} />
+              Local prototype
+            </span>
+            <span>Reviewable diff · example test output</span>
+          </div>
         </div>
-        <div className="demo-banner">Bundled fixture only · no live repository watching</div>
-        <div className="dashboard-topline"><div><span className="small-label">CHANGE REVIEW</span><h2>mockpay · 1.0 → 2.0</h2></div><span className="status-pill">Local fixture</span></div>
-        <div className="dashboard-preview-grid">
-          <div className="preview-pane"><span className="small-label">CHANGE</span><h3>Parameter renamed</h3><p><code>source</code> becomes <code>payment_method</code> in a bundled example.</p><div className="preview-rule" /><p className="muted">Example call site · src/createCharge.js</p></div>
-          <div className="preview-pane code-pane"><span className="small-label">ILLUSTRATIVE DIFF</span><div className="diff-line">− source: source,</div><div className="diff-line diff-added">+ payment_method: source,</div><div className="diff-line faded-line">  description: &apos;Order payment&apos;</div></div>
-          <div className="preview-pane proof-pane"><span className="small-label">LOCAL FIXTURE CHECK</span><h3>Proof stays reviewable</h3><div className="proof-row"><span>Before patch</span><strong>2 failing</strong></div><div className="proof-row"><span>After patch</span><strong>3 / 3 passing</strong></div><p className="muted">Example fixture output · not a live run</p></div>
-        </div>
-        <div className="dashboard-foot"><span>Local prototype</span><span>Reviewable diff · example test output</span></div>
       </div>
     </div>
   );
@@ -213,6 +368,127 @@ const TAB_DATA = [
   { label: 'Prove', title: 'Review the evidence locally.', body: 'The bundled fixture reruns its own tests. Sandboxed runs and pull request delivery are in development.' },
 ];
 
+const TAB_ICONS = [ScanRadarIcon, TopologyIcon, FileDiffIcon, ShieldCheckIcon];
+
+const STEP_IMAGES = [
+  'https://framerusercontent.com/images/RHsfUQ9mSQJ5F6qbGUl40nif1IM.jpg?width=1200&height=800',
+  'https://framerusercontent.com/images/ZklcwB3KmSKgLMzY89upy0vSg.jpg?width=1200&height=800',
+  'https://framerusercontent.com/images/OtX7bK3CEtk1U11RkWSaEXmA.jpg?width=1200&height=800',
+  'https://framerusercontent.com/images/9V9raZlhFsB0W0u7CYafv8IJUfQ.jpg?width=1200&height=800',
+];
+
+const STEP_PREVIEWS = [
+  {
+    title: 'mockpay · v1.0.0 → v2.0.0',
+    badge: 'BREAKING CHANGE',
+    sub: 'Parameter renamed: source becomes payment_method in charge creation payload.',
+    tag: 'Admitted registry watch',
+  },
+  {
+    title: 'src/createCharge.js : 42',
+    badge: 'AST CALL-SITE',
+    sub: 'Static syntax analysis traced matching call expression across the repository.',
+    tag: '1 exact match found',
+  },
+  {
+    title: 'Deterministic Rename Patch',
+    badge: 'AST DIFF GENERATED',
+    sub: 'Minimal AST patch scoped strictly to affected parameter identifier.',
+    tag: 'sha256:7f160e',
+  },
+  {
+    title: 'Local Fixture Verification',
+    badge: 'EVIDENCE VERIFIED',
+    sub: 'Proof loop executed in isolated container: 2 failing → 3/3 passing green suite.',
+    tag: 'Verified green build',
+  },
+];
+
+function StepVisualCard({ active }: { active: number }) {
+  const imgSrc = STEP_IMAGES[active];
+  const preview = STEP_PREVIEWS[active];
+
+  return (
+    <div className="step-visual-card">
+      <div
+        className="step-visual-bg"
+        style={{
+          backgroundImage: `url('${imgSrc}')`,
+        }}
+      />
+      <div className="step-visual-overlay" />
+
+      <div className="step-glass-card">
+        <div className="step-glass-header">
+          <div className="step-glass-dots" aria-hidden="true">
+            <span style={{ background: '#ff5f56' }} />
+            <span style={{ background: '#ffbd2e' }} />
+            <span style={{ background: '#27c93f' }} />
+          </div>
+          <span className="step-glass-tag">{preview.tag}</span>
+        </div>
+
+        <div className="step-glass-body">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span className="step-badge">{preview.badge}</span>
+            <span style={{ fontSize: 11, color: '#6b7382', fontWeight: 600 }}>STEP 0{active + 1}</span>
+          </div>
+
+          <h4 className="step-glass-title">{preview.title}</h4>
+
+          {active === 2 ? (
+            <div className="step-glass-code">
+              <div style={{ color: '#ef4444' }}>− source: source,</div>
+              <div style={{ color: '#10b981', background: 'rgba(16, 185, 129, 0.15)', padding: '2px 4px', borderRadius: 4 }}>
+                + payment_method: source,
+              </div>
+              <div style={{ color: '#94a3b8' }}>  description: &apos;Order payment&apos;</div>
+            </div>
+          ) : active === 3 ? (
+            <div className="step-glass-proof">
+              <div className="proof-check-row">
+                <span style={{ color: '#ef4444', fontWeight: 700 }}>✗</span>
+                <span style={{ color: '#ef4444' }}>Baseline: 2 failing tests</span>
+              </div>
+              <div className="proof-check-row">
+                <span style={{ color: '#10b981', fontWeight: 700 }}>✓</span>
+                <span style={{ color: '#10b981', fontWeight: 600 }}>Verified: 3 / 3 passing</span>
+              </div>
+            </div>
+          ) : active === 1 ? (
+            <div className="step-glass-tree">
+              <div className="tree-node">
+                <TopologyIcon size={12} color="#2b59ff" />
+                <span>createCharge(options)</span>
+              </div>
+              <div className="tree-branch" />
+              <div className="tree-node child">
+                <span>mockpay.charges.create(&#123; payment_method &#125;)</span>
+              </div>
+            </div>
+          ) : (
+            <div className="step-glass-desc">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b' }} />
+                <span style={{ fontWeight: 600, color: '#15171c', fontSize: 13 }}>Parameter rename advisory</span>
+              </div>
+              <p style={{ margin: 0, fontSize: 12, color: '#6b7382', lineHeight: 1.5 }}>{preview.sub}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="step-glass-foot">
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <PulseDotIcon color="#10b981" size={6} />
+            AST Engine Active
+          </span>
+          <span>Single-use reviewable proof</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function WorkflowTabs() {
   const [active, setActive] = useState(0);
   const current = TAB_DATA[active];
@@ -226,16 +502,64 @@ export function WorkflowTabs() {
   return (
     <div className="workflow-tabs">
       <div className="tab-list" role="tablist" aria-label="Prototype workflow">
-        {TAB_DATA.map((tab, index) => <button key={tab.label} id={`workflow-tab-${index}`} role="tab" type="button" aria-selected={active === index} aria-controls="workflow-panel" tabIndex={active === index ? 0 : -1} onClick={() => setActive(index)} onKeyDown={onKeyDown}>{tab.label}</button>)}
+        {TAB_DATA.map((tab, index) => {
+          const Icon = TAB_ICONS[index % TAB_ICONS.length];
+          return (
+            <button
+              key={tab.label}
+              id={`workflow-tab-${index}`}
+              role="tab"
+              type="button"
+              aria-selected={active === index}
+              aria-controls="workflow-panel"
+              tabIndex={active === index ? 0 : -1}
+              onClick={() => setActive(index)}
+              onKeyDown={onKeyDown}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+            >
+              <Icon size={14} color={active === index ? 'var(--navy-deep)' : '#737996'} />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
         <span className="tab-underline" style={{ transform: `translateX(${active * 100}%)` }} />
       </div>
       <div className="workflow-panel" id="workflow-panel" role="tabpanel" aria-labelledby={`workflow-tab-${active}`} key={active}>
         <div><span className="small-label">STEP 0{active + 1}</span><h3>{current.title}</h3><p>{current.body}</p></div>
-        <div className="line-art-panel"><LineArt variant={active} /><p>Local sample workflow · conceptual view</p></div>
+        <StepVisualCard active={active} />
       </div>
     </div>
   );
 }
+
+const CAROUSEL_ICONS = [ScanRadarIcon, TopologyIcon, FileDiffIcon, ShieldCheckIcon];
+
+const CAROUSEL_COVERS = [
+  {
+    img: 'https://framerusercontent.com/images/DcLGANZr7CTtr2bUCR0Jj83pU.jpg',
+    tag: 'Advisory Record',
+    badge: 'mockpay · 1.0 → 2.0',
+    meta: 'Upstream breaking contract',
+  },
+  {
+    img: 'https://framerusercontent.com/images/lVEtI7CzHkjBdZkzMQ7m1DtQRs.jpg',
+    tag: 'AST Call-Site',
+    badge: 'src/createCharge.js : 42',
+    meta: 'Static syntax expression match',
+  },
+  {
+    img: 'https://framerusercontent.com/images/mrLEe7P95knVWMqyLMC8F9pDNw.jpg',
+    tag: 'Deterministic Diff',
+    badge: 'sha256:7f160e',
+    meta: 'Scoped parameter rename',
+  },
+  {
+    img: 'https://framerusercontent.com/images/d5DuUDjn3KD2SEYSJsMBHYCFTU.jpg',
+    tag: 'Isolated Proof',
+    badge: '3 / 3 Passing',
+    meta: 'Fail-closed Docker runner',
+  },
+];
 
 export function FeatureCarousel({ items }: { items: { title: string; body: string }[] }) {
   const [active, setActive] = useState(0);
@@ -251,9 +575,60 @@ export function FeatureCarousel({ items }: { items: { title: string; body: strin
   };
   return (
     <div className="carousel-wrap">
-      <div className="carousel-controls"><button type="button" aria-label="Previous card" onClick={() => move(active - 1)}>Previous</button><span>{String(active + 1).padStart(2, '0')} / {String(items.length).padStart(2, '0')}</span><button type="button" aria-label="Next card" onClick={() => move(active + 1)}>Next</button></div>
+      <div className="carousel-controls">
+        <button type="button" aria-label="Previous card" onClick={() => move(active - 1)}>Previous</button>
+        <span className="carousel-counter">
+          <strong>{String(active + 1).padStart(2, '0')}</strong> / {String(items.length).padStart(2, '0')}
+        </span>
+        <button type="button" aria-label="Next card" onClick={() => move(active + 1)}>Next</button>
+      </div>
       <div className="carousel-rail" ref={rail} tabIndex={0} onKeyDown={onKeyDown} aria-label="Product capability cards. Use left and right arrow keys.">
-        {items.map((item, index) => <article key={item.title} data-card-index={index} className={`carousel-card${active === index ? ' active' : ''}`} onClick={() => move(index)}><span className="small-label">CAPABILITY 0{index + 1}</span><h3>{item.title}</h3><p>{item.body}</p></article>)}
+        {items.map((item, index) => {
+          const Icon = CAROUSEL_ICONS[index % CAROUSEL_ICONS.length];
+          const cover = CAROUSEL_COVERS[index % CAROUSEL_COVERS.length];
+          const isActive = active === index;
+          return (
+            <article
+              key={item.title}
+              data-card-index={index}
+              className={`carousel-card${isActive ? ' active' : ''}`}
+              onClick={() => move(index)}
+            >
+              <div className="carousel-card-cover">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={cover.img}
+                  alt={item.title}
+                  className="carousel-card-img"
+                  loading="lazy"
+                />
+                <div className="carousel-card-overlay" />
+                <div className="carousel-cover-glass-tag">
+                  <Icon size={12} color="#ffffff" />
+                  <span>{cover.tag}</span>
+                </div>
+                <div className="carousel-cover-bottom-pill">
+                  <span>{cover.badge}</span>
+                </div>
+              </div>
+
+              <div className="carousel-card-content">
+                <div className="carousel-card-header">
+                  <span className="small-label">CAPABILITY 0{index + 1}</span>
+                  <span className="carousel-icon-box">
+                    <Icon size={14} color="var(--navy-deep)" />
+                  </span>
+                </div>
+                <h3>{item.title}</h3>
+                <p>{item.body}</p>
+                <div className="carousel-card-meta">
+                  <span className="carousel-meta-dot" />
+                  <span>{cover.meta}</span>
+                </div>
+              </div>
+            </article>
+          );
+        })}
       </div>
     </div>
   );

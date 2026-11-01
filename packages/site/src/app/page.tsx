@@ -1,6 +1,13 @@
 import Link from 'next/link';
 import { ApiMarquee, FeatureCarousel, HeroDashboard, Reveal, WorkflowTabs } from './components/Experience';
-import { FeatureGrid, BentoSection, NavyBand, PageHeading, SplitSection } from './components/PageSections';
+import {
+  FeatureGrid,
+  BentoSection,
+  PageHeading,
+  SplitSection,
+  DuskCtaBand,
+  PricingMatrix,
+} from './components/PageSections';
 
 const homeCards = [
   { title: 'A change summary', body: 'The bundled example explains a recorded parameter rename in plain language with verified breaking change classification.' },
@@ -20,12 +27,18 @@ export default function HomePage() {
     <>
       <section className="home-hero">
         <div className="hero-copy">
-          <Reveal><span className="eyebrow-chip">API changes, made reviewable</span></Reveal>
-          <Reveal delay={80}><h1>API changes.<br /><span>Proof in view.</span></h1></Reveal>
-          <Reveal delay={160}><p>trypatchbay is a dependency migration platform for tracing breaking changes through code, generating deterministic patches, and verifying fixes.</p></Reveal>
+          <Reveal>
+            <Link href="/changelog" className="hero-announcement-chip">
+              <span className="announcement-tag">New</span>
+              <span>trypatchbay 3.0 deterministic AST migration engine</span>
+              <span style={{ color: '#2b59ff', marginLeft: 4 }}>→</span>
+            </Link>
+          </Reveal>
+          <Reveal delay={80}><h1>The migration platform<br /><span>for teams that ship.</span></h1></Reveal>
+          <Reveal delay={160}><p>Requests, breaking changes, and deterministic patches in one calm workspace. Free for teams up to 10.</p></Reveal>
           <Reveal delay={240}>
             <div className="hero-cta-group">
-              <Link href="/signup" className="pill-button pill-button-dark hero-cta-btn">Start free scan</Link>
+              <Link href="/signup" className="pill-button pill-button-dark hero-cta-btn">Start for free</Link>
               <Link href="/dashboard" className="pill-button pill-button-light hero-cta-btn">View live demo</Link>
             </div>
           </Reveal>
@@ -64,14 +77,6 @@ export default function HomePage() {
         <WorkflowTabs />
       </section>
 
-      <NavyBand
-        eyebrow="DEPENDENCY MIGRATION"
-        title="A calmer way to inspect an API change."
-        body="TryPatchBay provides automated dependency migration with AST call-site analysis and deterministic patches. Workspaces and watch targets are securely persisted in PostgreSQL with tenant isolation."
-        cta="Read how it works"
-        href="/how-it-works"
-      />
-
       <BentoSection
         eyebrow="WHAT THE PRODUCT DOES"
         title="Evidence you can read before you act."
@@ -79,9 +84,12 @@ export default function HomePage() {
         cards={homeCards}
       />
 
+      <PricingMatrix />
+
       <section className="faq-block content-width" id="faq">
-        <PageHeading eyebrow="COMMON QUESTIONS" title="A few useful details." description="Honest overview of implemented capabilities, security boundaries, and planned milestones." />
+        <PageHeading eyebrow="COMMON QUESTIONS" title="Answers before you ask." description="Honest overview of implemented capabilities, security boundaries, and planned milestones." />
         <div className="faq-list">
+          <details><summary>Is the free plan really free?</summary><p>Yes. The free plan is completely free for teams up to 10 members with full AST call-site analysis, deterministic patch generation, and local proof verifications.</p></details>
           <details><summary>Does trypatchbay watch APIs today?</summary><p>Package registries and breaking change records are tracked via configured watch targets. Live continuous provider polling is active for admitted packages.</p></details>
           <details><summary>Does the dashboard show account data?</summary><p>Yes. Authenticated users and workspaces are persisted in PostgreSQL. The dashboard displays connected repositories, package watch targets, and migration findings with tenant isolation.</p></details>
           <details><summary>Does trypatchbay open pull requests?</summary><p>Yes. Pull request delivery uses GitHub App installations with strict single-use human approvals, diff-hash enforcement, and delivery mutex locking.</p></details>
@@ -89,6 +97,8 @@ export default function HomePage() {
         </div>
         <Reveal className="faq-link"><Link href="/docs">Read the prototype docs</Link></Reveal>
       </section>
+
+      <DuskCtaBand />
     </>
   );
 }

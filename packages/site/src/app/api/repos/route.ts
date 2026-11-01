@@ -7,6 +7,7 @@ import {
   ensureDemoTenantAndUser,
   DEMO_TENANT_ID,
   DEMO_REPO_ID,
+  assertRole,
 } from '@/app/api/backend';
 
 export async function GET(request: NextRequest) {
@@ -62,6 +63,16 @@ export async function POST(request: NextRequest) {
   const auth = await getAuthContext(request);
   if (!auth) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    assertRole(auth.user, ['owner', 'admin']);
+  } catch (err: unknown) {
+    const errorObj = err as { message?: string; code?: string };
+    return NextResponse.json(
+      { error: errorObj.message || 'Forbidden', code: errorObj.code || 'FORBIDDEN_INSUFFICIENT_ROLE' },
+      { status: 403 },
+    );
   }
 
   const db = getDatabase();
