@@ -91,8 +91,8 @@ export default function Chrome({ children }: { children: ReactNode }) {
             <Link href="/login" className="nav-signin-link" onClick={closeMenu}>
               Sign in
             </Link>
-            <Link href="/signup" className="pill-button pill-button-dark nav-cta" onClick={closeMenu}>
-              Start for free
+            <Link href="/dashboard" className="pill-button pill-button-dark nav-cta" onClick={closeMenu}>
+              Open dashboard
             </Link>
           </div>
           <button

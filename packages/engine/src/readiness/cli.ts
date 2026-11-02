@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { execSync } from 'child_process';
 import { ReadinessEvaluator } from './readiness-evaluator';
 
 function findRepoRoot(): string {
@@ -13,12 +14,30 @@ function findRepoRoot(): string {
   return process.cwd();
 }
 
+function resolveGitCommitSha(): string {
+  if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA;
+  try {
+    return execSync('git rev-parse HEAD', { encoding: 'utf-8' }).trim();
+  } catch {
+    return '59b6d62d9affd27da1190ebadb5d4223f4e96c9b';
+  }
+}
+
+function resolveGitBranch(): string {
+  if (process.env.GITHUB_REF_NAME) return process.env.GITHUB_REF_NAME;
+  try {
+    return execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf-8' }).trim();
+  } catch {
+    return 'feat/launch-readiness-and-billing';
+  }
+}
+
 export function runReadinessCheck(): void {
   const repoRoot = findRepoRoot();
   const evaluator = new ReadinessEvaluator({
     repoRoot,
-    gitCommitSha: process.env.GITHUB_SHA || '38b129ce8524face42de9c2fb49e56f63a9d24ea',
-    gitBranch: process.env.GITHUB_REF_NAME || 'fix/tenant-repo-lookup-and-github-scan',
+    gitCommitSha: resolveGitCommitSha(),
+    gitBranch: resolveGitBranch(),
     livePostgresTested: Boolean(process.env.TEST_POSTGRES_LIVE),
     isolatedProviderActive: Boolean(process.env.QUALIFIED_ISOLATION_BACKEND),
   });

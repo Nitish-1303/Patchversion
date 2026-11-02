@@ -1054,6 +1054,20 @@ export class PatchversionDatabase implements IPersistenceStore {
     ) ?? null;
   }
 
+  getPullRequestByCommitSha(commitSha: string): PullRequestRecord | null {
+    return Object.values(this.data.pullRequests).find(
+      p => p.commitSha === commitSha,
+    ) ?? null;
+  }
+
+  updatePullRequestStatus(tenantId: string, id: string, status: 'open' | 'merged' | 'closed'): boolean {
+    const pr = this.data.pullRequests[id];
+    if (!pr || pr.tenantId !== tenantId) return false;
+    pr.status = status;
+    this.save();
+    return true;
+  }
+
   listPullRequests(tenantId: string, repositoryId?: string): PullRequestRecord[] {
     return Object.values(this.data.pullRequests).filter(
       p => p.tenantId === tenantId && (!repositoryId || p.repositoryId === repositoryId),

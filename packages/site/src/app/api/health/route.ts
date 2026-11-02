@@ -41,6 +41,18 @@ export async function GET() {
     }
 
     const db = getDatabase();
+
+    // Local development mode with file/memory database
+    if (db && !(db instanceof PostgresStore) && process.env.NODE_ENV !== 'production' && !isQueryable(db)) {
+      return NextResponse.json({
+        status: 'healthy',
+        mode: 'local-development',
+        version: '0.1.0',
+        timestamp: new Date().toISOString(),
+        service: 'trypatchbay',
+      });
+    }
+
     const isPostgres =
       db instanceof PostgresStore ||
       (isQueryable(db) && process.env.NODE_ENV !== 'production');
@@ -65,11 +77,9 @@ export async function GET() {
       service: 'trypatchbay',
     });
   } catch (err) {
-    // Log a stable, sanitized error category without logging raw messages, stacks, or credentials
     const category = getSanitizedErrorCategory(err);
     console.error(`[health] Database check failed: category=${category}`);
 
-    // Return sanitized 503 response to client - never leak credentials, hostnames, or raw errors
     return NextResponse.json(
       {
         status: 'unhealthy',

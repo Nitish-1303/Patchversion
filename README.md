@@ -11,7 +11,8 @@ Early prototype development. Verified today, reproducible from this repo:
 - End-to-end proof loop against the bundled fixture: mockpay 1.0.0 -> 2.0.0,
   2 failing tests to 3/3 passing (`npm run prove`; artifacts in `runs/latest/`).
 - Real package migration loop: lodash 3.10.1 -> 4.17.21 (`npm run prove:real`; artifacts in `runs/lodash-4-migration/`).
-- Engine & workspace test suites: 192 automated unit, integration, and security tests (`npm test`).
+- Engine & workspace test suites: 483+ automated unit, integration, and security tests across 54 suites (`npm test`).
+- Public Interactive Demo Mode: live at `/dashboard` (and https://trypatchbay.vercel.app/dashboard), offering a zero-login, incognito-friendly interactive walk-through of the genuine Lodash 3 -> 4 AST migration, red-to-green proof trace, and inspectable evidence.
 - Hosted prototype dashboard deployed at https://trypatchbay.vercel.app with server-side authentication, session validation, and package monitoring.
 
 In progress and integration boundaries:

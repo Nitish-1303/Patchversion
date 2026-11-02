@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { verifyGitHubWebhookSignature } from './webhook-verifier';
 import {
   GitHubTransport,
   NetworkGitHubTransport,
@@ -689,27 +690,6 @@ export class GitHubClient {
    */
   verifyWebhookSignature(rawBody: Buffer, signature: string | undefined): boolean {
     const secret = this.config?.webhookSecret;
-    if (!secret || secret.trim().length === 0) {
-      return false;
-    }
-    if (!signature || typeof signature !== 'string') return false;
-    if (!signature.startsWith('sha256=')) return false;
-    const hash = signature.slice(7);
-    if (hash.length !== 64 || !/^[0-9a-f]{64}$/i.test(hash)) {
-      return false;
-    }
-
-    const expected =
-      'sha256=' +
-      crypto
-        .createHmac('sha256', secret)
-        .update(rawBody)
-        .digest('hex');
-
-    const sigBuf = Buffer.from(signature);
-    const expBuf = Buffer.from(expected);
-
-    if (sigBuf.length !== expBuf.length) return false;
-    return crypto.timingSafeEqual(sigBuf, expBuf);
+    return verifyGitHubWebhookSignature(rawBody, signature, secret).valid;
   }
 }

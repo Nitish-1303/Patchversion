@@ -32,6 +32,10 @@ export {
 } from './db/migration-runner';
 export { GitHubClient } from './github/client';
 export {
+  verifyGitHubWebhookSignature,
+  type WebhookVerificationResult,
+} from './github/webhook-verifier';
+export {
   type GitHubTransport,
   NetworkGitHubTransport,
   OfflineMockTransport,
@@ -58,7 +62,19 @@ export {
   IsolationSecurityViolationError,
   IsolationResourceExceededError,
   UnavailableExecutionProvider,
+  type ExecutionJob,
+  type JobSubmissionResult,
+  type ExecutionJobStatus,
+  type ExecutionArtifacts,
+  type IExecutionJobProvider,
+  createJobSignature,
+  verifyJobSignature,
+  createArtifactsSignature,
+  verifyArtifactsSignature,
+  LocalTrustedFixtureProvider,
+  ProductionIsolatedExecutionProvider,
 } from './sandbox/execution-provider';
+export { WorkerExecutionService, type WorkerServiceConfig } from './sandbox/worker-service';
 export { WorkflowOrchestrator } from './jobs/orchestrator';
 export {
   EvidenceBundleManager,

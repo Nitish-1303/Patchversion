@@ -67,13 +67,14 @@ describe('workflow tabs', () => {
   });
 });
 
-test('dashboard route states that account data is unavailable and loads no fixture records', () => {
+test('dashboard route enforces authentication gate and displays sign-in prompt', () => {
   render(createElement(DashboardPage));
 
-  expect(container.querySelector('h1')?.textContent).toBe('Dashboard access is not available yet.');
-  expect(container.textContent).toContain('Authentication, repository authorization, and persistent workspace data have not been implemented.');
-  expect(container.textContent).toContain('No repository, dependency, validation, activity, or pull request data has been loaded.');
-  expect(container.textContent).not.toContain('mockpay');
+  expect(container.querySelector('h2')?.textContent).toBe('TryPatchBay Developer Workspace');
+  expect(container.textContent).toContain('Sign in to inspect your repositories, map AST call sites, and verify automated pull requests.');
+  expect(container.textContent).toContain('Sign in to Developer Workspace');
+  expect(container.textContent).toContain('Live persistent state store · HMAC cookie authenticated');
+  expect(container.textContent).not.toContain('mockpay.charges.create');
 });
 
 test('security documentation does not describe unavailable dashboard data as bundled records', () => {

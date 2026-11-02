@@ -128,12 +128,26 @@ export function getDatabase(): IPersistenceStore {
   return activeStore;
 }
 
+/**
+ * Resolves the webhook secret independently of GitHub App API credentials.
+ * Fails closed in production if neither GITHUB_APP_WEBHOOK_SECRET nor GITHUB_WEBHOOK_SECRET is set.
+ */
+export function getWebhookSecret(): string | null {
+  const secret = process.env.GITHUB_APP_WEBHOOK_SECRET || process.env.GITHUB_WEBHOOK_SECRET;
+  if (secret) {
+    return secret;
+  }
+  if (process.env.NODE_ENV === 'production') {
+    return null;
+  }
+  return 'trypatchbay_dev_webhook_secret';
+}
+
 export function getGitHubClient(): GitHubClient {
   if (!githubInstance) {
     const appId = process.env.GITHUB_APP_ID;
     const privateKey = process.env.GITHUB_APP_PRIVATE_KEY;
-    // Standardize support for GITHUB_APP_WEBHOOK_SECRET and legacy GITHUB_WEBHOOK_SECRET; fail safely in production
-    const webhookSecret = process.env.GITHUB_APP_WEBHOOK_SECRET || process.env.GITHUB_WEBHOOK_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'trypatchbay_dev_webhook_secret');
+    const webhookSecret = getWebhookSecret() ?? '';
 
     if (appId && privateKey) {
       githubInstance = new GitHubClient({

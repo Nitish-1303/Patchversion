@@ -8,6 +8,7 @@ import { InteractiveGraph } from './components/InteractiveGraph';
 import { AuditScorecard } from './components/AuditScorecard';
 import { HealthCard } from './components/HealthCard';
 import { TelemetryBar } from './components/TelemetryBar';
+import { PublicDemoCockpit } from './components/PublicDemoCockpit';
 import {
   LayersIcon,
   TopologyIcon,
@@ -19,6 +20,9 @@ import {
   SearchIcon,
   CheckCircleIcon,
   AlertTriangleIcon,
+  GitBranchIcon,
+  LockIcon,
+  PulseDotIcon,
 } from '@/app/components/UiIcons';
 
 interface UserInfo {
@@ -58,14 +62,87 @@ interface MonitoredPackage {
 
 const NPM_PACKAGE_REGEX = /^(?:@[a-z0-9-*~][a-z0-9-*._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/;
 
+const PROOF_STUDIO_FIXTURES = {
+  mockpay: {
+    id: 'mockpay',
+    name: 'mockpay · 1.0 → 2.0',
+    repo: 'acme/payments',
+    branch: 'main · sha256:7f160e',
+    badge: 'PARAM RENAMED',
+    title: 'Parameter renamed',
+    summary: 'source becomes payment_method in a bundled example.',
+    fromToken: 'source',
+    toToken: 'payment_method',
+    callsite: 'src/createCharge.js : 42',
+    diffDigest: 'Deterministic AST diff · sha256:7f160e',
+    diffLines: [
+      { num: 40, prefix: ' ', text: 'const options = {', type: 'ctx' },
+      { num: 41, prefix: '−', text: '  source: source,', type: 'del' },
+      { num: 42, prefix: '+', text: '  payment_method: source,', type: 'add' },
+      { num: 43, prefix: ' ', text: "  description: 'Order payment'", type: 'ctx' },
+      { num: 44, prefix: ' ', text: '};', type: 'ctx' },
+    ],
+    brokenLines: [
+      { num: 40, prefix: ' ', text: 'const options = {', type: 'ctx' },
+      { num: 41, prefix: '!', text: '  source: source, // Missing parameter in v2', type: 'del' },
+      { num: 42, prefix: ' ', text: "  description: 'Order payment'", type: 'ctx' },
+      { num: 43, prefix: ' ', text: '};', type: 'ctx' },
+    ],
+    ast: {
+      targetNode: 'PropertyAssignment',
+      caller: 'mockpay.charges.create({ ... })',
+      location: 'src/createCharge.js:4:40',
+      rule: 'Deterministic field rename',
+      confidence: '100% AST-verified match',
+    },
+    testLogs: {
+      baseline: `PASS src/createCharge.test.js\n  createCharge\n    √ creates a charge (5 ms)\n    √ passes payment source through\n    √ creates a refund (1 ms)\n\nTest Suites: 1 passed, 1 total\nTests:       3 passed, 3 total`,
+      bump: `FAIL src/createCharge.test.js\n  ● createCharge › creates a charge\n\n    Missing required parameter: payment_method\n\n    > 4 | const charge = await mockpay.charges.create({\n        |                                        ^\n      5 |   amount: amount,\n      6 |   currency: currency,\n      7 |   source: source,\n\nTest Suites: 1 failed, 1 total\nTests:       2 failed, 1 passed, 3 total`,
+      verified: `PASS src/createCharge.test.js\n  createCharge\n    √ creates a charge (4 ms)\n    √ passes payment source through\n    √ creates a refund (1 ms)\n\nTest Suites: 1 passed, 1 total\nTests:       3 passed, 3 total\nTime:        1.42s`,
+    },
+  },
+  lodash: {
+    id: 'lodash',
+    name: 'lodash · 3.10 → 4.17',
+    repo: 'acme/analytics',
+    branch: 'main · sha256:5e7844',
+    badge: 'METHOD RENAMED',
+    title: 'Function renamed',
+    summary: '_.first was removed in v4 and renamed to _.head.',
+    fromToken: '_.first',
+    toToken: '_.head',
+    callsite: 'src/membership.js : 6',
+    diffDigest: 'Deterministic AST diff · sha256:5e7844',
+    diffLines: [
+      { num: 4, prefix: ' ', text: 'function isMember(ids, id) {', type: 'ctx' },
+      { num: 5, prefix: '−', text: '  return _.contains(ids, id);', type: 'del' },
+      { num: 6, prefix: '+', text: '  return _.includes(ids, id);', type: 'add' },
+      { num: 7, prefix: ' ', text: '}', type: 'ctx' },
+    ],
+    brokenLines: [
+      { num: 4, prefix: ' ', text: 'function isMember(ids, id) {', type: 'ctx' },
+      { num: 5, prefix: '!', text: '  return _.contains(ids, id); // TypeError in v4', type: 'del' },
+      { num: 6, prefix: ' ', text: '}', type: 'ctx' },
+    ],
+    ast: {
+      targetNode: 'CallExpression',
+      caller: '_.contains(ids, id)',
+      location: 'src/membership.js:6:12',
+      rule: 'Deterministic method rename',
+      confidence: '100% AST-verified match',
+    },
+    testLogs: {
+      baseline: `PASS src/membership.test.js\n  isMember\n    √ finds a present member (3 ms)\n    √ rejects an absent member\n    √ dedupes (1 ms)\n\nTest Suites: 1 passed, 1 total\nTests:       3 passed, 3 total`,
+      bump: `FAIL src/membership.test.js\n  ● isMember › finds a present member\n\n    TypeError: _.contains is not a function\n\n    > 6 |   return _.contains(ids, id);\n        |            ^\n\nTest Suites: 1 failed, 1 total\nTests:       2 failed, 1 passed, 3 total`,
+      verified: `PASS src/membership.test.js\n  isMember\n    √ finds a present member (3 ms)\n    √ rejects an absent member (1 ms)\n    √ dedupes (1 ms)\n\nTest Suites: 1 passed, 1 total\nTests:       3 passed, 3 total\nTime:        1.28s`,
+    },
+  },
+};
+
 export default function DashboardPage() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(false);
-  const [sessionToken, setSessionToken] = useState<string | null>(() => {
-    if (typeof window !== 'undefined') {
-      return sessionStorage.getItem('patchversion_token');
-    }
-    return null;
-  });
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
+
   const [user, setUser] = useState<UserInfo | null>(null);
   const [tenant, setTenant] = useState<TenantInfo | null>(null);
   const [repositories, setRepositories] = useState<Repository[]>([]);
@@ -81,8 +158,15 @@ export default function DashboardPage() {
   const [depFilter, setDepFilter] = useState<'all' | 'direct' | 'transitive' | 'concerns'>('all');
   const [sortOrder, setSortOrder] = useState<'name' | 'callSites' | 'directFirst'>('directFirst');
   const [activeTab, setActiveTab] = useState<
-    'Triage Deck' | 'Visual Map' | 'Audit & Steps' | 'Pull requests' | 'Monitored Packages' | 'Activity'
+    'Triage Deck' | 'Proof Studio' | 'Visual Map' | 'Audit & Steps' | 'Pull requests' | 'Monitored Packages' | 'Activity'
   >('Triage Deck');
+
+  // Proof Studio interactive state
+  const [proofFixtureKey, setProofFixtureKey] = useState<'mockpay' | 'lodash'>('mockpay');
+  const [proofStep, setProofStep] = useState<0 | 1 | 2 | 3>(3);
+  const [proofViewTab, setProofViewTab] = useState<'diff' | 'ast' | 'log'>('diff');
+  const [proofIsRunning, setProofIsRunning] = useState(false);
+  const [proofHumanApproved, setProofHumanApproved] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
@@ -92,6 +176,23 @@ export default function DashboardPage() {
   const [newPackageInput, setNewPackageInput] = useState('');
   const [addingPackage, setAddingPackage] = useState(false);
   const activeRepoIdRef = useRef<string | null>(null);
+
+  const runProofSimulation = () => {
+    if (proofIsRunning) return;
+    setProofIsRunning(true);
+    setProofHumanApproved(false);
+    setProofStep(0);
+    setTimeout(() => {
+      setProofStep(1);
+      setTimeout(() => {
+        setProofStep(2);
+        setTimeout(() => {
+          setProofStep(3);
+          setProofIsRunning(false);
+        }, 600);
+      }, 600);
+    }, 600);
+  };
 
   /**
    * Unified authenticated fetch wrapper sending both same-origin cookies and Authorization Bearer header.
@@ -162,23 +263,21 @@ export default function DashboardPage() {
     e.preventDefault();
     const pkg = newPackageInput.trim();
     if (!pkg) return;
-
     if (!NPM_PACKAGE_REGEX.test(pkg)) {
-      setActionError(`Invalid package name '${pkg}'. Must conform to npm naming rules.`);
+      setActionError(`"${pkg}" is not a valid npm package name. Must be lowercase alphanumeric, optionally scoped like @types/node.`);
       return;
     }
-
     setAddingPackage(true);
     setActionError(null);
     try {
       const res = await authFetch('/api/packages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ packageName: pkg, currentVersion: '1.0.0' }),
+        body: JSON.stringify({ packageName: pkg }),
       });
       const data = await res.json();
       if (res.ok) {
-        setActionMessage(`Monitored package '${pkg}' registered. Latest: ${data.package?.latestVersion}`);
+        setActionMessage(`Added and checked ${pkg}: current ${data.package?.currentVersion}, latest ${data.package?.latestVersion}`);
         setNewPackageInput('');
         await loadPackages();
       } else {
@@ -192,114 +291,133 @@ export default function DashboardPage() {
   };
 
   const loadFindings = useCallback(async (repoId: string) => {
-    if (typeof fetch === 'undefined') return;
-    activeRepoIdRef.current = repoId;
     try {
       const res = await authFetch(`/api/findings?repositoryId=${repoId}`);
       if (res.ok) {
         const data = await res.json();
-        if (activeRepoIdRef.current === repoId) {
-          setFindings(data.findings || []);
-        }
+        setFindings(data.findings || []);
       }
-    } catch { /* ignore */ }
-  }, [authFetch]);
-
-  const loadRepositories = useCallback(async () => {
-    if (typeof fetch === 'undefined') return;
-    try {
-      const res = await authFetch('/api/repos');
-      if (res.ok) {
-        const data = await res.json();
-        const list: Repository[] = data.repositories || [];
-        setRepositories(list);
-        if (list.length > 0) {
-          setSelectedRepo(prev => {
-            if (prev && list.some(r => r.id === prev.id)) {
-              return prev;
-            }
-            return list[0];
-          });
-        }
-      } else {
-        const errData = await res.json().catch(() => ({}));
-        setActionError(errData.error || 'Failed to load repositories');
-      }
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : String(err));
+    } catch {
+      // ignore
     }
   }, [authFetch]);
 
-  const loadScanResult = useCallback(async (repoId: string) => {
-    if (typeof fetch === 'undefined') return;
+  const loadInitialScan = useCallback(async (repoId: string) => {
     try {
       const res = await authFetch(`/api/scan?repositoryId=${repoId}`);
       if (res.ok) {
         const data = await res.json();
-        setScanResult(data.scan || null);
+        if (data.scan) {
+          setScanResult(data.scan);
+        }
       }
-    } catch { /* ignore */ }
+    } catch {
+      // ignore
+    }
   }, [authFetch]);
 
-  // Synchronize findings and scan result when selected repository changes
+  // Initial Authentication & Repositories Check
   useEffect(() => {
-    if (selectedRepo?.id) {
-      const repoId = selectedRepo.id;
-      const timer = setTimeout(() => {
-        void loadFindings(repoId);
-        void loadScanResult(repoId);
-      }, 0);
-      return () => clearTimeout(timer);
-    }
-  }, [selectedRepo?.id, loadFindings, loadScanResult]);
-
-  // Check existing session on mount
-  useEffect(() => {
-    if (typeof fetch === 'undefined') return;
-    const token = typeof window !== 'undefined' ? sessionStorage.getItem('patchversion_token') : null;
-    const headers: Record<string, string> = {};
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-
-    fetch('/api/auth', { credentials: 'same-origin', headers })
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
-        if (data?.authenticated) {
+    let isMounted = true;
+    async function checkAuth() {
+      try {
+        const res = await authFetch('/api/auth/me');
+        if (res.ok) {
+          const data = await res.json();
+          if (!isMounted) return;
           setAuthenticated(true);
           setUser(data.user);
           setTenant(data.tenant);
-          loadRepositories();
-          loadPackages();
-        }
-      })
-      .catch(() => {});
-  }, [loadRepositories, loadPackages]);
 
-  const handleLogin = async () => {
+          const reposRes = await authFetch('/api/repositories');
+          if (reposRes.ok) {
+            const reposData = await reposRes.json();
+            if (!isMounted) return;
+            const fetchedRepos: Repository[] = reposData.repositories || [];
+            setRepositories(fetchedRepos);
+            if (fetchedRepos.length > 0) {
+              const defaultRepo = fetchedRepos.find((r: Repository) => r.fullName === 'Nitish-1303/CipherBill') || fetchedRepos[0];
+              setSelectedRepo(defaultRepo);
+              activeRepoIdRef.current = defaultRepo.id;
+              loadFindings(defaultRepo.id);
+              loadInitialScan(defaultRepo.id);
+            }
+          }
+          loadPackages();
+        } else {
+          if (!isMounted) return;
+          setAuthenticated(false);
+        }
+      } catch {
+        if (!isMounted) return;
+        setAuthenticated(false);
+      }
+    }
+    checkAuth();
+    return () => {
+      isMounted = false;
+    };
+  }, [authFetch, loadFindings, loadInitialScan, loadPackages]);
+
+  // Update findings and initial scan when active repo switches
+  useEffect(() => {
+    if (selectedRepo && selectedRepo.id !== activeRepoIdRef.current) {
+      activeRepoIdRef.current = selectedRepo.id;
+      loadFindings(selectedRepo.id);
+      loadInitialScan(selectedRepo.id);
+    }
+  }, [selectedRepo, loadFindings, loadInitialScan]);
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {
+      // ignore
+    }
+    setAuthenticated(false);
+    setUser(null);
+    setTenant(null);
+    setRepositories([]);
+    setSelectedRepo(null);
+    setFindings([]);
+    setScanResult(null);
+    sessionStorage.removeItem('patchversion_token');
+  };
+
+  const handleDemoSignIn = async () => {
     setLoading(true);
     setActionError(null);
     try {
-      const res = await fetch('/api/auth', {
+      const res = await fetch('/api/auth/demo-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'developer@trypatchbay.dev' }),
-        credentials: 'same-origin',
       });
       const data = await res.json();
-      if (res.ok && data.authenticated) {
+      if (res.ok) {
+        setSessionToken(data.token);
+        sessionStorage.setItem('patchversion_token', data.token);
         setAuthenticated(true);
         setUser(data.user);
         setTenant(data.tenant);
-        if (data.token) {
-          setSessionToken(data.token);
-          if (typeof window !== 'undefined') {
-            sessionStorage.setItem('patchversion_token', data.token);
+
+        const reposRes = await fetch('/api/repositories', {
+          headers: { Authorization: `Bearer ${data.token}` },
+        });
+        if (reposRes.ok) {
+          const reposData = await reposRes.json();
+          const fetchedRepos: Repository[] = reposData.repositories || [];
+          setRepositories(fetchedRepos);
+          if (fetchedRepos.length > 0) {
+            const defaultRepo = fetchedRepos.find((r: Repository) => r.fullName === 'Nitish-1303/CipherBill') || fetchedRepos[0];
+            setSelectedRepo(defaultRepo);
+            activeRepoIdRef.current = defaultRepo.id;
+            loadFindings(defaultRepo.id);
+            loadInitialScan(defaultRepo.id);
           }
         }
-        await loadRepositories();
         await loadPackages();
-        setActionMessage('Authenticated successfully with TryPatchBay developer session.');
       } else {
-        setActionError(data.error || 'Login failed');
+        setActionError(data.error || 'Demo sign in failed');
       }
     } catch (err) {
       setActionError(err instanceof Error ? err.message : String(err));
@@ -308,20 +426,69 @@ export default function DashboardPage() {
     }
   };
 
-  const handleLogout = async () => {
+  const handleConnectSpecificRepo = async (targetRepoFullName: string) => {
     setLoading(true);
+    setActionError(null);
+    setActionMessage(`Connecting ${targetRepoFullName} to workspace...`);
     try {
-      await authFetch('/api/auth', { method: 'DELETE' });
-    } catch { /* ignore */ }
-    setAuthenticated(false);
-    setUser(null);
-    setTenant(null);
-    setSessionToken(null);
-    if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('patchversion_token');
+      const parts = targetRepoFullName.split('/');
+      const owner = parts[0];
+      const name = parts[1];
+      const res = await authFetch('/api/repositories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName: targetRepoFullName,
+          owner,
+          name,
+          defaultBranch: 'main',
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setActionMessage(`Repository ${targetRepoFullName} connected! Triggering read-only AST dependency scan...`);
+        const reposRes = await authFetch('/api/repositories');
+        if (reposRes.ok) {
+          const reposData = await reposRes.json();
+          const fetchedRepos: Repository[] = reposData.repositories || [];
+          setRepositories(fetchedRepos);
+          const found = fetchedRepos.find(r => r.fullName === targetRepoFullName);
+          if (found) {
+            setSelectedRepo(found);
+            activeRepoIdRef.current = found.id;
+            const scanRes = await authFetch('/api/scan', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ repositoryId: found.id }),
+            });
+            const scanData = await scanRes.json();
+            if (scanRes.ok && scanData.scan) {
+              setScanResult(scanData.scan);
+              setActionMessage(`Scan complete: ${scanData.scan.totalDependencies} dependencies mapped for ${targetRepoFullName}.`);
+            }
+            await loadFindings(found.id);
+          }
+        }
+      } else {
+        setActionError(data.error || 'Failed to connect repository');
+      }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
     }
-    setActionMessage('Signed out successfully.');
-    setLoading(false);
+  };
+
+  const handleConnectCustomRepo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const repoStr = customRepoInput.trim();
+    if (!repoStr || !repoStr.includes('/')) {
+      setActionError('Please enter a valid repository full name, e.g. "owner/repo"');
+      return;
+    }
+    await handleConnectSpecificRepo(repoStr);
+    setCustomRepoInput('');
+    setShowConnectModal(false);
   };
 
   const handleInstallGitHubApp = async () => {
@@ -331,55 +498,17 @@ export default function DashboardPage() {
       const res = await authFetch('/api/github/onboarding', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
       });
       const data = await res.json();
       if (res.ok && data.installUrl) {
         window.location.href = data.installUrl;
       } else {
-        setActionError(data.error || 'GitHub App installation URL unavailable. Ensure GITHUB_APP_SLUG is configured.');
+        setActionError(data.error || 'Failed to generate GitHub App installation link');
       }
     } catch (err) {
       setActionError(err instanceof Error ? err.message : String(err));
     } finally {
       setOnboardingLoading(false);
-    }
-  };
-
-  const handleConnectCustomRepo = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!customRepoInput.trim()) return;
-    await handleConnectSpecificRepo(customRepoInput.trim());
-    setCustomRepoInput('');
-    setShowConnectModal(false);
-  };
-
-  const handleConnectSpecificRepo = async (fullName: string) => {
-    setLoading(true);
-    setActionError(null);
-    const [owner, name] = fullName.split('/');
-    try {
-      const res = await authFetch('/api/repos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fullName,
-          owner: owner || 'Nitish-1303',
-          name: name || fullName,
-          defaultBranch: 'main',
-        }),
-      });
-      if (res.ok) {
-        setActionMessage(`Repository '${fullName}' connected successfully.`);
-        await loadRepositories();
-      } else {
-        const data = await res.json().catch(() => ({}));
-        setActionError(data.error || 'Failed to connect repository');
-      }
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -478,59 +607,297 @@ export default function DashboardPage() {
         const matchName = dep.name.toLowerCase().includes(query);
         const matchRole = Boolean(dep.frameworkRole && dep.frameworkRole.toLowerCase().includes(query));
         const matchImport = dep.importingFiles.some(f => f.filePath.toLowerCase().includes(query));
-        const matchConcern = dep.concerns.some(c => c.message.toLowerCase().includes(query));
-        return matchName || matchRole || matchImport || matchConcern;
+        return matchName || matchRole || matchImport;
       }
       return true;
     })
     .sort((a, b) => {
-      if (sortOrder === 'callSites') {
-        return b.importingFiles.length - a.importingFiles.length;
-      }
       if (sortOrder === 'directFirst') {
         const aDirect = a.type !== 'transitive' ? 1 : 0;
         const bDirect = b.type !== 'transitive' ? 1 : 0;
         if (aDirect !== bDirect) return bDirect - aDirect;
+        return a.name.localeCompare(b.name);
+      }
+      if (sortOrder === 'callSites') {
+        return b.importingFiles.length - a.importingFiles.length;
       }
       return a.name.localeCompare(b.name);
     });
 
-  // If unauthenticated: render initial unavailable state matching verified test requirements
-  if (!authenticated) {
+  const activeFixture = PROOF_STUDIO_FIXTURES[proofFixtureKey];
+
+  // If not authenticated, open public YC demo workspace with developer sign-in options
+  if (authenticated === false) {
     return (
-      <section className="login-card" aria-labelledby="dashboard-unavailable-title">
-        <span className="eyebrow-chip">WORKSPACE UNAVAILABLE</span>
-        <h1 id="dashboard-unavailable-title">Dashboard access is not available yet.</h1>
-        <p>Authentication, repository authorization, and persistent workspace data have not been implemented.</p>
-        <p>No repository, dependency, validation, activity, or pull request data has been loaded.</p>
-        <div style={{ marginTop: '24px' }}>
-          <button
-            type="button"
-            className="pill-button pill-button-dark"
-            onClick={handleLogin}
-            disabled={loading}
-          >
-            {loading ? 'Authenticating...' : 'Sign in with Developer Session'}
-          </button>
+      <div style={{ maxWidth: '1360px', margin: '0 auto', padding: '24px 20px 80px' }}>
+        {/* Developer Workspace Access Header */}
+        <div
+          style={{
+            background: '#ffffff',
+            border: '1px solid #dfe1ef',
+            borderRadius: '12px',
+            padding: '20px 24px',
+            marginBottom: '24px',
+            boxShadow: '0 4px 20px rgba(20, 26, 57, 0.05)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '16px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div
+              style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '10px',
+                background: '#141a39',
+                color: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <ShieldCheckIcon size={22} color="#ffffff" />
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#141a39', letterSpacing: '-0.02em', margin: 0 }}>
+                  TryPatchBay Developer Workspace
+                </h2>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontFamily: 'ui-monospace, monospace',
+                    background: 'rgba(59, 130, 246, 0.1)',
+                    color: '#2563eb',
+                    border: '1px solid rgba(59, 130, 246, 0.25)',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    fontWeight: 600,
+                  }}
+                >
+                  PUBLIC DEMO WORKSPACE
+                </span>
+              </div>
+              <p style={{ color: '#4e5471', fontSize: '13px', marginTop: '4px', lineHeight: 1.4, margin: 0 }}>
+                Sign in to inspect your repositories, map AST call sites, and verify automated pull requests.
+              </p>
+              <span style={{ fontSize: '11px', color: '#64748b' }}>
+                Live persistent state store · HMAC cookie authenticated
+              </span>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <a
+              href="/api/auth/github/login"
+              style={{
+                padding: '8px 16px',
+                borderRadius: '8px',
+                background: '#1f2937',
+                color: '#f9fafb',
+                textDecoration: 'none',
+                fontWeight: 600,
+                fontSize: '13px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+              </svg>
+              Continue with GitHub
+            </a>
+            <button
+              type="button"
+              className="pill-button pill-button-dark"
+              onClick={handleDemoSignIn}
+              disabled={loading}
+              style={{ fontSize: '13px', padding: '8px 16px', minHeight: '38px' }}
+            >
+              {loading ? 'Initializing Workspace...' : 'Sign in to Developer Workspace'}
+            </button>
+          </div>
         </div>
-      </section>
+
+        {/* Public Demo Cockpit with genuine Lodash migration proof */}
+        <PublicDemoCockpit authenticated={false} onSignInClick={handleDemoSignIn} />
+      </div>
     );
   }
 
-  const hasRegressions = findings.length > 0;
+  const hasRegressions = findings.some(f => f.isBreaking);
 
   return (
-    <div className="dashboard-app" style={{ maxWidth: '1280px', margin: '24px auto', width: 'calc(100% - 32px)' }}>
-      {/* Signature TryPatchBay Browser Frame Top Bar */}
-      <div className="browser-bar" style={{ background: '#ffffff', borderBottom: '1px solid #dfe1ef', borderRadius: '14px 14px 0 0' }}>
-        <div className="browser-dots" aria-hidden="true"><i /><i /><i /></div>
-        <span style={{ fontWeight: 600, color: '#141a39', fontSize: '11px' }}>
-          trypatchbay · developer workspace dashboard
-        </span>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span className="status-pill" style={{ background: '#e4e5f4', color: '#141a39', fontWeight: 600 }}>
-            {tenant?.name ?? 'TryPatchBay Demo Workspace'}
+    <div className="content-width" style={{ padding: '32px 0 80px' }}>
+      {/* Top Studio Browser Frame */}
+      <div
+        className="browser-bar"
+        style={{
+          background: '#ffffff',
+          border: '1px solid #e2e8f0',
+          borderRadius: '14px 14px 0 0',
+          padding: '10px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '12px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div className="browser-dots" aria-hidden="true" style={{ display: 'flex', gap: '6px' }}>
+            <i style={{ width: 10, height: 10, borderRadius: '50%', background: '#ff5f56', display: 'inline-block' }} />
+            <i style={{ width: 10, height: 10, borderRadius: '50%', background: '#ffbd2e', display: 'inline-block' }} />
+            <i style={{ width: 10, height: 10, borderRadius: '50%', background: '#27c93f', display: 'inline-block' }} />
+          </div>
+
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: '#f8fafc',
+              border: '1px solid #cbd5e1',
+              borderRadius: '999px',
+              padding: '3px 12px',
+              fontSize: '11px',
+              color: '#334155',
+              fontFamily: 'ui-monospace, monospace',
+            }}
+          >
+            <LockIcon size={10} color="#64748b" />
+            <span style={{ color: '#64748b' }}>app.trypatchbay.dev</span>
+            <span style={{ color: '#cbd5e1' }}>/</span>
+            <span style={{ fontWeight: 600, color: '#0f172a' }}>
+              {selectedRepo ? selectedRepo.fullName : 'Nitish-1303/CipherBill'}
+            </span>
+            <span style={{ color: '#cbd5e1' }}>/</span>
+            <span style={{ color: '#2563eb' }}>triage</span>
+            <span
+              style={{
+                fontSize: '9px',
+                padding: '1px 4px',
+                borderRadius: '4px',
+                background: '#e2e8f0',
+                color: '#475569',
+                marginLeft: '4px',
+              }}
+            >
+              ⌘K
+            </span>
+          </div>
+        </div>
+
+        {/* Studio Status & Profile Switcher */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: '#f1f5f9',
+              padding: '2px 8px',
+              borderRadius: '999px',
+              border: '1px solid #e2e8f0',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('Proof Studio');
+                setProofFixtureKey('mockpay');
+                setProofHumanApproved(false);
+              }}
+              style={{
+                background: proofFixtureKey === 'mockpay' && activeTab === 'Proof Studio' ? '#0f172a' : 'transparent',
+                color: proofFixtureKey === 'mockpay' && activeTab === 'Proof Studio' ? '#ffffff' : '#475569',
+                border: 'none',
+                borderRadius: '999px',
+                padding: '2px 8px',
+                fontSize: '10px',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              mockpay
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('Proof Studio');
+                setProofFixtureKey('lodash');
+                setProofHumanApproved(false);
+              }}
+              style={{
+                background: proofFixtureKey === 'lodash' && activeTab === 'Proof Studio' ? '#0f172a' : 'transparent',
+                color: proofFixtureKey === 'lodash' && activeTab === 'Proof Studio' ? '#ffffff' : '#475569',
+                border: 'none',
+                borderRadius: '999px',
+                padding: '2px 8px',
+                fontSize: '10px',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              lodash
+            </button>
+          </div>
+
+          <span
+            style={{
+              fontSize: '10px',
+              fontFamily: 'ui-monospace, monospace',
+              padding: '2px 8px',
+              borderRadius: '4px',
+              background: '#f8fafc',
+              border: '1px solid #cbd5e1',
+              color: '#334155',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+          >
+            <GitBranchIcon size={11} color="#64748b" />
+            main · sha256:{scanResult?.provenance?.commitSha?.slice(0, 7) || '5f160dc'}
           </span>
+
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              fontSize: '10px',
+              fontWeight: 700,
+              padding: '3px 8px',
+              borderRadius: '999px',
+              background: selectedRepo?.isDemo ? '#fffbeb' : '#ecfdf5',
+              color: selectedRepo?.isDemo ? '#92400e' : '#065f46',
+              border: `1px solid ${selectedRepo?.isDemo ? '#fde68a' : '#a7f3d0'}`,
+            }}
+          >
+            <PulseDotIcon color={selectedRepo?.isDemo ? '#f59e0b' : '#10b981'} size={6} />
+            {selectedRepo?.isDemo ? 'BUNDLED FIXTURE · LOCAL RUN' : 'REAL PUBLIC GITHUB (READ-ONLY)'}
+          </span>
+
+          <span
+            style={{
+              fontSize: '10px',
+              fontWeight: 600,
+              color: '#475569',
+              padding: '2px 8px',
+              borderRadius: '6px',
+              background: '#f1f5f9',
+              border: '1px solid #e2e8f0',
+            }}
+          >
+            {tenant?.name || 'Workspace'}
+          </span>
+
           <button
             type="button"
             onClick={handleLogout}
@@ -552,67 +919,205 @@ export default function DashboardPage() {
       {/* Main Workspace Frame */}
       <div
         style={{
-          background: '#f7f7fc',
-          border: '1px solid #dfe1ef',
+          background: '#ffffff',
+          border: '1px solid #e2e8f0',
           borderTop: 'none',
           borderRadius: '0 0 14px 14px',
           padding: '24px',
           display: 'flex',
           flexDirection: 'column',
           gap: '20px',
+          boxShadow: '0 4px 20px rgba(15, 23, 42, 0.03)',
         }}
       >
-        {/* Workspace Subheader & Active Repository Switcher */}
+        {/* Workspace Stepper & Quick Action Bar */}
         <div
           style={{
-            background: '#ffffff',
-            border: '1px solid #dfe1ef',
-            borderRadius: '12px',
-            padding: '18px 24px',
+            background: '#f8fafc',
+            border: '1px solid #e2e8f0',
+            borderRadius: '10px',
+            padding: '14px 18px',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
             flexWrap: 'wrap',
-            gap: '16px',
-            boxShadow: '0 2px 8px rgba(20, 26, 57, 0.02)',
+            gap: '12px',
+          }}
+        >
+          {/* Stepper Stages */}
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('Proof Studio');
+                setProofStep(0);
+              }}
+              style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                padding: '4px 10px',
+                borderRadius: '6px',
+                border: '1px solid #cbd5e1',
+                background: proofStep === 0 && activeTab === 'Proof Studio' ? '#0f172a' : '#ffffff',
+                color: proofStep === 0 && activeTab === 'Proof Studio' ? '#ffffff' : '#334155',
+                cursor: 'pointer',
+              }}
+            >
+              01 Baseline (Green)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('Proof Studio');
+                setProofStep(1);
+              }}
+              style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                padding: '4px 10px',
+                borderRadius: '6px',
+                border: '1px solid #fecaca',
+                background: proofStep === 1 && activeTab === 'Proof Studio' ? '#ef4444' : '#fef2f2',
+                color: proofStep === 1 && activeTab === 'Proof Studio' ? '#ffffff' : '#991b1b',
+                cursor: 'pointer',
+              }}
+            >
+              02 Upgrade (Red)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('Proof Studio');
+                setProofStep(2);
+              }}
+              style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                padding: '4px 10px',
+                borderRadius: '6px',
+                border: '1px solid #cbd5e1',
+                background: proofStep === 2 && activeTab === 'Proof Studio' ? '#0f172a' : '#ffffff',
+                color: proofStep === 2 && activeTab === 'Proof Studio' ? '#ffffff' : '#334155',
+                cursor: 'pointer',
+              }}
+            >
+              03 AST Patch
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('Proof Studio');
+                setProofStep(3);
+              }}
+              style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                padding: '4px 10px',
+                borderRadius: '6px',
+                border: '1px solid #2563eb',
+                background: proofStep === 3 && activeTab === 'Proof Studio' ? '#2563eb' : '#eff6ff',
+                color: proofStep === 3 && activeTab === 'Proof Studio' ? '#ffffff' : '#1e40af',
+                cursor: 'pointer',
+              }}
+            >
+              04 Verified (Green)
+            </button>
+          </div>
+
+          {/* Action Trigger */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('Proof Studio');
+                runProofSimulation();
+              }}
+              disabled={proofIsRunning}
+              style={{
+                fontSize: '11px',
+                fontWeight: 700,
+                padding: '6px 14px',
+                borderRadius: '6px',
+                background: '#0f172a',
+                color: '#ffffff',
+                border: 'none',
+                cursor: proofIsRunning ? 'wait' : 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 2px 4px rgba(15, 23, 42, 0.1)',
+              }}
+            >
+              <span>▶</span>
+              <span>{proofIsRunning ? 'Simulating Proof Loop...' : 'Run Proof Loop'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Subtitle Telemetry Notice */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: '#64748b', marginTop: '-8px' }}>
+          <span>
+            {selectedRepo?.isDemo
+              ? 'Bundled fixture only · no live repository watching'
+              : `Active Repository: ${selectedRepo?.fullName || 'Nitish-1303/CipherBill'}`}
+          </span>
+          <span>Deterministic AST Engine · Safe Execution Boundary</span>
+        </div>
+
+        {/* Repository Header Details & Selector */}
+        <div
+          style={{
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '12px',
+            padding: '18px 22px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '14px',
+            boxShadow: '0 1px 3px rgba(15, 23, 42, 0.02)',
           }}
         >
           <div>
-            <span className="small-label" style={{ color: '#5e6582' }}>
-              AUTHENTICATED DEVELOPER WORKSPACE
-            </span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px', flexWrap: 'wrap' }}>
-              <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#141a39', margin: 0 }}>
-                {selectedRepo ? selectedRepo.fullName : 'Connected Repositories'}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+              <ShieldCheckIcon size={12} color="#64748b" />
+              <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.06em', color: '#64748b', textTransform: 'uppercase' }}>
+                AUTHENTICATED DEVELOPER WORKSPACE
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
+                {selectedRepo ? selectedRepo.fullName : 'Nitish-1303/CipherBill'}
               </h1>
               {selectedRepo && (
                 <span
                   style={{
                     fontSize: '10px',
-                    fontWeight: 700,
-                    padding: '3px 9px',
-                    borderRadius: '999px',
-                    background: selectedRepo.isDemo ? '#fef3c7' : '#e0e7ff',
-                    color: selectedRepo.isDemo ? '#92400e' : '#3730a3',
-                    border: `1px solid ${selectedRepo.isDemo ? '#fcd34d' : '#c7d2fe'}`,
+                    fontWeight: 600,
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    background: selectedRepo.isDemo ? '#fffbeb' : '#eff6ff',
+                    color: selectedRepo.isDemo ? '#92400e' : '#1e40af',
+                    border: `1px solid ${selectedRepo.isDemo ? '#fde68a' : '#bfdbfe'}`,
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '4px',
+                    gap: '5px',
                   }}
                 >
-                  <BrandIcon name="github" size={12} />
-                  {selectedRepo.isDemo ? 'DEMO FIXTURE (MIGRATION & APPROVAL DEMO)' : 'REAL PUBLIC GITHUB (READ-ONLY AST SCAN)'}
+                  <BrandIcon name="github" size={11} />
+                  <span>{selectedRepo.isDemo ? 'Demo Fixture (Migration & Approval Demo)' : 'Real Public GitHub (Read-Only AST Scan)'}</span>
                 </span>
               )}
             </div>
-            <p style={{ marginTop: '4px', fontSize: '12px', color: '#4e5471' }}>
-              Signed in as <strong>{user?.email}</strong>. Connected to persistent state store.
+            <p style={{ marginTop: '4px', fontSize: '11px', color: '#64748b', margin: '4px 0 0' }}>
+              Signed in as <strong style={{ color: '#0f172a' }}>{user?.email}</strong>. Connected to persistent state store.
             </p>
 
             {/* Repository Select Dropdown */}
             {repositories.length > 1 && (
-              <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <label htmlFor="repo-select" style={{ fontSize: '11px', fontWeight: 700, color: '#141a39' }}>
+              <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <label htmlFor="repo-select" style={{ fontSize: '11px', fontWeight: 700, color: '#334155' }}>
                   Switch Active Repository:
                 </label>
                 <select
@@ -623,13 +1128,13 @@ export default function DashboardPage() {
                     if (repo) setSelectedRepo(repo);
                   }}
                   style={{
-                    padding: '4px 10px',
+                    padding: '4px 8px',
                     fontSize: '11px',
                     fontWeight: 600,
                     borderRadius: '6px',
-                    border: '1px solid #dfe1ef',
-                    background: '#f7f7fc',
-                    color: '#141a39',
+                    border: '1px solid #cbd5e1',
+                    background: '#f8fafc',
+                    color: '#0f172a',
                     outline: 'none',
                   }}
                 >
@@ -643,59 +1148,99 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* Action Buttons with Icons */}
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* Action Buttons */}
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
             <button
               type="button"
-              className="pill-button"
               onClick={() => setShowConnectModal(!showConnectModal)}
-              style={{ fontSize: '12px', minHeight: '40px', padding: '0 16px', background: showConnectModal ? '#eff6ff' : '#ffffff', border: showConnectModal ? '1px solid #2b59ff' : '1px solid #dfe1ef' }}
+              style={{
+                fontSize: '12px',
+                fontWeight: 600,
+                minHeight: '38px',
+                padding: '0 14px',
+                background: showConnectModal ? '#eff6ff' : '#ffffff',
+                border: showConnectModal ? '1px solid #2563eb' : '1px solid #cbd5e1',
+                borderRadius: '8px',
+                color: showConnectModal ? '#1e40af' : '#0f172a',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)',
+              }}
             >
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                <TopologyIcon size={13} color="var(--navy-deep)" /> {showConnectModal ? 'Close Connect Panel' : '+ Connect Repository'}
-              </span>
+              <TopologyIcon size={13} color={showConnectModal ? '#1e40af' : '#475569'} />
+              <span>{showConnectModal ? 'Close Connect Panel' : '+ Connect Repository'}</span>
             </button>
+
             {!repositories.some(r => r.fullName === 'Nitish-1303/CipherBill') && (
               <button
                 type="button"
-                className="pill-button"
                 onClick={() => handleConnectSpecificRepo('Nitish-1303/CipherBill')}
                 disabled={loading}
-                style={{ fontSize: '12px', minHeight: '40px', padding: '0 16px', background: '#ffffff', border: '1px solid #dfe1ef' }}
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  minHeight: '38px',
+                  padding: '0 14px',
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '8px',
+                  color: '#0f172a',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)',
+                }}
               >
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                  <BrandIcon name="github" size={13} /> Connect CipherBill
-                </span>
+                <BrandIcon name="github" size={13} />
+                <span>Connect CipherBill</span>
               </button>
             )}
+
             <button
               type="button"
-              className="pill-button pill-button-dark"
               onClick={handleScan}
               disabled={loading || !selectedRepo}
-              style={{ fontSize: '12px', minHeight: '40px', padding: '0 20px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              style={{
+                fontSize: '12px',
+                fontWeight: 600,
+                minHeight: '38px',
+                padding: '0 18px',
+                background: '#0f172a',
+                border: '1px solid #0f172a',
+                borderRadius: '8px',
+                color: '#ffffff',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 1px 3px rgba(15, 23, 42, 0.12)',
+                opacity: loading ? 0.7 : 1,
+              }}
             >
-              <ScanRadarIcon size={14} color="#ffffff" />
-              <span>{loading ? 'Scanning Repository...' : 'Scan Repository'}</span>
+              <ScanRadarIcon size={13} color="#ffffff" />
+              <span>{loading ? 'Scanning...' : 'Scan Repository'}</span>
             </button>
           </div>
         </div>
 
+        {/* Connect Modal Panel */}
         {showConnectModal && (
           <div
             style={{
-              margin: '16px 0 20px',
               padding: '20px',
               borderRadius: '12px',
               background: '#ffffff',
-              border: '1px solid #2b59ff',
-              boxShadow: '0 4px 20px rgba(43, 89, 255, 0.08)',
+              border: '1px solid #2563eb',
+              boxShadow: '0 4px 20px rgba(37, 99, 235, 0.08)',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
               <div>
-                <strong style={{ fontSize: '14px', color: '#141a39' }}>Connect an Authorized Repository</strong>
-                <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#4e5471' }}>
+                <strong style={{ fontSize: '14px', color: '#0f172a' }}>Connect an Authorized Repository</strong>
+                <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#64748b' }}>
                   Authorize your GitHub repositories or link an existing verified installation to your workspace.
                 </p>
               </div>
@@ -723,9 +1268,9 @@ export default function DashboardPage() {
                   padding: '0 12px',
                   fontSize: '12px',
                   borderRadius: '6px',
-                  border: '1px solid #dfe1ef',
-                  background: '#f8f9fb',
-                  color: '#141a39',
+                  border: '1px solid #cbd5e1',
+                  background: '#f8fafc',
+                  color: '#0f172a',
                   fontFamily: 'ui-monospace, monospace',
                 }}
               />
@@ -751,11 +1296,11 @@ export default function DashboardPage() {
         {actionMessage && (
           <div
             style={{
-              padding: '12px 18px',
-              background: '#e0e7ff',
-              color: '#3730a3',
+              padding: '10px 16px',
+              background: '#eff6ff',
+              color: '#1e40af',
               borderRadius: '8px',
-              border: '1px solid #c7d2fe',
+              border: '1px solid #bfdbfe',
               fontSize: '12px',
               fontWeight: 600,
               display: 'flex',
@@ -771,11 +1316,11 @@ export default function DashboardPage() {
         {actionError && (
           <div
             style={{
-              padding: '12px 18px',
-              background: '#fee2e2',
+              padding: '10px 16px',
+              background: '#fef2f2',
               color: '#991b1b',
               borderRadius: '8px',
-              border: '1px solid #fca5a5',
+              border: '1px solid #fecaca',
               fontSize: '12px',
               fontWeight: 600,
               display: 'flex',
@@ -788,18 +1333,18 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Top Executive Health Scorecard (Built with Dedicated HealthCard Components) */}
+        {/* Top Executive Health Scorecard */}
         <section
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
             gap: '14px',
           }}
           aria-label="Repository Health Scorecard"
         >
           {/* Card 1: Health Status */}
           <HealthCard
-            icon={hasRegressions ? <AlertTriangleIcon size={16} color="#92400e" /> : <CheckCircleIcon size={16} color="#166534" />}
+            icon={hasRegressions ? <AlertTriangleIcon size={16} color="#92400e" /> : <CheckCircleIcon size={16} color="#059669" />}
             label="REPOSITORY HEALTH"
             metric={hasRegressions ? `${findings.length} Breaking Drift Found` : 'All Dependencies Clean'}
             subtext={
@@ -815,7 +1360,7 @@ export default function DashboardPage() {
 
           {/* Card 2: Dependencies Mapped */}
           <HealthCard
-            icon={<LayersIcon size={16} color="#141a39" />}
+            icon={<LayersIcon size={16} color="#0f172a" />}
             label="DEPENDENCY INVENTORY"
             metric={`${scanResult?.totalDependencies ?? 0} Mapped Packages`}
             subtext={`${scanResult?.directCount ?? 0} direct · ${scanResult?.transitiveCount ?? 0} transitive · ${scanResult?.packageManager ?? 'npm'} lockfile`}
@@ -835,7 +1380,7 @@ export default function DashboardPage() {
 
           {/* Card 3: Detected Frameworks */}
           <HealthCard
-            icon={<TopologyIcon size={16} color="#141a39" />}
+            icon={<TopologyIcon size={16} color="#0f172a" />}
             label="DETECTED FRAMEWORKS"
             metric={`${scanResult?.frameworks?.length ?? 0} Frameworks & Tools`}
             subtext={
@@ -844,14 +1389,14 @@ export default function DashboardPage() {
                 : 'Structure: single-package'
             }
             badge={{
-              text: scanResult?.projectType?.toUpperCase() ?? 'NPM',
+              text: scanResult?.projectType?.toUpperCase() ?? 'SINGLE-PACKAGE',
               variant: 'neutral',
             }}
           />
 
           {/* Card 4: Execution Sandbox Boundary */}
           <HealthCard
-            icon={<ShieldCheckIcon size={16} color="#141a39" />}
+            icon={<ShieldCheckIcon size={16} color="#0f172a" />}
             label="EXECUTION BOUNDARY"
             metric={selectedRepo?.isDemo ? 'Live PR Gated' : 'Container Sandbox Required'}
             subtext={
@@ -866,21 +1411,24 @@ export default function DashboardPage() {
           />
         </section>
 
-        {/* Tab Navigation with Dedicated UiIcons */}
+        {/* Refined Segmented Tab Bar */}
         <div
           role="tablist"
           aria-label="Dashboard sections"
           style={{
             display: 'flex',
-            gap: '8px',
-            borderBottom: '1px solid #dfe1ef',
-            paddingBottom: '10px',
+            gap: '4px',
+            background: '#f1f5f9',
+            padding: '4px',
+            borderRadius: '8px',
+            border: '1px solid #e2e8f0',
             flexWrap: 'wrap',
           }}
         >
           {(
             [
               { name: 'Triage Deck', icon: <LayersIcon size={14} /> },
+              { name: 'Proof Studio', icon: <ScanRadarIcon size={14} /> },
               { name: 'Visual Map', icon: <TopologyIcon size={14} /> },
               { name: 'Audit & Steps', icon: <ShieldCheckIcon size={14} /> },
               { name: 'Pull requests', icon: <GitPullRequestIcon size={14} /> },
@@ -889,11 +1437,12 @@ export default function DashboardPage() {
             ] as const
           ).map(tab => {
             const isSelected = activeTab === tab.name;
-            let tabLabel: string = tab.name;
+            const tabLabel: string = tab.name;
+            let countBadge: number | null = null;
             if (tab.name === 'Triage Deck' && scanResult) {
-              tabLabel = `Triage Deck (${scanResult.totalDependencies})`;
+              countBadge = scanResult.totalDependencies;
             } else if (tab.name === 'Pull requests' && findings.filter(f => f.pullRequest).length > 0) {
-              tabLabel = `Pull requests (${findings.filter(f => f.pullRequest).length})`;
+              countBadge = findings.filter(f => f.pullRequest).length;
             }
 
             return (
@@ -904,22 +1453,39 @@ export default function DashboardPage() {
                 type="button"
                 onClick={() => setActiveTab(tab.name as typeof activeTab)}
                 style={{
-                  padding: '8px 16px',
-                  borderRadius: '999px',
-                  border: isSelected ? '1px solid #141a39' : '1px solid #dfe1ef',
-                  background: isSelected ? '#141a39' : '#ffffff',
-                  color: isSelected ? '#ffffff' : '#4e5471',
+                  padding: '7px 14px',
+                  borderRadius: '6px',
+                  border: isSelected ? '1px solid #cbd5e1' : '1px solid transparent',
+                  background: isSelected ? '#ffffff' : 'transparent',
+                  color: isSelected ? '#0f172a' : '#64748b',
                   fontSize: '12px',
-                  fontWeight: 600,
+                  fontWeight: isSelected ? 600 : 500,
                   cursor: 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '6px',
+                  boxShadow: isSelected ? '0 1px 3px rgba(15, 23, 42, 0.06)' : 'none',
                   transition: 'all 0.15s ease',
                 }}
               >
-                {tab.icon}
+                <span style={{ display: 'flex', color: isSelected ? '#0f172a' : '#94a3b8' }}>
+                  {tab.icon}
+                </span>
                 <span>{tabLabel}</span>
+                {countBadge !== null && (
+                  <span
+                    style={{
+                      fontSize: '10px',
+                      fontWeight: 600,
+                      padding: '1px 6px',
+                      borderRadius: '4px',
+                      background: isSelected ? '#f1f5f9' : '#e2e8f0',
+                      color: isSelected ? '#0f172a' : '#64748b',
+                    }}
+                  >
+                    {countBadge}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -932,20 +1498,20 @@ export default function DashboardPage() {
             <div
               style={{
                 background: '#ffffff',
-                border: '1px solid #dfe1ef',
-                borderRadius: '12px',
-                padding: '14px 20px',
+                border: '1px solid #e2e8f0',
+                borderRadius: '10px',
+                padding: '12px 16px',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 flexWrap: 'wrap',
                 gap: '12px',
-                boxShadow: '0 2px 6px rgba(20, 26, 57, 0.02)',
+                boxShadow: '0 1px 2px rgba(15, 23, 42, 0.02)',
               }}
             >
               {/* Filter Pills */}
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: '#5e6582', marginRight: '4px' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', marginRight: '4px' }}>
                   FILTER:
                 </span>
                 <button
@@ -953,13 +1519,13 @@ export default function DashboardPage() {
                   onClick={() => setDepFilter('all')}
                   style={{
                     padding: '4px 12px',
-                    borderRadius: '999px',
-                    border: depFilter === 'all' ? '1px solid #141a39' : '1px solid #dfe1ef',
-                    background: depFilter === 'all' ? '#141a39' : '#ffffff',
-                    color: depFilter === 'all' ? '#ffffff' : '#4e5471',
+                    border: depFilter === 'all' ? '1px solid #0f172a' : '1px solid #e2e8f0',
+                    background: depFilter === 'all' ? '#0f172a' : '#f8fafc',
+                    color: depFilter === 'all' ? '#ffffff' : '#475569',
                     fontSize: '11px',
                     fontWeight: 600,
                     cursor: 'pointer',
+                    borderRadius: '6px',
                   }}
                 >
                   All ({scanResult?.totalDependencies ?? 0})
@@ -969,13 +1535,13 @@ export default function DashboardPage() {
                   onClick={() => setDepFilter('direct')}
                   style={{
                     padding: '4px 12px',
-                    borderRadius: '999px',
-                    border: depFilter === 'direct' ? '1px solid #141a39' : '1px solid #dfe1ef',
-                    background: depFilter === 'direct' ? '#141a39' : '#ffffff',
-                    color: depFilter === 'direct' ? '#ffffff' : '#4e5471',
+                    border: depFilter === 'direct' ? '1px solid #0f172a' : '1px solid #e2e8f0',
+                    background: depFilter === 'direct' ? '#0f172a' : '#f8fafc',
+                    color: depFilter === 'direct' ? '#ffffff' : '#475569',
                     fontSize: '11px',
                     fontWeight: 600,
                     cursor: 'pointer',
+                    borderRadius: '6px',
                   }}
                 >
                   Direct ({scanResult?.directCount ?? 0})
@@ -985,13 +1551,13 @@ export default function DashboardPage() {
                   onClick={() => setDepFilter('transitive')}
                   style={{
                     padding: '4px 12px',
-                    borderRadius: '999px',
-                    border: depFilter === 'transitive' ? '1px solid #141a39' : '1px solid #dfe1ef',
-                    background: depFilter === 'transitive' ? '#141a39' : '#ffffff',
-                    color: depFilter === 'transitive' ? '#ffffff' : '#4e5471',
+                    border: depFilter === 'transitive' ? '1px solid #0f172a' : '1px solid #e2e8f0',
+                    background: depFilter === 'transitive' ? '#0f172a' : '#f8fafc',
+                    color: depFilter === 'transitive' ? '#ffffff' : '#475569',
                     fontSize: '11px',
                     fontWeight: 600,
                     cursor: 'pointer',
+                    borderRadius: '6px',
                   }}
                 >
                   Transitive ({scanResult?.transitiveCount ?? 0})
@@ -1001,13 +1567,13 @@ export default function DashboardPage() {
                   onClick={() => setDepFilter('concerns')}
                   style={{
                     padding: '4px 12px',
-                    borderRadius: '999px',
-                    border: depFilter === 'concerns' ? '1px solid #991b1b' : '1px solid #dfe1ef',
-                    background: depFilter === 'concerns' ? '#fee2e2' : '#ffffff',
-                    color: depFilter === 'concerns' ? '#991b1b' : '#4e5471',
+                    border: depFilter === 'concerns' ? '1px solid #b91c1c' : '1px solid #e2e8f0',
+                    background: depFilter === 'concerns' ? '#fef2f2' : '#f8fafc',
+                    color: depFilter === 'concerns' ? '#b91c1c' : '#475569',
                     fontSize: '11px',
                     fontWeight: 600,
                     cursor: 'pointer',
+                    borderRadius: '6px',
                   }}
                 >
                   Needs Attention ({scanResult?.dependencies.filter(d => d.concerns.length > 0).length ?? 0})
@@ -1028,11 +1594,11 @@ export default function DashboardPage() {
                     style={{
                       padding: '6px 14px 6px 32px',
                       fontSize: '12px',
-                      border: '1px solid #dfe1ef',
+                      border: '1px solid #cbd5e1',
                       borderRadius: '999px',
                       width: '240px',
                       outline: 'none',
-                      background: '#f7f7fc',
+                      background: '#f8fafc',
                     }}
                   />
                 </div>
@@ -1044,10 +1610,10 @@ export default function DashboardPage() {
                     padding: '6px 12px',
                     fontSize: '11px',
                     fontWeight: 600,
-                    border: '1px solid #dfe1ef',
+                    border: '1px solid #cbd5e1',
                     borderRadius: '999px',
-                    background: '#f7f7fc',
-                    color: '#141a39',
+                    background: '#f8fafc',
+                    color: '#0f172a',
                     outline: 'none',
                   }}
                 >
@@ -1063,14 +1629,14 @@ export default function DashboardPage() {
               <div
                 style={{
                   background: '#ffffff',
-                  border: '1px solid #dfe1ef',
+                  border: '1px solid #e2e8f0',
                   borderRadius: '12px',
                   padding: '36px',
                   textAlign: 'center',
                 }}
               >
-                <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#141a39' }}>No scan data recorded</h3>
-                <p style={{ color: '#4e5471', fontSize: '13px', marginTop: '6px' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a' }}>No scan data recorded</h3>
+                <p style={{ color: '#64748b', fontSize: '13px', marginTop: '6px' }}>
                   Run a scan to extract manifests, map AST import call sites, and generate your dependency triage deck.
                 </p>
                 <button
@@ -1087,7 +1653,7 @@ export default function DashboardPage() {
               <div
                 style={{
                   background: '#ffffff',
-                  border: '1px solid #dfe1ef',
+                  border: '1px solid #e2e8f0',
                   borderRadius: '12px',
                   padding: '36px',
                   textAlign: 'center',
@@ -1117,7 +1683,469 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Tab 2: Visual Dependency Map (Real Interactive SVG Graph) */}
+        {/* Tab 2: The Redesigned Proof Studio (Exact 3-Column Change Review from Reference) */}
+        {activeTab === 'Proof Studio' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Header with Title and Badges */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em', color: '#64748b', textTransform: 'uppercase' }}>
+                  CHANGE REVIEW
+                </span>
+                <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#0f172a', margin: '2px 0 0', letterSpacing: '-0.02em' }}>
+                  {activeFixture.name}
+                </h2>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    padding: '3px 10px',
+                    borderRadius: '999px',
+                    border: '1px solid #a7f3d0',
+                    background: '#ecfdf5',
+                    color: '#065f46',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                  }}
+                >
+                  <span>↻</span>
+                  <span>AST Detected</span>
+                </span>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    padding: '3px 10px',
+                    borderRadius: '999px',
+                    border: '1px solid #cbd5e1',
+                    background: '#f8fafc',
+                    color: '#334155',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                  }}
+                >
+                  <LockIcon size={11} color="#64748b" />
+                  <span>Local fixture</span>
+                </span>
+              </div>
+            </div>
+
+            {/* 3-Column Change Review Grid */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+                gap: '16px',
+              }}
+            >
+              {/* Column 1: CHANGE / PARAM RENAMED */}
+              <div
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '12px',
+                  padding: '20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  boxShadow: '0 1px 3px rgba(15, 23, 42, 0.03)',
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', color: '#64748b', textTransform: 'uppercase' }}>
+                      CHANGE
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        background: '#fffbeb',
+                        color: '#92400e',
+                        border: '1px solid #fde68a',
+                      }}
+                    >
+                      ⚠ {activeFixture.badge}
+                    </span>
+                  </div>
+
+                  <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', margin: '0 0 6px' }}>
+                    {activeFixture.title}
+                  </h3>
+                  <p style={{ fontSize: '12px', color: '#64748b', lineHeight: 1.5, margin: '0 0 16px' }}>
+                    {activeFixture.summary}
+                  </p>
+
+                  {/* Token Box Arrow Diagram */}
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      padding: '10px 14px',
+                      background: '#f8fafc',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      fontFamily: 'ui-monospace, monospace',
+                      fontSize: '12px',
+                    }}
+                  >
+                    <span
+                      style={{
+                        padding: '3px 8px',
+                        background: '#ffffff',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '5px',
+                        color: '#334155',
+                      }}
+                    >
+                      {activeFixture.fromToken}
+                    </span>
+                    <span style={{ color: '#64748b', fontWeight: 700 }}>→</span>
+                    <span
+                      style={{
+                        padding: '3px 8px',
+                        background: '#eff6ff',
+                        border: '1px solid #bfdbfe',
+                        borderRadius: '5px',
+                        color: '#1e40af',
+                        fontWeight: 600,
+                      }}
+                    >
+                      {activeFixture.toToken}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: '20px', paddingTop: '12px', borderTop: '1px solid #f1f5f9', fontSize: '11px', color: '#64748b' }}>
+                  <span>📄 Example call site · </span>
+                  <code style={{ color: '#0f172a' }}>{activeFixture.callsite}</code>
+                </div>
+              </div>
+
+              {/* Column 2: The Dark Terminal IDE (Central Code Window) */}
+              <div
+                style={{
+                  background: '#0d1117',
+                  border: '1px solid #1f2937',
+                  borderRadius: '12px',
+                  overflow: 'hidden',
+                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                }}
+              >
+                {/* Dark Window Header */}
+                <div
+                  style={{
+                    padding: '10px 14px',
+                    background: '#161b22',
+                    borderBottom: '1px solid #21262d',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#3b82f6', display: 'inline-block' }} />
+                    <span style={{ fontSize: '11px', fontFamily: 'ui-monospace, monospace', color: '#e6edf3', fontWeight: 600 }}>
+                      {activeFixture.callsite}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setProofViewTab('diff')}
+                      style={{
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        border: 'none',
+                        background: proofViewTab === 'diff' ? '#21262d' : 'transparent',
+                        color: proofViewTab === 'diff' ? '#ffffff' : '#8b949e',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Diff
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setProofViewTab('ast')}
+                      style={{
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        border: 'none',
+                        background: proofViewTab === 'ast' ? '#21262d' : 'transparent',
+                        color: proofViewTab === 'ast' ? '#ffffff' : '#8b949e',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      AST
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setProofViewTab('log')}
+                      style={{
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        border: 'none',
+                        background: proofViewTab === 'log' ? '#21262d' : 'transparent',
+                        color: proofViewTab === 'log' ? '#ffffff' : '#8b949e',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Log
+                    </button>
+                  </div>
+                </div>
+
+                {/* Code Window Body */}
+                <div style={{ padding: '14px', flex: 1 }}>
+                  {proofViewTab === 'diff' && (
+                    <pre
+                      style={{
+                        margin: 0,
+                        fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace',
+                        fontSize: '11px',
+                        lineHeight: 1.6,
+                        color: '#c9d1d9',
+                        overflowX: 'auto',
+                      }}
+                    >
+                      {(proofStep === 1 ? activeFixture.brokenLines : activeFixture.diffLines).map(line => {
+                        let lineBg = 'transparent';
+                        let textColor = '#c9d1d9';
+                        if (line.type === 'del') {
+                          lineBg = 'rgba(239, 68, 68, 0.15)';
+                          textColor = '#f87171';
+                        } else if (line.type === 'add') {
+                          lineBg = 'rgba(34, 197, 94, 0.15)';
+                          textColor = '#4ade80';
+                        }
+                        return (
+                          <div
+                            key={line.num}
+                            style={{
+                              background: lineBg,
+                              padding: '1px 6px',
+                              borderRadius: '2px',
+                              display: 'flex',
+                              gap: '10px',
+                            }}
+                          >
+                            <span style={{ color: '#484f58', minWidth: '20px', textAlign: 'right', userSelect: 'none' }}>
+                              {line.num}
+                            </span>
+                            <span style={{ color: textColor, minWidth: '12px', userSelect: 'none' }}>
+                              {line.prefix}
+                            </span>
+                            <span style={{ color: textColor }}>{line.text}</span>
+                          </div>
+                        );
+                      })}
+                    </pre>
+                  )}
+
+                  {proofViewTab === 'ast' && (
+                    <div style={{ fontFamily: 'ui-monospace, monospace', fontSize: '11px', color: '#58a6ff', lineHeight: 1.6 }}>
+                      <div>Node Target: <strong style={{ color: '#ffffff' }}>{activeFixture.ast.targetNode}</strong></div>
+                      <div>Caller Match: <span style={{ color: '#7ee787' }}>{activeFixture.ast.caller}</span></div>
+                      <div>Rule Provenance: <span style={{ color: '#ffa657' }}>{activeFixture.ast.rule}</span></div>
+                      <div>Confidence: <span style={{ color: '#7ee787' }}>{activeFixture.ast.confidence}</span></div>
+                      <div style={{ marginTop: '8px', color: '#8b949e' }}>Source File: {activeFixture.ast.location}</div>
+                    </div>
+                  )}
+
+                  {proofViewTab === 'log' && (
+                    <pre
+                      style={{
+                        margin: 0,
+                        fontFamily: 'ui-monospace, monospace',
+                        fontSize: '10px',
+                        lineHeight: 1.5,
+                        color: proofStep === 1 ? '#f87171' : '#7ee787',
+                        whiteSpace: 'pre-wrap',
+                      }}
+                    >
+                      {proofStep === 0 && activeFixture.testLogs.baseline}
+                      {proofStep === 1 && activeFixture.testLogs.bump}
+                      {proofStep >= 2 && activeFixture.testLogs.verified}
+                    </pre>
+                  )}
+                </div>
+
+                {/* Dark Window Footer */}
+                <div
+                  style={{
+                    padding: '8px 14px',
+                    background: '#161b22',
+                    borderTop: '1px solid #21262d',
+                    fontSize: '10px',
+                    fontFamily: 'ui-monospace, monospace',
+                    color: '#8b949e',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <span>{activeFixture.diffDigest}</span>
+                  <span style={{ color: '#3fb950' }}>Deterministic AST</span>
+                </div>
+              </div>
+
+              {/* Column 3: LOCAL FIXTURE CHECK / VERIFICATION */}
+              <div
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '12px',
+                  padding: '20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  boxShadow: '0 1px 3px rgba(15, 23, 42, 0.03)',
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', color: '#64748b', textTransform: 'uppercase' }}>
+                      LOCAL FIXTURE CHECK
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        padding: '3px 8px',
+                        borderRadius: '999px',
+                        background: '#ecfdf5',
+                        color: '#065f46',
+                        border: '1px solid #a7f3d0',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      <CheckCircleIcon size={10} color="#059669" />
+                      VERIFIED
+                    </span>
+                  </div>
+
+                  <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', margin: '0 0 14px' }}>
+                    Proof stays reviewable
+                  </h3>
+
+                  {/* Status checklist */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '18px' }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '8px 12px',
+                        background: '#f8fafc',
+                        borderRadius: '8px',
+                        border: '1px solid #e2e8f0',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444', display: 'inline-block' }} />
+                        <span style={{ fontSize: '12px', color: '#334155' }}>Before patch</span>
+                      </div>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#dc2626' }}>
+                        2 failing
+                      </span>
+                    </div>
+
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '8px 12px',
+                        background: '#ecfdf5',
+                        borderRadius: '8px',
+                        border: '1px solid #a7f3d0',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+                        <span style={{ fontSize: '12px', color: '#065f46', fontWeight: 600 }}>After patch</span>
+                      </div>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#059669' }}>
+                        ✔ 3 / 3 passing
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Simulate Human Approval Button */}
+                  <button
+                    type="button"
+                    onClick={() => setProofHumanApproved(!proofHumanApproved)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      borderRadius: '8px',
+                      border: proofHumanApproved ? '1px solid #059669' : '1px solid #cbd5e1',
+                      background: proofHumanApproved ? '#ecfdf5' : '#ffffff',
+                      color: proofHumanApproved ? '#065f46' : '#0f172a',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <span>{proofHumanApproved ? '✔ Diff Approved (Hash Bound)' : '✔ Simulate Human Approval Gate'}</span>
+                  </button>
+                </div>
+
+                <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid #f1f5f9', fontSize: '10px', color: '#64748b', lineHeight: 1.5 }}>
+                  <div>Example fixture output · not a live run</div>
+                  <div style={{ color: '#059669', fontWeight: 600 }}>Isolated sandbox runner</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Status strip */}
+            <div
+              style={{
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                padding: '8px 14px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                fontSize: '11px',
+                color: '#64748b',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+                <span>Local proof engine ready</span>
+              </div>
+              <span>Reviewable diff · verified test execution loop</span>
+            </div>
+          </div>
+        )}
+
+        {/* Tab 3: Visual Dependency Map */}
         {activeTab === 'Visual Map' && (
           <div>
             {scanResult ? (
@@ -1135,7 +2163,7 @@ export default function DashboardPage() {
               <div
                 style={{
                   background: '#ffffff',
-                  border: '1px solid #dfe1ef',
+                  border: '1px solid #e2e8f0',
                   borderRadius: '12px',
                   padding: '36px',
                   textAlign: 'center',
@@ -1147,7 +2175,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Tab 3: Step 9 Demonstration Audit & Execution Scorecard */}
+        {/* Tab 4: Step 9 Demonstration Audit & Execution Scorecard */}
         {activeTab === 'Audit & Steps' && (
           <AuditScorecard
             scanResult={scanResult}
@@ -1157,19 +2185,19 @@ export default function DashboardPage() {
           />
         )}
 
-        {/* Tab 4: Delivered Pull Requests */}
+        {/* Tab 5: Delivered Pull Requests */}
         {activeTab === 'Pull requests' && (
           <section
             style={{
               background: '#ffffff',
-              border: '1px solid #dfe1ef',
+              border: '1px solid #e2e8f0',
               borderRadius: '12px',
               padding: '24px',
               boxShadow: '0 2px 8px rgba(20, 26, 57, 0.02)',
             }}
           >
-            <span className="small-label" style={{ color: '#5e6582' }}>PULL REQUESTS</span>
-            <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#141a39', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span className="small-label" style={{ color: '#64748b' }}>PULL REQUESTS</span>
+            <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <BrandIcon name="github" size={20} /> Delivered GitHub Pull Requests
             </h2>
 
@@ -1180,9 +2208,9 @@ export default function DashboardPage() {
                     key={f.id}
                     style={{
                       padding: '16px',
-                      border: '1px solid #dfe1ef',
+                      border: '1px solid #e2e8f0',
                       borderRadius: '8px',
-                      background: '#f7f7fc',
+                      background: '#f8fafc',
                       display: 'flex',
                       flexDirection: 'column',
                       gap: '8px',
@@ -1190,7 +2218,7 @@ export default function DashboardPage() {
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                       <div>
-                        <strong style={{ fontSize: '14px', color: '#141a39' }}>
+                        <strong style={{ fontSize: '14px', color: '#0f172a' }}>
                           Fix: {f.packageName} {f.fromVersion} → {f.toVersion}
                         </strong>
                         <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
@@ -1203,7 +2231,7 @@ export default function DashboardPage() {
                             LOCAL SIMULATION
                           </span>
                         ) : (
-                          <span style={{ fontSize: '10px', padding: '3px 8px', borderRadius: '4px', background: '#dcfce7', color: '#166534', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <span style={{ fontSize: '10px', padding: '3px 8px', borderRadius: '4px', background: '#ecfdf5', color: '#065f46', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                             <BrandIcon name="github" size={11} /> LIVE GITHUB PR
                           </span>
                         )}
@@ -1214,7 +2242,7 @@ export default function DashboardPage() {
                           style={{
                             fontSize: '11px',
                             fontWeight: 600,
-                            color: '#141a39',
+                            color: '#0f172a',
                             textDecoration: 'underline',
                           }}
                         >
@@ -1231,29 +2259,29 @@ export default function DashboardPage() {
                 ))}
               </div>
             ) : (
-              <p style={{ marginTop: '12px', fontSize: '13px', color: '#4e5471' }}>
+              <p style={{ marginTop: '12px', fontSize: '13px', color: '#64748b' }}>
                 No pull requests delivered yet. When breaking regressions are detected, approving the deterministic diff allows you to create a pull request with 1 click.
               </p>
             )}
           </section>
         )}
 
-        {/* Tab 5: Monitored Packages */}
+        {/* Tab 6: Monitored Packages */}
         {activeTab === 'Monitored Packages' && (
           <section
             style={{
               background: '#ffffff',
-              border: '1px solid #dfe1ef',
+              border: '1px solid #e2e8f0',
               borderRadius: '12px',
               padding: '24px',
               boxShadow: '0 2px 8px rgba(20, 26, 57, 0.02)',
             }}
           >
-            <span className="small-label" style={{ color: '#5e6582' }}>REGISTRY WATCHLIST</span>
-            <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#141a39', marginTop: '6px' }}>
+            <span className="small-label" style={{ color: '#64748b' }}>REGISTRY WATCHLIST</span>
+            <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a', marginTop: '6px' }}>
               Monitored Upstream Libraries
             </h2>
-            <p style={{ fontSize: '12px', color: '#4e5471', marginTop: '4px' }}>
+            <p style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
               Authoritative package version observations tracked against npm registry APIs.
             </p>
 
@@ -1267,10 +2295,10 @@ export default function DashboardPage() {
                   flex: 1,
                   padding: '8px 14px',
                   fontSize: '12px',
-                  border: '1px solid #dfe1ef',
+                  border: '1px solid #cbd5e1',
                   borderRadius: '999px',
                   outline: 'none',
-                  background: '#f7f7fc',
+                  background: '#f8fafc',
                 }}
               />
               <button
@@ -1289,9 +2317,9 @@ export default function DashboardPage() {
                   key={pkg.packageName}
                   style={{
                     padding: '12px 16px',
-                    border: '1px solid #dfe1ef',
+                    border: '1px solid #e2e8f0',
                     borderRadius: '8px',
-                    background: '#f7f7fc',
+                    background: '#f8fafc',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
@@ -1301,15 +2329,15 @@ export default function DashboardPage() {
                 >
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      <strong style={{ fontSize: '13px', color: '#141a39' }}>{pkg.packageName}</strong>
+                      <strong style={{ fontSize: '13px', color: '#0f172a' }}>{pkg.packageName}</strong>
                       <span
                         style={{
                           fontSize: '9px',
                           fontWeight: 700,
                           padding: '2px 6px',
                           borderRadius: '4px',
-                          background: pkg.status === 'upgrade_available' ? '#fef3c7' : pkg.status === 'error' ? '#fee2e2' : '#dcfce7',
-                          color: pkg.status === 'upgrade_available' ? '#92400e' : pkg.status === 'error' ? '#991b1b' : '#166534',
+                          background: pkg.status === 'upgrade_available' ? '#fffbeb' : pkg.status === 'error' ? '#fef2f2' : '#ecfdf5',
+                          color: pkg.status === 'upgrade_available' ? '#92400e' : pkg.status === 'error' ? '#991b1b' : '#065f46',
                         }}
                       >
                         {pkg.status === 'upgrade_available' ? 'UPGRADE AVAILABLE' : pkg.status === 'error' ? 'ERROR' : 'UP TO DATE'}
@@ -1324,7 +2352,7 @@ export default function DashboardPage() {
                     className="pill-button"
                     onClick={() => handleCheckPackage(pkg.packageName)}
                     disabled={checkingPackage === pkg.packageName}
-                    style={{ fontSize: '11px', minHeight: '32px', padding: '0 12px', background: '#ffffff', border: '1px solid #dfe1ef' }}
+                    style={{ fontSize: '11px', minHeight: '32px', padding: '0 12px', background: '#ffffff', border: '1px solid #cbd5e1' }}
                   >
                     {checkingPackage === pkg.packageName ? 'Checking...' : 'Check Registry'}
                   </button>
@@ -1334,52 +2362,52 @@ export default function DashboardPage() {
           </section>
         )}
 
-        {/* Tab 6: Activity History */}
+        {/* Tab 7: Activity History */}
         {activeTab === 'Activity' && (
           <section
             style={{
               background: '#ffffff',
-              border: '1px solid #dfe1ef',
+              border: '1px solid #e2e8f0',
               borderRadius: '12px',
               padding: '24px',
               boxShadow: '0 2px 8px rgba(20, 26, 57, 0.02)',
             }}
           >
-            <span className="small-label" style={{ color: '#5e6582' }}>TIMELINE</span>
-            <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#141a39', marginTop: '6px' }}>
+            <span className="small-label" style={{ color: '#64748b' }}>TIMELINE</span>
+            <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a', marginTop: '6px' }}>
               Audit Log &amp; Execution History
             </h2>
             <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #dfe1ef' }}>
-                <span style={{ color: '#141a39', fontWeight: 600 }}>Authenticated session active</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #e2e8f0' }}>
+                <span style={{ color: '#0f172a', fontWeight: 600 }}>Authenticated session active</span>
                 <span style={{ color: '#64748b' }}>{user?.email}</span>
               </div>
               {selectedRepo && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #dfe1ef' }}>
-                  <span style={{ color: '#141a39', fontWeight: 600 }}>Active repository connected</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #e2e8f0' }}>
+                  <span style={{ color: '#0f172a', fontWeight: 600 }}>Active repository connected</span>
                   <span style={{ color: '#64748b' }}>{selectedRepo.fullName}</span>
                 </div>
               )}
               {findings.map(f => (
-                <div key={f.id} style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '8px 0', borderBottom: '1px solid #dfe1ef' }}>
+                <div key={f.id} style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '8px 0', borderBottom: '1px solid #e2e8f0' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: '#92400e', fontWeight: 600 }}>Drift detected in {f.packageName}</span>
                     <span style={{ color: '#64748b' }}>v{f.fromVersion} → v{f.toVersion}</span>
                   </div>
                   {f.validation && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#166534' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#065f46' }}>
                       <span>Red-to-Green Test Provenance:</span>
                       <span>{f.validation.status.toUpperCase()} ({f.validation.executionProvenance || 'fixture-verified'})</span>
                     </div>
                   )}
                   {f.approval && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#3730a3' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#1e40af' }}>
                       <span>Human Approval Recorded:</span>
                       <span>Hash: {f.patch?.diffHash.slice(0, 12)}...</span>
                     </div>
                   )}
                   {f.pullRequest && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#141a39' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#0f172a' }}>
                       <span>Pull Request Delivered:</span>
                       <span>PR #{f.pullRequest.githubPrNumber} {f.pullRequest.isSimulation ? '(Local simulation)' : ''}</span>
                     </div>

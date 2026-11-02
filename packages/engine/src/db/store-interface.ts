@@ -139,6 +139,8 @@ export interface IPersistenceStore {
   ): Promise<PullRequestRecord> | PullRequestRecord;
   getPullRequest(tenantId: string, id: string): Promise<PullRequestRecord | null> | PullRequestRecord | null;
   getPullRequestByFinding(tenantId: string, findingId: string): Promise<PullRequestRecord | null> | PullRequestRecord | null;
+  getPullRequestByCommitSha?(commitSha: string): Promise<PullRequestRecord | null> | PullRequestRecord | null;
+  updatePullRequestStatus?(tenantId: string, id: string, status: 'open' | 'merged' | 'closed'): Promise<boolean | void> | boolean | void;
   listPullRequests(tenantId: string, repositoryId?: string): Promise<PullRequestRecord[]> | PullRequestRecord[];
 
   // Distributed Delivery Claims

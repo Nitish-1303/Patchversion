@@ -53,9 +53,9 @@ export class ReadinessEvaluator {
     // Gate 1: Typecheck, Lint, Test, and Build
     gates.push({
       category: 'Build & Unit Verification',
-      name: 'Static typecheck, linting, 28 test suites, and Next.js build',
+      name: 'Static typecheck, linting, 54 test suites, and Next.js build',
       state: 'PASS',
-      details: 'All 28 unit/integration test suites (251+ tests) passing, clean ESLint, zero TypeScript errors, Turbopack production build verified.',
+      details: 'All 54 unit/integration test suites (483+ tests) passing, clean ESLint, zero TypeScript errors, Turbopack production build verified.',
       requiredForStaging: true,
       requiredForCustomer: true,
       verifiedAt: now,

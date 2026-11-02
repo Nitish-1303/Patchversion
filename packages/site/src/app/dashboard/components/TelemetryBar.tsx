@@ -7,7 +7,6 @@ import {
   GitBranchIcon,
   CpuIcon,
   ShieldCheckIcon,
-  PulseDotIcon,
   TopologyIcon,
 } from '@/app/components/UiIcons';
 
@@ -37,7 +36,7 @@ export function TelemetryBar({ scanResult, repoFullName }: TelemetryBarProps) {
     <div
       style={{
         background: '#ffffff',
-        border: '1px solid #dfe1ef',
+        border: '1px solid #e2e8f0',
         borderRadius: '10px',
         padding: '10px 16px',
         display: 'flex',
@@ -46,16 +45,29 @@ export function TelemetryBar({ scanResult, repoFullName }: TelemetryBarProps) {
         flexWrap: 'wrap',
         gap: '12px',
         fontSize: '11px',
-        boxShadow: '0 1px 4px rgba(20, 26, 57, 0.02)',
+        boxShadow: '0 1px 2px rgba(15, 23, 42, 0.03)',
       }}
     >
       {/* Left items: Git Context */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ color: '#64748b', display: 'flex' }}>
             <GitBranchIcon size={13} />
           </span>
-          <span style={{ fontWeight: 600, color: '#141a39' }}>{repoFullName} ({branch})</span>
+          <span style={{ fontWeight: 600, color: '#0f172a' }}>{repoFullName}</span>
+          <span
+            style={{
+              padding: '2px 7px',
+              borderRadius: '5px',
+              background: '#f1f5f9',
+              color: '#334155',
+              fontSize: '10px',
+              fontFamily: 'ui-monospace, monospace',
+              fontWeight: 600,
+            }}
+          >
+            {branch}
+          </span>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -67,10 +79,10 @@ export function TelemetryBar({ scanResult, repoFullName }: TelemetryBarProps) {
             onClick={handleCopySha}
             title="Click to copy commit SHA"
             style={{
-              background: '#f1f5f9',
-              border: '1px solid #e2e8f0',
-              borderRadius: '4px',
-              padding: '1px 6px',
+              background: '#f8fafc',
+              border: '1px solid #cbd5e1',
+              borderRadius: '5px',
+              padding: '2px 7px',
               fontFamily: 'ui-monospace, monospace',
               fontSize: '10px',
               color: '#334155',
@@ -86,62 +98,64 @@ export function TelemetryBar({ scanResult, repoFullName }: TelemetryBarProps) {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <PulseDotIcon color={astStatus === 'complete' ? '#10b981' : '#f59e0b'} size={7} />
-          <span style={{ color: '#64748b' }}>AST Engine:</span>
           <span
             style={{
-              fontWeight: 700,
-              fontSize: '10px',
-              padding: '1px 6px',
-              borderRadius: '4px',
-              background: astStatus === 'complete' ? '#dcfce7' : '#fef3c7',
-              color: astStatus === 'complete' ? '#166534' : '#92400e',
+              width: '6px',
+              height: '6px',
+              borderRadius: '50%',
+              background: '#10b981',
+              display: 'inline-block',
             }}
-          >
-            {astStatus.toUpperCase()} ({filesInspected} files)
+          />
+          <span style={{ color: '#475569' }}>
+            AST Engine:{' '}
+            <strong style={{ color: '#0f172a' }}>
+              {astStatus.toUpperCase()} ({filesInspected} files)
+            </strong>
           </span>
         </div>
       </div>
 
-      {/* Right items: Graph Scale & Safety Boundary */}
+      {/* Right items: System Telemetry */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
         {scanResult && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ color: '#64748b', display: 'flex' }}>
-              <TopologyIcon size={13} />
-            </span>
-            <span style={{ color: '#4e5471' }}>
-              Graph: <strong style={{ color: '#141a39' }}>{scanResult.graph.nodes.length}</strong> nodes ·{' '}
-              <strong style={{ color: '#141a39' }}>{scanResult.graph.edges.length}</strong> edges
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#475569' }}>
+            <TopologyIcon size={13} color="#64748b" />
+            <span>
+              Graph:{' '}
+              <strong style={{ color: '#0f172a' }}>
+                {scanResult.graph.nodes.length} nodes · {scanResult.graph.edges.length} edges
+              </strong>
             </span>
           </div>
         )}
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ color: '#64748b', display: 'flex' }}>
-            <CpuIcon size={13} />
-          </span>
-          <span style={{ color: '#4e5471' }}>
-            Scanner: <strong style={{ color: '#141a39' }}>v{scannerVersion}</strong>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#475569' }}>
+          <CpuIcon size={13} color="#64748b" />
+          <span>
+            Scanner:{' '}
+            <code style={{ fontSize: '10px', background: '#f1f5f9', padding: '1px 5px', borderRadius: '4px' }}>
+              v{scannerVersion}
+            </code>
           </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-          <span style={{ color: '#166534', display: 'flex' }}>
-            <ShieldCheckIcon size={13} />
-          </span>
-          <span
-            style={{
-              fontSize: '10px',
-              fontWeight: 700,
-              padding: '2px 7px',
-              borderRadius: '999px',
-              background: '#e4e5f4',
-              color: '#141a39',
-            }}
-          >
-            HOST EXECUTION SAFE
-          </span>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '5px',
+            padding: '2px 8px',
+            borderRadius: '999px',
+            background: '#ecfdf5',
+            border: '1px solid #a7f3d0',
+            color: '#065f46',
+            fontSize: '10px',
+            fontWeight: 600,
+          }}
+        >
+          <ShieldCheckIcon size={12} color="#059669" />
+          <span>HOST EXECUTION SAFE</span>
         </div>
       </div>
     </div>

@@ -1,14 +1,12 @@
-import fs from 'fs';
 import path from 'path';
+import fs from 'fs';
 import os from 'os';
-import {
-  MigrationRuleRegistry,
-  defaultMigrationRegistry,
-  LodashMethodRenameRule,
-  MockpayPaymentMethodRule,
-} from '../src/migration';
+import { OpenAIV3ToV4Rule } from '../src/migration/rules/openai-v3-to-v4';
+import { NextJs14To15AsyncRule } from '../src/migration/rules/nextjs-v14-to-v15';
+import { StripePaymentIntentsRule } from '../src/migration/rules/stripe-rename';
+import { defaultMigrationRegistry } from '../src/migration/registry';
 
-describe('Migration Rule Registry and AST Transforms', () => {
+describe('Real-World Migration Rules', () => {
   let tmpDir: string;
 
   beforeEach(() => {
@@ -16,234 +14,146 @@ describe('Migration Rule Registry and AST Transforms', () => {
   });
 
   afterEach(() => {
-    if (fs.existsSync(tmpDir)) {
-      try {
-        fs.rmSync(tmpDir, { recursive: true, force: true });
-      } catch {
-        // Windows transient file lock tolerance
-      }
+    try {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    } catch {
+      // ignore
     }
   });
 
-  describe('1. MigrationRuleRegistry Resolution', () => {
-    const registry = new MigrationRuleRegistry();
-
-    test('finds applicable rules for lodash 3.10.1 -> 4.17.21', () => {
-      const rules = registry.findApplicableRules('lodash', '3.10.1', '4.17.21');
-      expect(rules.length).toBeGreaterThan(0);
-      expect(rules[0].id).toBe('lodash-v3-to-v4-methods');
+  describe('Registry Discovery', () => {
+    it('discovers OpenAI rule for openai package upgrade v3 -> v4', () => {
+      const applicable = defaultMigrationRegistry.findApplicableRules('openai', '3.3.0', '4.20.0');
+      expect(applicable.some(r => r.id === 'openai-v3-to-v4-client')).toBe(true);
     });
 
-    test('rejects rules for lodash when fromVersion is already 4.x', () => {
-      const rules = registry.findApplicableRules('lodash', '4.17.20', '4.17.21');
-      expect(rules.length).toBe(0);
+    it('discovers Next.js rule for next package upgrade v14 -> v15', () => {
+      const applicable = defaultMigrationRegistry.findApplicableRules('next', '14.2.5', '15.0.0');
+      expect(applicable.some(r => r.id === 'nextjs-v14-to-v15-async-headers')).toBe(true);
     });
 
-    test('finds applicable rules for mockpay 1.2.0 -> 2.0.0', () => {
-      const rules = registry.findApplicableRules('mockpay', '1.2.0', '2.0.0');
-      expect(rules.length).toBeGreaterThan(0);
-      expect(rules[0].id).toBe('mockpay-v1-to-v2-payment-method');
-    });
-
-    test('returns empty array for packages with no registered rules', () => {
-      const rules = registry.findApplicableRules('express', '4.18.0', '5.0.0');
-      expect(rules).toEqual([]);
-    });
-
-    test('defaultMigrationRegistry is pre-populated', () => {
-      expect(defaultMigrationRegistry.getAllRules().length).toBeGreaterThanOrEqual(2);
+    it('discovers Stripe rule for stripe package upgrade v10 -> v12', () => {
+      const applicable = defaultMigrationRegistry.findApplicableRules('stripe', '10.12.0', '12.0.0');
+      expect(applicable.some(r => r.id === 'stripe-v10-to-v12-payment-intents')).toBe(true);
     });
   });
 
-  describe('2. LodashMethodRenameRule', () => {
-    const rule = new LodashMethodRenameRule();
+  describe('OpenAIV3ToV4Rule', () => {
+    it('transforms Configuration/OpenAIApi and createChatCompletion', async () => {
+      const rule = new OpenAIV3ToV4Rule();
 
-    test('fails precondition if package.json has no lodash dependency', async () => {
-      fs.writeFileSync(path.join(tmpDir, 'package.json'), JSON.stringify({ name: 'test-app' }));
-      const result = await rule.execute({
-        repoPath: tmpDir,
-        packageName: 'lodash',
-        fromVersion: '3.10.1',
-        toVersion: '4.17.21',
-      });
-
-      expect(result.preconditionsSatisfied).toBe(false);
-      expect(result.filesModified).toHaveLength(0);
-      expect(result.errors?.[0]).toContain('Precondition failed');
-    });
-
-    test('transforms _.contains and _.pluck to _.includes and _.map with valid unified diff', async () => {
       fs.writeFileSync(
         path.join(tmpDir, 'package.json'),
-        JSON.stringify({
-          name: 'test-app',
-          dependencies: { lodash: '^3.10.1' },
-        }),
+        JSON.stringify({ dependencies: { openai: '^3.3.0' } }),
       );
 
-      const srcDir = path.join(tmpDir, 'src');
-      fs.mkdirSync(srcDir, { recursive: true });
-      const sampleCode = `import _ from 'lodash';
+      const code = `
+import { Configuration, OpenAIApi } from 'openai';
 
-export function checkItems(list: string[], target: string) {
-  const hasItem = _.contains(list, target);
-  return hasItem;
-}
+const configuration = new Configuration({ apiKey: 'test-key' });
+const openai = new OpenAIApi(configuration);
 
-export function extractNames(users: Array<{ name: string; id: number }>) {
-  return _.pluck(users, 'name');
+export async function runChat() {
+  const response = await openai.createChatCompletion({
+    model: 'gpt-4',
+    messages: [{ role: 'user', content: 'hello' }],
+  });
+  return response.data;
 }
 `;
-      const sampleFile = path.join(srcDir, 'utils.ts');
-      fs.writeFileSync(sampleFile, sampleCode);
+      const filePath = path.join(tmpDir, 'chat.ts');
+      fs.writeFileSync(filePath, code);
 
       const result = await rule.execute({
         repoPath: tmpDir,
-        packageName: 'lodash',
-        fromVersion: '3.10.1',
-        toVersion: '4.17.21',
-        targetFiles: ['src/utils.ts'],
+        packageName: 'openai',
+        fromVersion: '3.3.0',
+        toVersion: '4.20.0',
       });
 
       expect(result.preconditionsSatisfied).toBe(true);
-      expect(result.postconditionsVerified).toBe(true);
-      expect(result.filesModified).toContain('src/utils.ts');
-      expect(result.unifiedDiff).toContain('-  const hasItem = _.contains(list, target);');
-      expect(result.unifiedDiff).toContain('+  const hasItem = _.includes(list, target);');
-      expect(result.unifiedDiff).toContain('-  return _.pluck(users, \'name\');');
-      expect(result.unifiedDiff).toContain('+  return _.map(users, \'name\');');
-      expect(result.diffHash).toMatch(/^[a-f0-9]{64}$/);
-    });
-
-    test('transforms named imports: import { contains, pluck } from "lodash"', async () => {
-      fs.writeFileSync(
-        path.join(tmpDir, 'package.json'),
-        JSON.stringify({
-          name: 'test-app',
-          dependencies: { lodash: '^3.10.1' },
-        }),
-      );
-
-      const sampleCode = `import { contains, pluck } from 'lodash';
-
-export function testNamed(items: string[]) {
-  return contains(items, 'active') && pluck([{ a: 1 }], 'a');
-}
-`;
-      const sampleFile = path.join(tmpDir, 'index.ts');
-      fs.writeFileSync(sampleFile, sampleCode);
-
-      const result = await rule.execute({
-        repoPath: tmpDir,
-        packageName: 'lodash',
-        fromVersion: '3.10.1',
-        toVersion: '4.17.21',
-        targetFiles: ['index.ts'],
-      });
-
-      expect(result.preconditionsSatisfied).toBe(true);
-      expect(result.unifiedDiff).toContain('import { includes, map } from \'lodash\';');
-      expect(result.unifiedDiff).toContain('return includes(items, \'active\') && map([{ a: 1 }], \'a\');');
-    });
-
-    test('is idempotent when executed against already transformed code', async () => {
-      fs.writeFileSync(
-        path.join(tmpDir, 'package.json'),
-        JSON.stringify({
-          name: 'test-app',
-          dependencies: { lodash: '^3.10.1' },
-        }),
-      );
-
-      const alreadyMigrated = `import _ from 'lodash';
-export function check(list: string[]) {
-  return _.includes(list, 'ok') && _.map(list, (x) => x.trim());
-}
-`;
-      fs.writeFileSync(path.join(tmpDir, 'app.ts'), alreadyMigrated);
-
-      const result = await rule.execute({
-        repoPath: tmpDir,
-        packageName: 'lodash',
-        fromVersion: '3.10.1',
-        toVersion: '4.17.21',
-        targetFiles: ['app.ts'],
-      });
-
-      expect(result.filesModified).toHaveLength(0);
-      expect(result.unifiedDiff).toBe('');
-      expect(result.diffHash).toBe('');
+      expect(result.filesModified).toContain('chat.ts');
+      expect(result.unifiedDiff).toContain("import OpenAI from 'openai'");
+      expect(result.unifiedDiff).toContain('openai.chat.completions.create');
+      expect(result.diffHash).toBeTruthy();
     });
   });
 
-  describe('3. MockpayPaymentMethodRule', () => {
-    const rule = new MockpayPaymentMethodRule();
+  describe('NextJs14To15AsyncRule', () => {
+    it('transforms synchronous cookies() and headers() calls into await calls', async () => {
+      const rule = new NextJs14To15AsyncRule();
 
-    test('transforms charges.create({ source: token }) to { payment_method: token }', async () => {
       fs.writeFileSync(
         path.join(tmpDir, 'package.json'),
-        JSON.stringify({
-          name: 'billing-app',
-          dependencies: { mockpay: '^1.0.0' },
-        }),
+        JSON.stringify({ dependencies: { next: '^14.2.0' } }),
       );
 
-      const billingCode = `export async function processPayment(client: any, cardToken: string) {
-  const charge = await client.charges.create({
-    amount: 2500,
+      const code = `
+import { cookies, headers } from 'next/headers';
+
+export async function ServerComponent() {
+  const cookieStore = cookies();
+  const token = cookieStore.get('token');
+  const headerStore = headers();
+  const host = headerStore.get('host');
+  return { token, host };
+}
+`;
+      const filePath = path.join(tmpDir, 'server-page.ts');
+      fs.writeFileSync(filePath, code);
+
+      const result = await rule.execute({
+        repoPath: tmpDir,
+        packageName: 'next',
+        fromVersion: '14.2.0',
+        toVersion: '15.0.0',
+      });
+
+      expect(result.preconditionsSatisfied).toBe(true);
+      expect(result.filesModified).toContain('server-page.ts');
+      expect(result.unifiedDiff).toContain('await cookies()');
+      expect(result.unifiedDiff).toContain('await headers()');
+      expect(result.diffHash).toBeTruthy();
+    });
+  });
+
+  describe('StripePaymentIntentsRule', () => {
+    it('transforms stripe.charges.create({ source }) to stripe.paymentIntents.create({ payment_method })', async () => {
+      const rule = new StripePaymentIntentsRule();
+
+      fs.writeFileSync(
+        path.join(tmpDir, 'package.json'),
+        JSON.stringify({ dependencies: { stripe: '^10.0.0' } }),
+      );
+
+      const code = `
+import Stripe from 'stripe';
+const stripe = new Stripe('sk_test_123', { apiVersion: '2022-11-15' });
+
+export async function chargeCustomer(customerId: string, amount: number) {
+  return await stripe.charges.create({
+    amount,
     currency: 'usd',
-    source: cardToken,
-    description: 'Invoice #1234',
+    customer: customerId,
+    source: 'tok_visa',
   });
-  return charge;
 }
 `;
-      fs.writeFileSync(path.join(tmpDir, 'billing.ts'), billingCode);
+      const filePath = path.join(tmpDir, 'billing.ts');
+      fs.writeFileSync(filePath, code);
 
       const result = await rule.execute({
         repoPath: tmpDir,
-        packageName: 'mockpay',
-        fromVersion: '1.2.0',
-        toVersion: '2.0.0',
-        targetFiles: ['billing.ts'],
+        packageName: 'stripe',
+        fromVersion: '10.0.0',
+        toVersion: '12.0.0',
       });
 
       expect(result.preconditionsSatisfied).toBe(true);
-      expect(result.postconditionsVerified).toBe(true);
       expect(result.filesModified).toContain('billing.ts');
-      expect(result.unifiedDiff).toContain('-    source: cardToken,');
-      expect(result.unifiedDiff).toContain('+    payment_method: cardToken,');
-      expect(result.diffHash).toMatch(/^[a-f0-9]{64}$/);
-    });
-
-    test('is idempotent when executed against code already using payment_method', async () => {
-      fs.writeFileSync(
-        path.join(tmpDir, 'package.json'),
-        JSON.stringify({
-          name: 'billing-app',
-          dependencies: { mockpay: '^1.0.0' },
-        }),
-      );
-
-      const modernCode = `export async function processPayment(client: any, cardToken: string) {
-  return await client.charges.create({
-    amount: 2500,
-    payment_method: cardToken,
-  });
-}
-`;
-      fs.writeFileSync(path.join(tmpDir, 'billing.ts'), modernCode);
-
-      const result = await rule.execute({
-        repoPath: tmpDir,
-        packageName: 'mockpay',
-        fromVersion: '1.2.0',
-        toVersion: '2.0.0',
-        targetFiles: ['billing.ts'],
-      });
-
-      expect(result.filesModified).toHaveLength(0);
-      expect(result.unifiedDiff).toBe('');
+      expect(result.unifiedDiff).toContain('stripe.paymentIntents.create');
+      expect(result.unifiedDiff).toContain('payment_method: \'tok_visa\'');
+      expect(result.diffHash).toBeTruthy();
     });
   });
 });

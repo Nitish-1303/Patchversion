@@ -1,6 +1,9 @@
 import { IMigrationRule } from './types';
 import { LodashMethodRenameRule } from './rules/lodash-rename';
 import { MockpayPaymentMethodRule } from './rules/mockpay-rename';
+import { OpenAIV3ToV4Rule } from './rules/openai-v3-to-v4';
+import { NextJs14To15AsyncRule } from './rules/nextjs-v14-to-v15';
+import { StripePaymentIntentsRule } from './rules/stripe-rename';
 
 export class MigrationRuleRegistry {
   private rules: Map<string, IMigrationRule> = new Map();
@@ -9,6 +12,9 @@ export class MigrationRuleRegistry {
     // Register canonical enterprise migration rules
     this.register(new LodashMethodRenameRule());
     this.register(new MockpayPaymentMethodRule());
+    this.register(new OpenAIV3ToV4Rule());
+    this.register(new NextJs14To15AsyncRule());
+    this.register(new StripePaymentIntentsRule());
   }
 
   register(rule: IMigrationRule): void {

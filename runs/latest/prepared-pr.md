@@ -42,7 +42,7 @@ The following call sites could not be verified by the test suite:
 
 - Change classification confidence: 95%
 - Sandbox type: local-process
-- Proof generated: 2026-11-01T07:15:47.305Z
+- Proof generated: 2026-11-02T15:13:36.147Z
 
 ---
 *Prepared by Patchversion. Not submitted to GitHub. Proof recorded from local execution.*

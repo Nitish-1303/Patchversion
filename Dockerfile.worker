@@ -1,0 +1,35 @@
+# Multi-stage Dockerfile for TryPatchBay Isolated Execution Worker
+# Runs in an isolated microVM container (Fly.io / AWS Fargate / Docker)
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+COPY package*.json ./
+COPY packages/shared/package*.json ./packages/shared/
+COPY packages/engine/package*.json ./packages/engine/
+
+RUN npm install --ignore-scripts
+
+COPY tsconfig*.json ./
+COPY packages/shared ./packages/shared
+COPY packages/engine ./packages/engine
+
+RUN npm run build -w @patchversion/shared && npm run build -w @patchversion/engine
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV PORT=8080
+
+COPY package*.json ./
+COPY packages/shared/package*.json ./packages/shared/
+COPY packages/engine/package*.json ./packages/engine/
+
+RUN npm install --omit=dev --ignore-scripts
+
+COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
+COPY --from=builder /app/packages/engine/dist ./packages/engine/dist
+
+EXPOSE 8080
+
+CMD ["node", "packages/engine/dist/sandbox/worker-service.js"]

@@ -38,7 +38,7 @@ export default function HomePage() {
           <Reveal delay={160}><p>Requests, breaking changes, and deterministic patches in one calm workspace. Free for teams up to 10.</p></Reveal>
           <Reveal delay={240}>
             <div className="hero-cta-group">
-              <Link href="/signup" className="pill-button pill-button-dark hero-cta-btn">Start for free</Link>
+              <Link href="/dashboard" className="pill-button pill-button-dark hero-cta-btn">Open live dashboard</Link>
               <Link href="/dashboard" className="pill-button pill-button-light hero-cta-btn">Open workspace</Link>
             </div>
           </Reveal>

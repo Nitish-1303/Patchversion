@@ -1478,6 +1478,52 @@ export class PostgresStore implements IPersistenceStore {
     };
   }
 
+  async getPullRequestByCommitSha(commitSha: string): Promise<PullRequestRecord | null> {
+    const rows = await this.query<{
+      id: string;
+      tenant_id: string;
+      repository_id: string;
+      finding_id: string;
+      patch_id: string;
+      approval_id: string;
+      github_pr_number: number;
+      github_pr_url: string;
+      branch_name: string;
+      commit_sha: string;
+      status: 'open' | 'merged' | 'closed';
+      is_draft?: boolean;
+      is_simulation?: boolean;
+      delivery_blocked_reason?: string;
+      created_at: string;
+      updated_at: string;
+    }>('SELECT * FROM pull_requests WHERE commit_sha = ', [commitSha]);
+    if (!rows[0]) return null;
+    const p = rows[0];
+    return {
+      id: p.id,
+      tenantId: p.tenant_id,
+      repositoryId: p.repository_id,
+      findingId: p.finding_id,
+      patchId: p.patch_id,
+      approvalId: p.approval_id,
+      githubPrNumber: p.github_pr_number,
+      githubPrUrl: p.github_pr_url,
+      branchName: p.branch_name,
+      commitSha: p.commit_sha,
+      status: p.status,
+      isDraft: p.is_draft,
+      isSimulation: p.is_simulation,
+      deliveryBlockedReason: p.delivery_blocked_reason,
+      createdAt: p.created_at,
+      updatedAt: p.updated_at,
+    };
+  }
+
+  async updatePullRequestStatus(tenantId: string, id: string, status: 'open' | 'merged' | 'closed'): Promise<boolean> {
+    const res = await this.query('UPDATE pull_requests SET status = , updated_at = NOW() WHERE tenant_id =  AND id = ', [status, tenantId, id]);
+    return Boolean((res as unknown as { rowCount?: number })?.rowCount);
+  }
+
   async getPullRequestByFinding(tenantId: string, findingId: string): Promise<PullRequestRecord | null> {
     const rows = await this.query<{
       id: string;

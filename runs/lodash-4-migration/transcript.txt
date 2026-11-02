@@ -1,4 +1,4 @@
-Patchversion proof run - 2026-10-31T14:07:53.290Z
+Patchversion proof run - 2026-11-02T15:11:43.135Z
 Fixture repo: fixtures\lodash-repo
 Change record: fixtures\real-migration\lodash-change-record.json
 
@@ -22,7 +22,7 @@ After fix (4.17.21):   exit 0 - 3 passed, 0 failed, 3 total
 Sandbox: local-process (local process, NO isolation)
 Coverage: fix updated 1 of 1 affected call sites
 Files changed by fix: src/membership.js
-Duration: 56.8s
+Duration: 46.3s
 
 --- PREPARED PR ---
 Title: [Patchversion] Fix: lodash 3.10.1 -> 4.17.21 (1 call site)
