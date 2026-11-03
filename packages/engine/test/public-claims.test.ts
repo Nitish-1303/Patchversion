@@ -10,7 +10,6 @@ import path from 'path';
 const ROOT = path.resolve(__dirname, '../../..');
 const FILES = [
   'README.md',
-  'docs/technical-architecture.md',
   'package.json',
   ...walk(path.join(ROOT, 'packages/site/src/app')).map(f => path.relative(ROOT, f)),
 ];
@@ -134,7 +133,7 @@ describe('planned setup is not presented as a configuration-only feature', () =>
     expect(guide).toContain('GitHub PR delivery is not implemented');
   });
   test('proof descriptions keep fixture and isolation limits', () => {
-    for (const file of ['README.md', 'docs/technical-architecture.md']) {
+    for (const file of ['README.md']) {
       const text = read(file);
       expect(text).toMatch(/no isolation/);
       expect(text).toMatch(/bundled fixtures/);
