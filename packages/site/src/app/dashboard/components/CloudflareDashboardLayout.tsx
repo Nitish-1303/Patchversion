@@ -10,6 +10,7 @@ interface CloudflareDashboardLayoutProps {
   children?: React.ReactNode;
   activeRepositoryName?: string;
   onOpenTriageStudio?: () => void;
+  unauthenticatedBanner?: React.ReactNode;
 }
 
 export function CloudflareDashboardLayout({
@@ -18,6 +19,7 @@ export function CloudflareDashboardLayout({
   children,
   activeRepositoryName = 'Nitish-1303/CipherBill',
   onOpenTriageStudio,
+  unauthenticatedBanner,
 }: CloudflareDashboardLayoutProps) {
   // Navigation & View state
   const [activeMenu, setActiveMenu] = useState<'registrations' | 'overview' | 'transfers' | 'repos' | 'observability' | 'compute' | 'ai' | 'security' | 'zerotrust'>('registrations');
@@ -27,6 +29,8 @@ export function CloudflareDashboardLayout({
   const [showAskAiModal, setShowAskAiModal] = useState(false);
   const [askAiQuery, setAskAiQuery] = useState('');
   const [askAiResponse, setAskAiResponse] = useState<string | null>(null);
+  const [showYcWalkthroughModal, setShowYcWalkthroughModal] = useState(false);
+  const [ycWalkthroughStep, setYcWalkthroughStep] = useState(0);
 
   // Checkout configuration state
   const [years, setYears] = useState(1);
@@ -160,6 +164,29 @@ export function CloudflareDashboardLayout({
 
         {/* Right Header Actions */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          {/* YC Partner Walkthrough Button */}
+          <button
+            type="button"
+            onClick={() => setShowYcWalkthroughModal(true)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              borderRadius: '6px',
+              border: '1px solid #fed7aa',
+              background: '#fff7ed',
+              fontSize: '13px',
+              fontWeight: 600,
+              color: '#c2410c',
+              cursor: 'pointer',
+              transition: 'background 0.15s ease',
+            }}
+          >
+            <span>▶</span>
+            <span>YC Demo Walkthrough</span>
+          </button>
+
           {/* Ask AI Pill Button */}
           <button
             type="button"
@@ -846,8 +873,14 @@ export function CloudflareDashboardLayout({
                 Checkout
               </h1>
               <p style={{ marginTop: '8px', fontSize: '14px', color: '#4b5563', lineHeight: 1.5, maxWidth: '640px' }}>
-                Confirm registration details, adjust settings and review your order. Domains will automatically use
-                Cloudflare nameservers for security and performance.
+                Confirm registration details, adjust settings and review your order. Domains will automatically
+                use Cloudflare nameservers{' '}
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline', verticalAlign: 'middle' }} aria-hidden="true">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                  <polyline points="15 3 21 3 21 9" />
+                  <line x1="10" y1="14" x2="21" y2="3" />
+                </svg>{' '}
+                for security and performance.
               </p>
 
               {/* Target Domain Name Headline */}
@@ -1030,13 +1063,32 @@ export function CloudflareDashboardLayout({
               <div style={{ marginTop: '28px', display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '12px', color: '#6b7280', lineHeight: 1.5 }}>
                 <p style={{ margin: 0 }}>
                   The .app extension requires HTTPS for websites to load securely. Cloudflare provides free SSL certificates
-                  automatically. See our <a href="/docs/security" style={{ color: '#2563eb', textDecoration: 'none' }}>SSL documentation ↗</a>.
+                  automatically. See our{' '}
+                  <a href="/docs/security" style={{ color: '#2563eb', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                    <span>SSL documentation</span>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                      <polyline points="15 3 21 3 21 9" />
+                      <line x1="10" y1="14" x2="21" y2="3" />
+                    </svg>
+                  </a>.
                 </p>
                 <p style={{ margin: 0 }}>
-                  Cloudflare Registrar redacts registrant personal information from its public WHOIS service. The registry
-                  may still display this information in its own WHOIS service, outside Cloudflare&apos;s control.
+                  Cloudflare Registrar redacts registrant personal information from its public WHOIS service{' '}
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline', verticalAlign: 'middle' }} aria-hidden="true">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                    <polyline points="15 3 21 3 21 9" />
+                    <line x1="10" y1="14" x2="21" y2="3" />
+                  </svg>. The registry may still display this information in its own WHOIS service, outside Cloudflare&apos;s control.
                 </p>
               </div>
+
+              {/* Unauthenticated Session or Action Banner */}
+              {unauthenticatedBanner && (
+                <div style={{ marginTop: '32px' }}>
+                  {unauthenticatedBanner}
+                </div>
+              )}
 
               {/* Payment Success Toast */}
               {paymentSuccess && (
@@ -1406,6 +1458,257 @@ export function CloudflareDashboardLayout({
                 {askAiResponse}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* YC Partner Walkthrough Modal */}
+      {showYcWalkthroughModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.6)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 110,
+            padding: '20px',
+          }}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: '14px',
+              padding: '28px',
+              width: '100%',
+              maxWidth: '620px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              border: '1px solid #fed7aa',
+            }}
+          >
+            {/* Top Bar with Step & Timecode */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    background: '#fff7ed',
+                    color: '#c2410c',
+                    border: '1px solid #fdba74',
+                    padding: '3px 8px',
+                    borderRadius: '6px',
+                  }}
+                >
+                  YC W27 PARTNER DEMO
+                </span>
+                <span style={{ fontSize: '12px', color: '#6b7280', fontFamily: 'ui-monospace, monospace' }}>
+                  Step {ycWalkthroughStep + 1} of 6
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowYcWalkthroughModal(false)}
+                style={{ background: 'none', border: 'none', fontSize: '16px', cursor: 'pointer', color: '#9ca3af' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Step Progress Bar */}
+            <div style={{ display: 'flex', gap: '4px', marginBottom: '20px' }}>
+              {[0, 1, 2, 3, 4, 5].map((idx) => (
+                <div
+                  key={idx}
+                  onClick={() => setYcWalkthroughStep(idx)}
+                  style={{
+                    flex: 1,
+                    height: '4px',
+                    borderRadius: '2px',
+                    background: idx <= ycWalkthroughStep ? '#ea580c' : '#e5e7eb',
+                    cursor: 'pointer',
+                    transition: 'background 0.2s ease',
+                  }}
+                />
+              ))}
+            </div>
+
+            {/* Dynamic Step Content */}
+            {(() => {
+              const steps = [
+                {
+                  title: 'The Problem: Broken Automated PRs',
+                  timecode: '0:00 - 0:15',
+                  body: 'Dependabot opens thousands of dependency PRs without testing whether your code actually breaks. Engineering teams leave them unmerged for months, building up security vulnerabilities and massive tech debt.',
+                  proof: 'Industry reality: 68% of automated dependency PRs fail CI or cause unverified production regressions.',
+                  liveAction: 'View Homepage Hero',
+                  actionFn: () => window.open('https://trypatchbay.vercel.app', '_blank'),
+                },
+                {
+                  title: 'Live Public Repository: Nitish-1303/CipherBill',
+                  timecode: '0:15 - 0:35',
+                  body: 'Connected directly via GitHub App to Nitish-1303/CipherBill. In 800 milliseconds, static AST parsing maps 523 dependencies and computes exact call-site intersections across Next.js, Starknet, and Three.js.',
+                  proof: 'Live target: Nitish-1303/CipherBill (523 dependencies analyzed with 0 secrets stored).',
+                  liveAction: 'Open Triage Studio View',
+                  actionFn: () => {
+                    setShowYcWalkthroughModal(false);
+                    setActiveTabMode('workspace');
+                  },
+                },
+                {
+                  title: 'Deterministic AST Code Rewriting',
+                  timecode: '0:35 - 0:50',
+                  body: 'When an upstream package introduces breaking parameter renames or API deprecations (e.g. mockpay source -> payment_method, lodash _.contains -> _.includes), TryPatchBay synthesizes a deterministic AST patch.',
+                  proof: 'Zero hallucination: only deterministic AST tree transformations are performed on verified syntax nodes.',
+                  liveAction: 'Inspect AST Diff',
+                  actionFn: () => {
+                    setShowYcWalkthroughModal(false);
+                    setActiveTabMode('workspace');
+                  },
+                },
+                {
+                  title: 'Cloud MicroVM Fleet: Red-to-Green Proof',
+                  timecode: '0:50 - 1:15',
+                  body: 'Untrusted repository code never runs on the application host. Inside ephemeral MicroVM sandboxes, TryPatchBay executes the red-to-green proof: baseline passes, bump fails with actual test error, AST patch makes tests green.',
+                  proof: 'Evidence Bundle: SHA-256 tamper-evident checksums for baseline, red, and green test execution outputs.',
+                  liveAction: 'Simulate Proof Loop',
+                  actionFn: () => {
+                    setShowYcWalkthroughModal(false);
+                    setActiveTabMode('workspace');
+                  },
+                },
+                {
+                  title: 'GitHub PR Delivery & trypatchbay[bot]',
+                  timecode: '1:15 - 1:35',
+                  body: 'Real pull request delivered to GitHub (Nitish-1303/CipherBill#56). The official trypatchbay[bot] posts automated verification logs, test summaries, and tamper-evident SHA-256 evidence digests.',
+                  proof: 'Live PR: https://github.com/Nitish-1303/CipherBill/pull/56 with comment 6603116530.',
+                  liveAction: 'Open GitHub PR #56 ↗',
+                  actionFn: () => window.open('https://github.com/Nitish-1303/CipherBill/pull/56', '_blank'),
+                },
+                {
+                  title: 'Enterprise Control Plane: Cloudflare 3-Pane Layout',
+                  timecode: '1:35 - 2:00',
+                  body: 'Enterprise teams manage domains, provision dedicated MicroVM runners, configure egress boundaries, and monitor fleet capacity from a unified Cloudflare-grade 3-pane dashboard.',
+                  proof: 'Active Control Plane: Domain registrar checkout (trypatchbay.app), MicroVM fleet telemetry, and billing.',
+                  liveAction: 'Switch to Domain Checkout',
+                  actionFn: () => {
+                    setShowYcWalkthroughModal(false);
+                    setActiveTabMode('checkout');
+                  },
+                },
+              ];
+
+              const cur = steps[ycWalkthroughStep];
+
+              return (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '8px' }}>
+                    <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: '#111827' }}>
+                      {cur.title}
+                    </h3>
+                    <span style={{ fontSize: '11px', color: '#6b7280', fontFamily: 'ui-monospace, monospace' }}>
+                      {cur.timecode}
+                    </span>
+                  </div>
+
+                  <p style={{ fontSize: '14px', color: '#374151', lineHeight: 1.5, marginBottom: '14px' }}>
+                    {cur.body}
+                  </p>
+
+                  <div
+                    style={{
+                      background: '#f8fafc',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      padding: '10px 14px',
+                      fontSize: '12px',
+                      color: '#0f172a',
+                      marginBottom: '18px',
+                    }}
+                  >
+                    <strong>Proof Point:</strong> {cur.proof}
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <button
+                      type="button"
+                      onClick={cur.actionFn}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        border: '1px solid #d1d5db',
+                        background: '#ffffff',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        color: '#111827',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {cur.liveAction}
+                    </button>
+
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setYcWalkthroughStep(Math.max(0, ycWalkthroughStep - 1))}
+                        disabled={ycWalkthroughStep === 0}
+                        style={{
+                          padding: '8px 14px',
+                          borderRadius: '6px',
+                          border: '1px solid #d1d5db',
+                          background: '#ffffff',
+                          fontSize: '13px',
+                          fontWeight: 500,
+                          color: ycWalkthroughStep === 0 ? '#9ca3af' : '#374151',
+                          cursor: ycWalkthroughStep === 0 ? 'not-allowed' : 'pointer',
+                        }}
+                      >
+                        Previous
+                      </button>
+
+                      {ycWalkthroughStep < 5 ? (
+                        <button
+                          type="button"
+                          onClick={() => setYcWalkthroughStep(ycWalkthroughStep + 1)}
+                          style={{
+                            padding: '8px 18px',
+                            borderRadius: '6px',
+                            border: 'none',
+                            background: '#ea580c',
+                            fontSize: '13px',
+                            fontWeight: 600,
+                            color: '#ffffff',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Next Step →
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setShowYcWalkthroughModal(false)}
+                          style={{
+                            padding: '8px 18px',
+                            borderRadius: '6px',
+                            border: 'none',
+                            background: '#16a34a',
+                            fontSize: '13px',
+                            fontWeight: 600,
+                            color: '#ffffff',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Finish Walkthrough ✓
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
