@@ -4,6 +4,7 @@ import { MockpayPaymentMethodRule } from './rules/mockpay-rename';
 import { OpenAIV3ToV4Rule } from './rules/openai-v3-to-v4';
 import { NextJs14To15AsyncRule } from './rules/nextjs-v14-to-v15';
 import { StripePaymentIntentsRule } from './rules/stripe-rename';
+import { AxiosV0ToV1Rule } from './rules/axios-v0-to-v1';
 
 export class MigrationRuleRegistry {
   private rules: Map<string, IMigrationRule> = new Map();
@@ -15,6 +16,7 @@ export class MigrationRuleRegistry {
     this.register(new OpenAIV3ToV4Rule());
     this.register(new NextJs14To15AsyncRule());
     this.register(new StripePaymentIntentsRule());
+    this.register(new AxiosV0ToV1Rule());
   }
 
   register(rule: IMigrationRule): void {

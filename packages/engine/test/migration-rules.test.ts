@@ -4,6 +4,7 @@ import os from 'os';
 import { OpenAIV3ToV4Rule } from '../src/migration/rules/openai-v3-to-v4';
 import { NextJs14To15AsyncRule } from '../src/migration/rules/nextjs-v14-to-v15';
 import { StripePaymentIntentsRule } from '../src/migration/rules/stripe-rename';
+import { AxiosV0ToV1Rule } from '../src/migration/rules/axios-v0-to-v1';
 import { defaultMigrationRegistry } from '../src/migration/registry';
 
 describe('Real-World Migration Rules', () => {
@@ -153,6 +154,46 @@ export async function chargeCustomer(customerId: string, amount: number) {
       expect(result.filesModified).toContain('billing.ts');
       expect(result.unifiedDiff).toContain('stripe.paymentIntents.create');
       expect(result.unifiedDiff).toContain('payment_method: \'tok_visa\'');
+      expect(result.diffHash).toBeTruthy();
+    });
+  });
+
+  describe('AxiosV0ToV1Rule', () => {
+    it('discovers Axios rule in registry', () => {
+      const applicable = defaultMigrationRegistry.findApplicableRules('axios', '0.27.2', '1.6.0');
+      expect(applicable.some(r => r.id === 'axios-v0-to-v1-promise-all')).toBe(true);
+    });
+
+    it('transforms axios.all to Promise.all and modernizes axios.spread', async () => {
+      const rule = new AxiosV0ToV1Rule();
+
+      fs.writeFileSync(
+        path.join(tmpDir, 'package.json'),
+        JSON.stringify({ dependencies: { axios: '^0.27.0' } }),
+      );
+
+      const code = `
+import axios from 'axios';
+
+export async function fetchAllUsers() {
+  const req1 = axios.get('/api/users/1');
+  const req2 = axios.get('/api/users/2');
+  return axios.all([req1, req2]);
+}
+`;
+      const filePath = path.join(tmpDir, 'fetcher.ts');
+      fs.writeFileSync(filePath, code);
+
+      const result = await rule.execute({
+        repoPath: tmpDir,
+        packageName: 'axios',
+        fromVersion: '0.27.2',
+        toVersion: '1.6.0',
+      });
+
+      expect(result.preconditionsSatisfied).toBe(true);
+      expect(result.filesModified).toContain('fetcher.ts');
+      expect(result.unifiedDiff).toContain('Promise.all([req1, req2])');
       expect(result.diffHash).toBeTruthy();
     });
   });

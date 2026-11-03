@@ -18,7 +18,8 @@
     "readiness": "npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run readiness -w @patchversion/engine",
     "db:migrate": "npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run db:migrate -w @patchversion/engine",
     "db:status": "npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run db:status -w @patchversion/engine",
-    "db:verify": "npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run db:verify -w @patchversion/engine"
+    "db:verify": "npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run db:verify -w @patchversion/engine",
+    "cli": "node bin/trypatchbay.js"
   },
   "devDependencies": {
     "eslint": "^9.0.0",
@@ -27,5 +28,8 @@
   },
   "engines": {
     "node": ">=20.9.0"
+  },
+  "bin": {
+    "trypatchbay": "./bin/trypatchbay.js"
   }
 }
