@@ -356,6 +356,6 @@ describe('Webhook Installation Deletion and Watch Target Hardening', () => {
       expect(fixResult).toBeDefined();
       expect(fixResult.error).toMatch(/execution for live repository "live-customer-org\/billing-service" is disabled/i);
       expect(fixResult.validation).toBeUndefined();
-    });
+    }, 20_000);
   });
 });

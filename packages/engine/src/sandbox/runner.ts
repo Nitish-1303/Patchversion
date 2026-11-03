@@ -281,7 +281,7 @@ export class SandboxRunner {
         coverageTotal: impact.affectedCallSites.length,
         unverifiable,
         producedAt: new Date().toISOString(),
-        sandboxType: 'local-process',
+        sandboxType: this.config.sandboxMode === 'microvm' ? 'microvm' : 'local-process',
         durationMs: 0, // populated by caller
       },
     };

@@ -84,7 +84,7 @@ export interface ProofArtifact {
   coverageTotal: number;    // M total call sites
   unverifiable: UnverifiableSite[];
   producedAt: string;
-  sandboxType: 'docker-isolated' | 'local-process';
+  sandboxType: 'docker-isolated' | 'local-process' | 'microvm';
   durationMs: number;
   executionProvenance?: 'fixture-verified' | 'executed' | 'not-executed';
 }

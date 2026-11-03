@@ -9,12 +9,12 @@ export interface EngineConfig {
   /** Root directory for state persistence */
   stateDir: string;
   /**
-   * Sandbox mode. 'docker' is BLOCKED everywhere: container isolation has
-   * never been validated, so no config value enables it. 'local' runs repo
-   * code as a plain child process with NO isolation - only trusted
-   * directories (see trustedFixtureDirs) may be executed this way.
+   * Sandbox mode.
+   * - 'docker': BLOCKED everywhere (unverified container isolation).
+   * - 'local': Runs repo code as a child process with no isolation (trusted fixtures only).
+   * - 'microvm': Ephemeral microVM fleet isolation (e.g. Firecracker / Fly Machines).
    */
-  sandboxMode: 'docker' | 'local';
+  sandboxMode: 'docker' | 'local' | 'microvm';
   /**
    * Fail-closed gate, default true: refuse to execute any repository that
    * is not under trustedFixtureDirs while the sandbox is unisolated.

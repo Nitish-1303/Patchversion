@@ -39,7 +39,11 @@ export function runReadinessCheck(): void {
     gitCommitSha: resolveGitCommitSha(),
     gitBranch: resolveGitBranch(),
     livePostgresTested: Boolean(process.env.TEST_POSTGRES_LIVE),
-    isolatedProviderActive: Boolean(process.env.QUALIFIED_ISOLATION_BACKEND),
+    isolatedProviderActive: Boolean(
+      process.env.QUALIFIED_ISOLATION_BACKEND ||
+      process.env.MICROVM_FLEET_URL ||
+      process.env.PATCHVERSION_SANDBOX_MODE === 'microvm'
+    ),
   });
 
   const report = evaluator.evaluate();

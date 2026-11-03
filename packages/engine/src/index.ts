@@ -74,6 +74,18 @@ export {
   LocalTrustedFixtureProvider,
   ProductionIsolatedExecutionProvider,
 } from './sandbox/execution-provider';
+export {
+  MicroVMFleetProvider,
+  type MicroVMFleetConfig,
+  type MicroVMFleetHealth,
+  type MicroVMInstance,
+  MicroVMFleetUnavailableError,
+} from './sandbox/microvm-fleet-provider';
+export {
+  resolveExecutionProvider,
+  isQualifiedIsolationActive,
+  type ResolveProviderOptions,
+} from './sandbox/provider-adapter';
 export { WorkerExecutionService, type WorkerServiceConfig } from './sandbox/worker-service';
 export { WorkflowOrchestrator } from './jobs/orchestrator';
 export {
