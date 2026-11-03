@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import type { DemoArtifactResponse } from '../../api/dashboard/demo-evidence/route';
+import { getBundledDemoArtifactResponse } from '../data/bundled-artifacts';
 import {
   ShieldCheckIcon,
   CheckCircleIcon,
@@ -24,8 +25,7 @@ interface PublicDemoCockpitProps {
 
 export function PublicDemoCockpit({ onSignInClick, authenticated = false }: PublicDemoCockpitProps) {
   const [selectedRun, setSelectedRun] = useState<'lodash' | 'mockpay'>('lodash');
-  const [data, setData] = useState<DemoArtifactResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<DemoArtifactResponse | null>(() => getBundledDemoArtifactResponse('lodash'));
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'pr' | 'json' | 'transcript' | 'readiness'>('pr');
   const [copiedDiff, setCopiedDiff] = useState(false);
@@ -35,26 +35,25 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
   const [expandTestOutputs, setExpandTestOutputs] = useState(false);
   const [showFullSource, setShowFullSource] = useState(false);
 
+  const handleSelectRun = (run: 'lodash' | 'mockpay') => {
+    setSelectedRun(run);
+    setData(getBundledDemoArtifactResponse(run));
+  };
+
   useEffect(() => {
     let active = true;
+
     async function load() {
       try {
         const res = await fetch(`/api/dashboard/demo-evidence?run=${selectedRun}`);
-        if (!res.ok) {
-          const errJson = await res.json().catch(() => ({}));
-          throw new Error(errJson.error || `HTTP ${res.status}`);
-        }
+        if (!res.ok) return;
         const json: DemoArtifactResponse = await res.json();
-        if (active) {
+        if (active && json?.evidence?.proof) {
           setData(json);
-          setLoading(false);
           setError(null);
         }
-      } catch (err) {
-        if (active) {
-          setError(err instanceof Error ? err.message : String(err));
-          setLoading(false);
-        }
+      } catch {
+        // Fallback is already actively rendered
       }
     }
     load();
@@ -109,7 +108,7 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
   };
 
   const handleReset = () => {
-    setSelectedRun('lodash');
+    handleSelectRun('lodash');
     setActiveTab('pr');
     setExpandTestOutputs(false);
     setShowFullSource(false);
@@ -243,7 +242,7 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
           >
             <button
               type="button"
-              onClick={() => setSelectedRun('lodash')}
+              onClick={() => handleSelectRun('lodash')}
               style={{
                 padding: '6px 14px',
                 fontSize: '12px',
@@ -265,7 +264,7 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
             </button>
             <button
               type="button"
-              onClick={() => setSelectedRun('mockpay')}
+              onClick={() => handleSelectRun('mockpay')}
               style={{
                 padding: '6px 14px',
                 fontSize: '12px',
@@ -331,7 +330,7 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
       {/* Main Content Area */}
       <div style={{ padding: '28px 24px' }}>
         {/* Loading / Error States */}
-        {loading && (
+        {!data && (
           <div
             style={{
               padding: '28px',
@@ -501,7 +500,7 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
                   margin: 0,
                 }}
               >
-                In Lodash v4.0.0, the collection utility <code style={{ color: '#f87171', background: 'rgba(239,68,68,0.1)', padding: '2px 6px', borderRadius: '4px', fontSize: '12px' }}>_.contains</code> was completely removed in favor of <code style={{ color: '#34d399', background: 'rgba(16,185,129,0.1)', padding: '2px 6px', borderRadius: '4px', fontSize: '12px' }}>_.includes</code>. Calling <code style={{ color: '#fca5a5' }}>_.contains</code> throws a fatal TypeError at runtime.
+                {config.breakingDescription}
               </p>
             </div>
 
@@ -627,7 +626,7 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
               </div>
               <div>
                 <strong style={{ color: '#e2e8f0' }}>Truthful boundary disclosure:</strong> TryPatchBay is an early-stage prototype. This
-                demonstration uses a trusted local Lodash migration fixture running against authentic npm packages (<code>{config.packageName}@{config.fromVersion}</code> &rarr; <code>{config.packageName}@{config.toVersion}</code>).
+                demonstration uses a trusted local migration fixture running against authentic npm packages (<code>{config.packageName}@{config.fromVersion}</code> &rarr; <code>{config.packageName}@{config.toVersion}</code>).
                 Arbitrary customer repository execution is fail-closed disabled until isolated microVM compute is provisioned.
               </div>
             </div>

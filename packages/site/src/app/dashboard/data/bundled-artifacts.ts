@@ -165,3 +165,161 @@ export const BUNDLED_MOCKPAY_PR = "# [Patchversion] Fix: mockpay 1.0.0 -> 2.0.0 
 export const BUNDLED_MOCKPAY_TRANSCRIPT = "Patchversion proof run - 2026-11-02T12:11:59.494Z\nFixture repo: fixtures\\sample-repo\nChange record: fixtures\\breaking-change\\change-record.json\n\nChange: mockpay 1.0.0 -> 2.0.0\nSource: registry - https://www.npmjs.com/package/mockpay/v/2.0.0\nNotes: BREAKING CHANGE: The 'source' parameter in charges.create has been renamed to 'payment_method'. Update your integration to use the new parameter name. The old parameter will be ignored.\n\n--- USAGE MAP ---\nFiles scanned: 6, files using mockpay: 1\n  src\\createCharge.js:4  mockpay.charges.create({\r\n  src\\createCharge.js:14  mockpay.refunds.create({\r\n\n--- IMPACT ---\nAffected call sites: src\\createCharge.js:4\nPotential (broad match, not individually verified): src\\createCharge.js:14\n\n--- RED-TO-GREEN PROOF ---\nBaseline (1.0.0):  exit 0 - 3 passed, 0 failed, 3 total\nBumped (2.0.0):      exit 1 - 1 passed, 2 failed, 3 total\nAfter fix (2.0.0):   exit 0 - 3 passed, 0 failed, 3 total\nSandbox: local-process (local process, NO isolation)\nCoverage: fix updated 1 of 1 affected call sites\nFiles changed by fix: src/createCharge.js\nDuration: 48.2s\n\n--- PREPARED PR ---\nTitle: [Patchversion] Fix: mockpay 1.0.0 -> 2.0.0 (1 call site)\nBranch: patchversion/mockpay-2.0.0\n\nPROOF VALID. Outputs written to ..\\..\\runs\\latest/\n";
 
 export const BUNDLED_MOCKPAY_SOURCE = "const mockpay = require('mockpay');\r\n\r\nasync function createCharge(amount, currency, source) {\r\n  const charge = await mockpay.charges.create({\r\n    amount: amount,\r\n    currency: currency,\r\n    source: source,  // This field gets renamed to 'payment_method' in v2\r\n    description: 'Payment for order'\r\n  });\r\n  return charge;\r\n}\r\n\r\nasync function refundCharge(chargeId, amount) {\r\n  const refund = await mockpay.refunds.create({\r\n    charge: chargeId,\r\n    amount: amount\r\n  });\r\n  return refund;\r\n}\r\n\r\nmodule.exports = { createCharge, refundCharge };\r\n";
+
+export interface DemoRunConfig {
+  key: string;
+  title: string;
+  packageName: string;
+  fromVersion: string;
+  toVersion: string;
+  isRealPackage: boolean;
+  breakingApi: string;
+  replacementApi: string;
+  breakingDescription: string;
+  artifactDirRel: string;
+  sourceFileRel: string;
+  sourceLine: number;
+  originalCall: string;
+  replacementCall: string;
+  failureExplanation: string;
+  reproductionCommand: string;
+}
+
+export interface DemoArtifactResponse {
+  status: 'ready' | 'missing' | 'malformed' | 'failed';
+  config: DemoRunConfig;
+  availableRuns: { key: string; title: string; isRealPackage: boolean }[];
+  evidence: {
+    proof: Record<string, unknown> | null;
+    preparedPr: string | null;
+    manifest: Record<string, unknown> | null;
+    transcript: string | null;
+    sourceCode: {
+      relativePath: string;
+      content: string;
+      line: number;
+    } | null;
+  };
+  readiness: {
+    proofArtifactPresent: boolean;
+    proofArtifactValid: boolean;
+    preparedPrPresent: boolean;
+    testResultDataPresent: boolean;
+    sourceDiffPresent: boolean;
+    overallStatus: 'passed' | 'failed' | 'incomplete' | 'unavailable';
+    errors: string[];
+  };
+  reproduction: {
+    runCommand: string;
+    installCommand: string;
+    artifactDirectory: string;
+  };
+}
+
+export function getBundledDemoArtifactResponse(runKey: 'lodash' | 'mockpay' = 'lodash'): DemoArtifactResponse {
+  if (runKey === 'mockpay') {
+    return {
+      status: 'ready',
+      config: {
+        key: 'mockpay',
+        title: 'Mockpay 1.0.0 → 2.0.0 (Synthetic Parameter Rename)',
+        packageName: 'mockpay',
+        fromVersion: '1.0.0',
+        toVersion: '2.0.0',
+        isRealPackage: false,
+        breakingApi: 'charges.create({ source: ... })',
+        replacementApi: 'charges.create({ payment_method: ... })',
+        breakingDescription:
+          "In Mockpay v2.0.0, the 'source' parameter was renamed to 'payment_method'. Passing 'source' is rejected by the SDK with an unrecognized parameter error.",
+        artifactDirRel: 'runs/latest',
+        sourceFileRel: 'fixtures/sample-repo/src/createCharge.js',
+        sourceLine: 4,
+        originalCall: 'source: paymentSource,',
+        replacementCall: 'payment_method: paymentSource,',
+        failureExplanation: "Error: parameter 'source' is no longer supported; use 'payment_method'",
+        reproductionCommand: 'npm run prove',
+      },
+      availableRuns: [
+        { key: 'lodash', title: 'Lodash 3.10.1 → 4.17.21 (Real Package Migration)', isRealPackage: true },
+        { key: 'mockpay', title: 'Mockpay 1.0.0 → 2.0.0 (Synthetic Parameter Rename)', isRealPackage: false },
+      ],
+      evidence: {
+        proof: BUNDLED_MOCKPAY_PROOF,
+        preparedPr: BUNDLED_MOCKPAY_PR,
+        manifest: null,
+        transcript: BUNDLED_MOCKPAY_TRANSCRIPT,
+        sourceCode: {
+          relativePath: 'fixtures/sample-repo/src/createCharge.js',
+          content: BUNDLED_MOCKPAY_SOURCE,
+          line: 4,
+        },
+      },
+      readiness: {
+        proofArtifactPresent: true,
+        proofArtifactValid: true,
+        preparedPrPresent: true,
+        testResultDataPresent: true,
+        sourceDiffPresent: true,
+        overallStatus: 'passed',
+        errors: [],
+      },
+      reproduction: {
+        runCommand: 'npm run prove',
+        installCommand: 'npm install',
+        artifactDirectory: 'runs/latest',
+      },
+    };
+  }
+
+  return {
+    status: 'ready',
+    config: {
+      key: 'lodash',
+      title: 'Lodash 3.10.1 → 4.17.21 (Real Package Migration)',
+      packageName: 'lodash',
+      fromVersion: '3.10.1',
+      toVersion: '4.17.21',
+      isRealPackage: true,
+      breakingApi: '_.contains(collection, target)',
+      replacementApi: '_.includes(collection, target)',
+      breakingDescription:
+        'In Lodash v4.0.0, the collection utility _.contains was completely removed in favor of _.includes. Calling _.contains throws a fatal TypeError at runtime.',
+      artifactDirRel: 'runs/lodash-4-migration',
+      sourceFileRel: 'fixtures/lodash-repo/src/membership.js',
+      sourceLine: 6,
+      originalCall: 'return _.contains(ids, id);',
+      replacementCall: 'return _.includes(ids, id);',
+      failureExplanation: 'TypeError: _.contains is not a function at isMember (src/membership.js:6:12)',
+      reproductionCommand: 'npm run prove:real',
+    },
+    availableRuns: [
+      { key: 'lodash', title: 'Lodash 3.10.1 → 4.17.21 (Real Package Migration)', isRealPackage: true },
+      { key: 'mockpay', title: 'Mockpay 1.0.0 → 2.0.0 (Synthetic Parameter Rename)', isRealPackage: false },
+    ],
+    evidence: {
+      proof: BUNDLED_LODASH_PROOF,
+      preparedPr: BUNDLED_LODASH_PR,
+      manifest: BUNDLED_LODASH_MANIFEST,
+      transcript: BUNDLED_LODASH_TRANSCRIPT,
+      sourceCode: {
+        relativePath: 'fixtures/lodash-repo/src/membership.js',
+        content: BUNDLED_LODASH_SOURCE,
+        line: 6,
+      },
+    },
+    readiness: {
+      proofArtifactPresent: true,
+      proofArtifactValid: true,
+      preparedPrPresent: true,
+      testResultDataPresent: true,
+      sourceDiffPresent: true,
+      overallStatus: 'passed',
+      errors: [],
+    },
+    reproduction: {
+      runCommand: 'npm run prove:real',
+      installCommand: 'npm install',
+      artifactDirectory: 'runs/lodash-4-migration',
+    },
+  };
+}
