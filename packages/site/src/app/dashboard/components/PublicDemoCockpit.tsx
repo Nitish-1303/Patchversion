@@ -192,7 +192,7 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
             }}
           >
             <PulseDotIcon size={7} color="#2563eb" />
-            PUBLIC YC WORKSPACE (READ-ONLY)
+            PUBLIC DEMO WORKSPACE (READ-ONLY)
           </div>
 
           <div
@@ -1617,7 +1617,7 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
           </div>
         </div>
 
-        {/* SECTION F: YC Evaluator Local Reproduction Runbook */}
+        {/* SECTION F: Local Reproduction Runbook */}
         <div
           style={{
             background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
@@ -1639,7 +1639,7 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
           >
             <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
               <TerminalIcon size={16} color="#2563eb" />
-              How to Reproduce This Proof Locally (YC Evaluator Runbook)
+              How to Reproduce This Proof Locally (Developer Runbook)
             </h2>
             <button
               type="button"
@@ -1660,7 +1660,7 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
             </button>
           </div>
           <p style={{ color: '#475569', fontSize: '13px', margin: '0 0 12px 0', lineHeight: 1.5 }}>
-            Any YC evaluator can check out the source code and reproduce the exact Lodash 3 to 4 red-to-green proof locally on their machine in under 60 seconds:
+            Any engineer can check out the source code and reproduce the exact Lodash 3 to 4 red-to-green proof locally on their machine in under 60 seconds:
           </p>
           <div
             style={{

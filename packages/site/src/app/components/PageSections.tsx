@@ -466,7 +466,7 @@ export function PricingMatrix() {
       <PageHeading
         eyebrow="PLANNED COMMERCIAL MODEL"
         title="Predictable, repository-based pricing."
-        description="Initial pricing hypotheses from our YC W27 application. Early developer access is free; paid tiers will activate as hosted microVM sandboxes come online."
+        description="Initial pricing hypotheses. Early developer access is free; paid tiers will activate as hosted microVM sandboxes come online."
       />
       <div className="pricing-grid-4">
         {tiers.map((t, idx) => (

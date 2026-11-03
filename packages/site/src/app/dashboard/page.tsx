@@ -627,7 +627,7 @@ export default function DashboardPage() {
 
   const activeFixture = PROOF_STUDIO_FIXTURES[proofFixtureKey];
 
-  // If not authenticated, open public YC demo workspace with developer sign-in options
+  // If not authenticated, open public demo workspace with developer sign-in options
   if (authenticated === false) {
     return (
       <div style={{ maxWidth: '1360px', margin: '0 auto', padding: '24px 20px 80px' }}>

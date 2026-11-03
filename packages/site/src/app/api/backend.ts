@@ -280,7 +280,7 @@ export async function ensureDemoTenantAndUser(): Promise<{ tenant: Tenant; user:
     inst = await db.saveInstallation(tenant.id, 10001, 'patchbay-demo');
   }
 
-  // Pre-register real public repository CipherBill as the primary YC demo repository
+  // Pre-register real public repository CipherBill as the primary public demo repository
   const cipherbillRepo = await db.getRepository(tenant.id, CIPHERBILL_REPO_ID);
   if (!cipherbillRepo) {
     await db.saveRepository(tenant.id, inst.id, {
@@ -327,7 +327,7 @@ export async function ensureDemoTenantAndUser(): Promise<{ tenant: Tenant; user:
 
 /**
  * Ensures test fixture repository (checkout-service) exists for automated regression tests.
- * Retained strictly for test infrastructure; not exposed in the user-facing YC demo path.
+ * Retained strictly for test infrastructure; not exposed in the user-facing public demo path.
  */
 export async function ensureCheckoutServiceFixtureRepo(tenantId: string): Promise<RepositoryRecord> {
   const db = getDatabase();

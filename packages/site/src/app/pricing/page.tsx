@@ -9,7 +9,7 @@ export default function PricingPage() {
           <PageHeading
             eyebrow="PRICING & COMMERCIAL MODEL"
             title="Simple, repository-based pricing."
-            description="Honest pricing hypotheses from our YC W27 application. TryPatchBay charges per repository, not per developer seat, because dependency breaking changes and AST patches are repository-scoped."
+            description="Honest pricing hypotheses. TryPatchBay charges per repository, not per developer seat, because dependency breaking changes and AST patches are repository-scoped."
           />
         </div>
       </section>
@@ -18,9 +18,9 @@ export default function PricingPage() {
 
       <section className="section-block content-width">
         <PageHeading
-          eyebrow="YC W27 COMMERCIAL DISCLOSURE"
+          eyebrow="COMMERCIAL DISCLOSURE"
           title="How TryPatchBay plans to make money."
-          description="A direct overview of our monetization strategy, unit economics, and honest early-stage status as submitted to Y Combinator."
+          description="A direct overview of our monetization strategy, unit economics, and honest early-stage status for early evaluation."
         />
 
         <div className="feature-grid" style={{ marginTop: '40px' }}>
@@ -39,7 +39,7 @@ export default function PricingPage() {
               <span className="small-label">CURRENT STATUS</span>
               <h3>$0 Revenue & 0 Paying Customers</h3>
               <p>
-                As stated in our YC W27 application: TryPatchBay has 0 paying customers and $0 revenue today. The prototype demonstrates AST static analysis, call-site mapping, and deterministic patch generation on bundled fixtures only. Our $49/mo and $299/mo tiers are hypotheses to be validated through customer pilots.
+                TryPatchBay has 0 paying customers and $0 revenue today. The prototype demonstrates AST static analysis, call-site mapping, and deterministic patch generation on bundled fixtures only. Our $49/mo and $299/mo tiers are hypotheses to be validated through customer pilots.
               </p>
             </div>
           </Reveal>
@@ -60,7 +60,7 @@ export default function PricingPage() {
         <div className="split-art-card" style={{ maxWidth: 840, margin: '0 auto', textAlign: 'left' }}>
           <span className="small-label" style={{ color: '#2b59ff' }}>PLANNED TIERS AT A GLANCE</span>
           <h3 style={{ fontSize: '22px', fontWeight: 700, margin: '10px 0 16px', color: 'var(--navy-deep)' }}>
-            The 3 Commercial Tiers from our YC Application
+            The 3 Commercial Tiers
           </h3>
           <div className="mini-flow">
             <div className="mini-flow-row">
@@ -83,7 +83,7 @@ export default function PricingPage() {
             </div>
           </div>
           <p className="art-caption">
-            * All prices reflect the exact hypotheses submitted in our Y Combinator W27 founder application.
+            * All prices reflect initial pricing hypotheses for customer pilots.
           </p>
         </div>
       </section>
@@ -104,7 +104,7 @@ export default function PricingPage() {
           <details>
             <summary>Are paid plans active right now?</summary>
             <p>
-              No. No credit card billing or checkout flow is connected to this application. We are actively conducting developer interviews and pilot evaluations during the YC batch.
+              No. No credit card billing or checkout flow is connected to this application. We are actively conducting developer interviews and pilot evaluations during early access.
             </p>
           </details>
           <details>
