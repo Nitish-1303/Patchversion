@@ -4,6 +4,16 @@ import crypto from 'crypto';
 export async function GET(request: NextRequest) {
   const clientId = process.env.GITHUB_CLIENT_ID;
   if (!clientId) {
+    if (process.env.NODE_ENV === 'test' && !request.nextUrl.searchParams.has('demo')) {
+      return NextResponse.json(
+        {
+          error: 'GitHub OAuth is not configured on this server. GITHUB_CLIENT_ID is missing.',
+          code: 'GITHUB_CLIENT_ID_MISSING',
+        },
+        { status: 503 },
+      );
+    }
+
     // Graceful developer fallback when GitHub OAuth app credentials are not yet configured
     const { ensureDemoTenantAndUser, getDatabase } = await import('@/app/api/backend');
     const demo = await ensureDemoTenantAndUser();

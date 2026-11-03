@@ -5,6 +5,8 @@ import { OpenAIV3ToV4Rule } from '../src/migration/rules/openai-v3-to-v4';
 import { NextJs14To15AsyncRule } from '../src/migration/rules/nextjs-v14-to-v15';
 import { StripePaymentIntentsRule } from '../src/migration/rules/stripe-rename';
 import { AxiosV0ToV1Rule } from '../src/migration/rules/axios-v0-to-v1';
+import { React18To19RefRule } from '../src/migration/rules/react-v18-to-v19';
+import { ZodV3ModernizeRule } from '../src/migration/rules/zod-v3-upgrade';
 import { defaultMigrationRegistry } from '../src/migration/registry';
 
 describe('Real-World Migration Rules', () => {
@@ -159,6 +161,16 @@ export async function chargeCustomer(customerId: string, amount: number) {
   });
 
   describe('AxiosV0ToV1Rule', () => {
+    it('discovers React 19 rule in registry', () => {
+      const applicable = defaultMigrationRegistry.findApplicableRules('react', '18.2.0', '19.0.0');
+      expect(applicable.some(r => r.id === 'react-v18-to-v19-forward-ref')).toBe(true);
+    });
+
+    it('discovers Zod v3 rule in registry', () => {
+      const applicable = defaultMigrationRegistry.findApplicableRules('zod', '2.0.0', '3.22.0');
+      expect(applicable.some(r => r.id === 'zod-v3-transformer-to-transform')).toBe(true);
+    });
+
     it('discovers Axios rule in registry', () => {
       const applicable = defaultMigrationRegistry.findApplicableRules('axios', '0.27.2', '1.6.0');
       expect(applicable.some(r => r.id === 'axios-v0-to-v1-promise-all')).toBe(true);
@@ -194,6 +206,69 @@ export async function fetchAllUsers() {
       expect(result.preconditionsSatisfied).toBe(true);
       expect(result.filesModified).toContain('fetcher.ts');
       expect(result.unifiedDiff).toContain('Promise.all([req1, req2])');
+      expect(result.diffHash).toBeTruthy();
+    });
+  });
+  describe('React18To19RefRule', () => {
+    it('unwraps forwardRef to standard function component', async () => {
+      const rule = new React18To19RefRule();
+
+      fs.writeFileSync(
+        path.join(tmpDir, 'package.json'),
+        JSON.stringify({ dependencies: { react: '^18.2.0' } }),
+      );
+
+      const code = `
+import React, { forwardRef } from 'react';
+
+export const TextInput = forwardRef((props, ref) => {
+  return <input ref={ref} {...props} />;
+});
+`;
+      const filePath = path.join(tmpDir, 'TextInput.tsx');
+      fs.writeFileSync(filePath, code);
+
+      const result = await rule.execute({
+        repoPath: tmpDir,
+        packageName: 'react',
+        fromVersion: '18.2.0',
+        toVersion: '19.0.0',
+      });
+
+      expect(result.preconditionsSatisfied).toBe(true);
+      expect(result.filesModified).toContain('TextInput.tsx');
+      expect(result.unifiedDiff).toContain('export const TextInput = (props, ref) => {');
+      expect(result.diffHash).toBeTruthy();
+    });
+  });
+
+  describe('ZodV3ModernizeRule', () => {
+    it('migrates z.transformer to z.transform', async () => {
+      const rule = new ZodV3ModernizeRule();
+
+      fs.writeFileSync(
+        path.join(tmpDir, 'package.json'),
+        JSON.stringify({ dependencies: { zod: '^2.0.0' } }),
+      );
+
+      const code = `
+import { z } from 'zod';
+
+export const StringToNumSchema = z.string().transformer((val) => Number(val));
+`;
+      const filePath = path.join(tmpDir, 'schema.ts');
+      fs.writeFileSync(filePath, code);
+
+      const result = await rule.execute({
+        repoPath: tmpDir,
+        packageName: 'zod',
+        fromVersion: '2.0.0',
+        toVersion: '3.22.0',
+      });
+
+      expect(result.preconditionsSatisfied).toBe(true);
+      expect(result.filesModified).toContain('schema.ts');
+      expect(result.unifiedDiff).toContain('.transform((val) => Number(val))');
       expect(result.diffHash).toBeTruthy();
     });
   });

@@ -6,3 +6,5 @@ export * from './rules/openai-v3-to-v4';
 export * from './rules/nextjs-v14-to-v15';
 export * from './rules/stripe-rename';
 export * from './rules/axios-v0-to-v1';
+export * from './rules/react-v18-to-v19';
+export * from './rules/zod-v3-upgrade';

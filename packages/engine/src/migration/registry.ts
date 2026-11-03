@@ -5,6 +5,8 @@ import { OpenAIV3ToV4Rule } from './rules/openai-v3-to-v4';
 import { NextJs14To15AsyncRule } from './rules/nextjs-v14-to-v15';
 import { StripePaymentIntentsRule } from './rules/stripe-rename';
 import { AxiosV0ToV1Rule } from './rules/axios-v0-to-v1';
+import { React18To19RefRule } from './rules/react-v18-to-v19';
+import { ZodV3ModernizeRule } from './rules/zod-v3-upgrade';
 
 export class MigrationRuleRegistry {
   private rules: Map<string, IMigrationRule> = new Map();
@@ -17,6 +19,8 @@ export class MigrationRuleRegistry {
     this.register(new NextJs14To15AsyncRule());
     this.register(new StripePaymentIntentsRule());
     this.register(new AxiosV0ToV1Rule());
+    this.register(new React18To19RefRule());
+    this.register(new ZodV3ModernizeRule());
   }
 
   register(rule: IMigrationRule): void {
