@@ -373,6 +373,250 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
           </div>
         )}
 
+        {/* 4-Step How TryPatchBay Works Banner */}
+        <div
+          style={{
+            background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+            borderRadius: '14px',
+            padding: '20px 24px',
+            color: '#ffffff',
+            marginBottom: '24px',
+            boxShadow: '0 4px 20px rgba(15, 23, 42, 0.12)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '14px',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '10px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  color: '#60a5fa',
+                }}
+              >
+                The TryPatchBay Engine Pipeline
+              </span>
+              <span style={{ fontSize: '11px', color: '#94a3b8' }}>&middot;</span>
+              <span style={{ fontSize: '12px', color: '#cbd5e1' }}>
+                How breaking dependencies get migrated with zero hallucinations
+              </span>
+            </div>
+            <a
+              href="https://github.com/Nitish-1303/CipherBill/pull/56"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '11px',
+                fontWeight: 600,
+                color: '#60a5fa',
+                background: 'rgba(59, 130, 246, 0.15)',
+                border: '1px solid rgba(59, 130, 246, 0.3)',
+                padding: '4px 12px',
+                borderRadius: '999px',
+                textDecoration: 'none',
+              }}
+            >
+              <BrandIcon name="github" size={13} />
+              <span>Live Proof: CipherBill PR #56 &nearr;</span>
+            </a>
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '12px',
+            }}
+          >
+            {/* Step 1 */}
+            <div
+              style={{
+                background: 'rgba(255, 255, 255, 0.04)',
+                borderRadius: '8px',
+                padding: '12px 14px',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+              }}
+            >
+              <div
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  color: '#f87171',
+                  marginBottom: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <span
+                  style={{
+                    background: '#f87171',
+                    color: '#0f172a',
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '50%',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '11px',
+                    fontWeight: 800,
+                  }}
+                >
+                  1
+                </span>
+                Finds the Break
+              </div>
+              <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8', lineHeight: 1.45 }}>
+                AST parser scans repository call sites and flags deprecated or removed methods down to the line.
+              </p>
+            </div>
+
+            {/* Step 2 */}
+            <div
+              style={{
+                background: 'rgba(255, 255, 255, 0.04)',
+                borderRadius: '8px',
+                padding: '12px 14px',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+              }}
+            >
+              <div
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  color: '#60a5fa',
+                  marginBottom: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <span
+                  style={{
+                    background: '#60a5fa',
+                    color: '#0f172a',
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '50%',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '11px',
+                    fontWeight: 800,
+                  }}
+                >
+                  2
+                </span>
+                Rewrites AST Code
+              </div>
+              <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8', lineHeight: 1.45 }}>
+                Synthesizes deterministic codemods using active rules (React 19, Lodash, Next 15, Zod 3, Axios 1.x).
+              </p>
+            </div>
+
+            {/* Step 3 */}
+            <div
+              style={{
+                background: 'rgba(255, 255, 255, 0.04)',
+                borderRadius: '8px',
+                padding: '12px 14px',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+              }}
+            >
+              <div
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  color: '#34d399',
+                  marginBottom: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <span
+                  style={{
+                    background: '#34d399',
+                    color: '#0f172a',
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '50%',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '11px',
+                    fontWeight: 800,
+                  }}
+                >
+                  3
+                </span>
+                Red-to-Green Proof
+              </div>
+              <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8', lineHeight: 1.45 }}>
+                Runs test suite in sandbox: Baseline pass &rarr; Bump fail &rarr; Patch turns tests green with SHA-256 evidence.
+              </p>
+            </div>
+
+            {/* Step 4 */}
+            <div
+              style={{
+                background: 'rgba(255, 255, 255, 0.04)',
+                borderRadius: '8px',
+                padding: '12px 14px',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+              }}
+            >
+              <div
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  color: '#a78bfa',
+                  marginBottom: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <span
+                  style={{
+                    background: '#a78bfa',
+                    color: '#0f172a',
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '50%',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '11px',
+                    fontWeight: 800,
+                  }}
+                >
+                  4
+                </span>
+                Delivers GitHub PR
+              </div>
+              <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8', lineHeight: 1.45 }}>
+                Prepares pull request with complete test outputs, diffs, and proof logs embedded for review.
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* SECTION A: Design 1 Mission Control Telemetry Cockpit Hero */}
         {config && (
           <div
