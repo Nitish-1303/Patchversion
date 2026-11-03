@@ -213,13 +213,17 @@ export default function DashboardPage() {
 
     if (res.status === 401) {
       setTimeout(() => {
-        setAuthenticated(false);
+        setAuthenticated(prev => {
+          if (prev) {
+            setActionError('Session expired. Please sign in again.');
+          }
+          return false;
+        });
         setUser(null);
         setTenant(null);
         if (typeof window !== 'undefined') {
           sessionStorage.removeItem('patchversion_token');
         }
-        setActionError('Session expired or unauthorized. Please sign in again.');
       }, 0);
     }
 
@@ -322,29 +326,34 @@ export default function DashboardPage() {
     let isMounted = true;
     async function checkAuth() {
       try {
-        const res = await authFetch('/api/auth/me');
+        const res = await authFetch('/api/auth');
         if (res.ok) {
           const data = await res.json();
           if (!isMounted) return;
-          setAuthenticated(true);
-          setUser(data.user);
-          setTenant(data.tenant);
+          if (data.authenticated) {
+            setAuthenticated(true);
+            setUser(data.user);
+            setTenant(data.tenant);
 
-          const reposRes = await authFetch('/api/repositories');
-          if (reposRes.ok) {
-            const reposData = await reposRes.json();
-            if (!isMounted) return;
-            const fetchedRepos: Repository[] = reposData.repositories || [];
-            setRepositories(fetchedRepos);
-            if (fetchedRepos.length > 0) {
-              const defaultRepo = fetchedRepos.find((r: Repository) => r.fullName === 'Nitish-1303/CipherBill') || fetchedRepos[0];
-              setSelectedRepo(defaultRepo);
-              activeRepoIdRef.current = defaultRepo.id;
-              loadFindings(defaultRepo.id);
-              loadInitialScan(defaultRepo.id);
+            const reposRes = await authFetch('/api/repos');
+            if (reposRes.ok) {
+              const reposData = await reposRes.json();
+              if (!isMounted) return;
+              const fetchedRepos: Repository[] = reposData.repositories || [];
+              setRepositories(fetchedRepos);
+              if (fetchedRepos.length > 0) {
+                const defaultRepo = fetchedRepos.find((r: Repository) => r.fullName === 'Nitish-1303/CipherBill') || fetchedRepos[0];
+                setSelectedRepo(defaultRepo);
+                activeRepoIdRef.current = defaultRepo.id;
+                loadFindings(defaultRepo.id);
+                loadInitialScan(defaultRepo.id);
+              }
             }
+            loadPackages();
+          } else {
+            if (!isMounted) return;
+            setAuthenticated(false);
           }
-          loadPackages();
         } else {
           if (!isMounted) return;
           setAuthenticated(false);
@@ -371,7 +380,7 @@ export default function DashboardPage() {
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await fetch('/api/auth', { method: 'DELETE' });
     } catch {
       // ignore
     }
@@ -389,9 +398,10 @@ export default function DashboardPage() {
     setLoading(true);
     setActionError(null);
     try {
-      const res = await fetch('/api/auth/demo-login', {
+      const res = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'demo', email: 'developer@trypatchbay.dev' }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -401,7 +411,7 @@ export default function DashboardPage() {
         setUser(data.user);
         setTenant(data.tenant);
 
-        const reposRes = await fetch('/api/repositories', {
+        const reposRes = await fetch('/api/repos', {
           headers: { Authorization: `Bearer ${data.token}` },
         });
         if (reposRes.ok) {
@@ -435,7 +445,7 @@ export default function DashboardPage() {
       const parts = targetRepoFullName.split('/');
       const owner = parts[0];
       const name = parts[1];
-      const res = await authFetch('/api/repositories', {
+      const res = await authFetch('/api/repos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -448,7 +458,7 @@ export default function DashboardPage() {
       const data = await res.json();
       if (res.ok) {
         setActionMessage(`Repository ${targetRepoFullName} connected! Triggering read-only AST dependency scan...`);
-        const reposRes = await authFetch('/api/repositories');
+        const reposRes = await authFetch('/api/repos');
         if (reposRes.ok) {
           const reposData = await reposRes.json();
           const fetchedRepos: Repository[] = reposData.repositories || [];
