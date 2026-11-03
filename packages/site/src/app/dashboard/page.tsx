@@ -9,7 +9,6 @@ import { AuditScorecard } from './components/AuditScorecard';
 import { HealthCard } from './components/HealthCard';
 import { TelemetryBar } from './components/TelemetryBar';
 import { PublicDemoCockpit } from './components/PublicDemoCockpit';
-import { CloudflareDashboardLayout } from './components/CloudflareDashboardLayout';
 import {
   LayersIcon,
   TopologyIcon,
@@ -169,7 +168,6 @@ export default function DashboardPage() {
   const [proofViewTab, setProofViewTab] = useState<'diff' | 'ast' | 'log'>('diff');
   const [proofIsRunning, setProofIsRunning] = useState(false);
   const [proofHumanApproved, setProofHumanApproved] = useState(false);
-  const [dashboardLayout, setDashboardLayout] = useState<'cloudflare' | 'studio'>('cloudflare');
 
   const [loading, setLoading] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
@@ -639,117 +637,109 @@ export default function DashboardPage() {
 
   const activeFixture = PROOF_STUDIO_FIXTURES[proofFixtureKey];
 
-  // If not authenticated, open Cloudflare layout with developer sign-in prompt
+  // If not authenticated, open public demo workspace with developer sign-in options
   if (authenticated === false) {
     return (
-      <CloudflareDashboardLayout
-        userEmail={user?.email || 'Yelurunitish006@gmail.com'}
-        onSignOut={handleLogout}
-        activeRepositoryName="Nitish-1303/CipherBill"
-        onOpenTriageStudio={handleDemoSignIn}
-        unauthenticatedBanner={
-          <div
-            style={{
-              background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
-              border: '1px solid #e2e8f0',
-              borderRadius: '12px',
-              padding: '20px 24px',
-              boxShadow: '0 4px 16px -2px rgba(15, 23, 42, 0.05)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '16px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-              <TrypatchbayMark size={38} />
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                  <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.02em', margin: 0 }}>
-                    TryPatchBay Developer Workspace
-                  </h2>
-                  <span
-                    style={{
-                      fontSize: '11px',
-                      fontFamily: 'ui-monospace, monospace',
-                      background: 'rgba(37, 99, 235, 0.08)',
-                      color: '#2563eb',
-                      border: '1px solid rgba(37, 99, 235, 0.25)',
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      fontWeight: 600,
-                    }}
-                  >
-                    PUBLIC DEMO WORKSPACE
-                  </span>
-                </div>
-                <p style={{ color: '#475569', fontSize: '13px', marginTop: '4px', lineHeight: 1.4, margin: 0 }}>
-                  Sign in to inspect your repositories, map AST call sites, and verify automated pull requests.
-                </p>
-                <span style={{ fontSize: '11px', color: '#64748b' }}>
-                  Live persistent state store · HMAC cookie authenticated
+      <div style={{ maxWidth: '1360px', margin: '0 auto', padding: '24px 20px 80px' }}>
+        {/* Developer Workspace Access Header */}
+        <div
+          style={{
+            background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
+            border: '1px solid #e2e8f0',
+            borderRadius: '14px',
+            padding: '20px 24px',
+            marginBottom: '24px',
+            boxShadow: '0 4px 20px -2px rgba(15, 23, 42, 0.05)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '16px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <TrypatchbayMark size={42} />
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', margin: 0 }}>
+                  TryPatchBay Developer Workspace
+                </h2>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontFamily: 'ui-monospace, monospace',
+                    background: 'rgba(37, 99, 235, 0.08)',
+                    color: '#2563eb',
+                    border: '1px solid rgba(37, 99, 235, 0.25)',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    fontWeight: 600,
+                  }}
+                >
+                  PUBLIC DEMO WORKSPACE
                 </span>
               </div>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-              <a
-                href="/api/auth/github/login"
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: '8px',
-                  background: '#ffffff',
-                  border: '1px solid #cbd5e1',
-                  color: '#0f172a',
-                  textDecoration: 'none',
-                  fontWeight: 600,
-                  fontSize: '13px',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
-                }}
-              >
-                <BrandIcon name="github" size={16} />
-                Continue with GitHub
-              </a>
-              <button
-                type="button"
-                className="pill-button pill-button-dark"
-                onClick={handleDemoSignIn}
-                disabled={loading}
-                style={{
-                  fontSize: '13px',
-                  padding: '8px 18px',
-                  minHeight: '38px',
-                  background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                  border: '1px solid rgba(37, 99, 235, 0.4)',
-                  boxShadow: '0 2px 8px rgba(37, 99, 235, 0.3)',
-                  color: '#ffffff',
-                  fontWeight: 600,
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                }}
-              >
-                {loading ? 'Initializing Workspace...' : 'Sign in to Developer Workspace'}
-              </button>
+              <p style={{ color: '#475569', fontSize: '13px', marginTop: '4px', lineHeight: 1.4, margin: 0 }}>
+                Sign in to inspect your repositories, map AST call sites, and verify automated pull requests.
+              </p>
+              <span style={{ fontSize: '11px', color: '#64748b' }}>
+                Live persistent state store · HMAC cookie authenticated
+              </span>
             </div>
           </div>
-        }
-      >
-        <div style={{ padding: '32px 0', textAlign: 'center' }}>
-          <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>
-            Sign in to Developer Workspace to inspect repositories, view AST diffs, and dispatch pull requests.
-          </p>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <a
+              href="/api/auth/github/login"
+              style={{
+                padding: '8px 16px',
+                borderRadius: '8px',
+                background: '#ffffff',
+                border: '1px solid #cbd5e1',
+                color: '#0f172a',
+                textDecoration: 'none',
+                fontWeight: 600,
+                fontSize: '13px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <BrandIcon name="github" size={16} />
+              Continue with GitHub
+            </a>
+            <button
+              type="button"
+              className="pill-button pill-button-dark"
+              onClick={handleDemoSignIn}
+              disabled={loading}
+              style={{
+                fontSize: '13px',
+                padding: '8px 18px',
+                minHeight: '38px',
+                background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                border: '1px solid rgba(37, 99, 235, 0.4)',
+                boxShadow: '0 2px 8px rgba(37, 99, 235, 0.3)',
+                color: '#ffffff',
+                fontWeight: 600,
+              }}
+            >
+              {loading ? 'Initializing Workspace...' : 'Sign in to Developer Workspace'}
+            </button>
+          </div>
         </div>
-      </CloudflareDashboardLayout>
+
+        {/* Public Demo Cockpit with genuine Lodash migration proof */}
+        <PublicDemoCockpit authenticated={false} onSignInClick={handleDemoSignIn} />
+      </div>
     );
   }
 
   const hasRegressions = findings.some(f => f.isBreaking);
 
-  const studioWorkspace = (
+  return (
     <div className="content-width" style={{ padding: '32px 0 80px' }}>
       {/* Top Studio Browser Frame */}
       <div
@@ -2437,71 +2427,5 @@ export default function DashboardPage() {
         )}
       </div>
     </div>
-  );
-
-  if (dashboardLayout === 'cloudflare') {
-    return (
-      <CloudflareDashboardLayout
-        userEmail={user?.email || 'Yelurunitish006@gmail.com'}
-        onSignOut={handleLogout}
-        activeRepositoryName={selectedRepo?.fullName || 'Nitish-1303/CipherBill'}
-        onOpenTriageStudio={() => setDashboardLayout('studio')}
-      >
-        <div style={{ padding: '0 0 32px' }}>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
-            <button
-              type="button"
-              onClick={() => setDashboardLayout('studio')}
-              style={{
-                padding: '6px 14px',
-                fontSize: '12px',
-                fontWeight: 600,
-                borderRadius: '6px',
-                border: '1px solid #cbd5e1',
-                background: '#ffffff',
-                color: '#334155',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
-              }}
-            >
-              <span>🖥️</span>
-              <span>Switch to Full Studio View</span>
-            </button>
-          </div>
-          {studioWorkspace}
-        </div>
-      </CloudflareDashboardLayout>
-    );
-  }
-
-  return (
-    <>
-      <div style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', padding: '8px 24px', display: 'flex', justifyContent: 'flex-end' }}>
-        <button
-          type="button"
-          onClick={() => setDashboardLayout('cloudflare')}
-          style={{
-            padding: '5px 12px',
-            fontSize: '12px',
-            fontWeight: 600,
-            borderRadius: '6px',
-            border: '1px solid #bfdbfe',
-            background: '#eff6ff',
-            color: '#1e40af',
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-          }}
-        >
-          <span>☁️</span>
-          <span>Switch to Cloudflare 3-Pane Layout</span>
-        </button>
-      </div>
-      {studioWorkspace}
-    </>
   );
 }
