@@ -16,3 +16,4 @@ out/
 .agents/
 skills-lock.json
 runs/archive/
+.env*.local
