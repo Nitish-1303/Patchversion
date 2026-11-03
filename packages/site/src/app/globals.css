@@ -1133,3 +1133,192 @@
 .proof-name { color: #334155; flex: 1; }
 .proof-time { color: #94a3b8; font-size: 10px; }
 
+
+/* Interactive Working Proof Styles */
+.hero-stepper-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 24px;
+  background: #f1f4f9;
+  border-bottom: 1px solid var(--rule);
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.hero-stepper-stages {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.hero-step-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--rule);
+  background: var(--white);
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.hero-step-btn:hover {
+  background: #f8fafc;
+  color: var(--navy-deep);
+}
+.hero-step-btn.active {
+  background: #2b59ff;
+  border-color: #2b59ff;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(43, 89, 255, 0.25);
+}
+.hero-step-btn.active.step-red {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.25);
+}
+.hero-run-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: none;
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.hero-run-btn:hover {
+  background: #1e293b;
+  transform: translateY(-1px);
+}
+.hero-run-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+.code-tab-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 2px;
+  border-radius: 6px;
+}
+.code-view-tab {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.code-view-tab:hover {
+  color: #ffffff;
+}
+.code-view-tab.active {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+.fixture-pill-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--paper);
+  padding: 3px;
+  border-radius: 8px;
+  border: 1px solid var(--rule);
+}
+.fixture-pill-btn {
+  background: transparent;
+  border: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  padding: 3px 9px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.fixture-pill-btn:hover {
+  color: var(--navy-deep);
+}
+.fixture-pill-btn.active {
+  background: var(--white);
+  color: var(--navy-deep);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+/* Working Proof Pipeline (Design 2) */
+.pipeline-section {
+  margin-top: 10px;
+}
+.pipeline-cards-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+@media (max-width: 860px) {
+  .pipeline-cards-row {
+    grid-template-columns: 1fr;
+  }
+}
+.pipeline-card {
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  border: 1px solid var(--rule);
+  border-radius: 16px;
+  background: var(--white);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+}
+.pipeline-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.04);
+}
+.pipeline-card.active {
+  border-color: #2b59ff;
+  box-shadow: 0 0 0 2px rgba(43, 89, 255, 0.18), 0 8px 24px rgba(43, 89, 255, 0.08);
+}
+.pipeline-drawer {
+  margin-top: 24px;
+  border: 1px solid var(--rule);
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(21, 23, 28, 0.05);
+  overflow: hidden;
+}
+.pipeline-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  background: #f8fafc;
+  border-bottom: 1px solid var(--rule);
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.pipeline-drawer-body {
+  padding: 24px;
+}
+.pipeline-drawer-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 24px;
+}
+@media (max-width: 768px) {
+  .pipeline-drawer-grid {
+    grid-template-columns: 1fr;
+  }
+}

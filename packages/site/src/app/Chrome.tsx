@@ -162,6 +162,8 @@ function Footer() {
           <Link href="/contact">Contact</Link>
           <Link href="/docs/security">Security</Link>
           <Link href="/competitors">Alternatives</Link>
+          <Link href="/privacy">Privacy Policy</Link>
+          <Link href="/terms">Terms of Service</Link>
         </div>
         <div>
           <h3>Docs</h3>

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { ApiMarquee, FeatureCarousel, HeroDashboard, Reveal, WorkflowTabs } from './components/Experience';
 import {
-  FeatureGrid,
+  WorkingProofPipeline,
   BentoSection,
   PageHeading,
   SplitSection,
@@ -10,7 +10,7 @@ import {
 } from './components/PageSections';
 
 const homeCards = [
-  { title: 'A change summary', body: 'The bundled example explains a recorded parameter rename in plain language with verified breaking change classification.' },
+  { title: 'A change summary', body: 'The engine explains recorded parameter renames in plain language with verified breaking change classification.' },
   { title: 'A call-site map', body: 'Static AST analysis maps matching call expressions across source code and lockfile dependencies.' },
   { title: 'A reviewable proof', body: 'The proof loop generates a minimal diff and captures baseline, red, and green test execution output.' },
 ];
@@ -39,7 +39,7 @@ export default function HomePage() {
           <Reveal delay={240}>
             <div className="hero-cta-group">
               <Link href="/signup" className="pill-button pill-button-dark hero-cta-btn">Start for free</Link>
-              <Link href="/dashboard" className="pill-button pill-button-light hero-cta-btn">View live demo</Link>
+              <Link href="/dashboard" className="pill-button pill-button-light hero-cta-btn">Open workspace</Link>
             </div>
           </Reveal>
         </div>
@@ -48,22 +48,13 @@ export default function HomePage() {
 
       <ApiMarquee />
 
-      <FeatureGrid
-        eyebrow="A SMALL, REVIEWABLE LOOP"
-        title="From recorded change to local proof."
-        description="The platform demonstrates automated breaking change discovery, AST call-site mapping, deterministic patches, and fail-closed GitHub delivery."
-        cards={[
-          { title: 'Notice the break', body: 'Detect breaking changes across upstream package versions and lockfile entries.' },
-          { title: 'Find the usage', body: 'Map call sites with AST analysis to identify affected code paths.' },
-          { title: 'Check the patch', body: 'Review minimal deterministic diffs alongside verified test output.' },
-        ]}
-      />
+      <WorkingProofPipeline />
 
       <SplitSection
         eyebrow="SEE WHAT MOVED"
         title="A change summary with the code beside it."
         body="The workspace keeps the changed API contract, affected call sites, and proposed diff close together with single-use approval verification."
-        caption="Illustrative layout · verified deterministic AST migration"
+        caption="Change triage cockpit · verified deterministic AST migration"
         lines={['Recorded API rename', 'src/createCharge.js mapped', 'Proposed deterministic diff']}
       />
 
@@ -95,7 +86,7 @@ export default function HomePage() {
           <details><summary>Does trypatchbay open pull requests?</summary><p>Yes. Pull request delivery uses GitHub App installations with strict single-use human approvals, diff-hash enforcement, and delivery mutex locking.</p></details>
           <details><summary>Can trypatchbay execute untrusted customer code?</summary><p>No. Arbitrary customer code execution is fail-closed blocked on application hosts. Full red-to-green test execution is restricted to vetted repositories until containerized microVM isolation is provisioned.</p></details>
         </div>
-        <Reveal className="faq-link"><Link href="/docs">Read the prototype docs</Link></Reveal>
+        <Reveal className="faq-link"><Link href="/docs">Explore product documentation</Link></Reveal>
       </section>
 
       <DuskCtaBand />
