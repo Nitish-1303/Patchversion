@@ -688,6 +688,34 @@ export class GitHubClient {
   /**
    * Verifies an incoming webhook HMAC signature.
    */
+  async createComment(
+    owner: string,
+    repo: string,
+    issueNumber: number,
+    body: string,
+    token: string,
+  ): Promise<{ id: number; htmlUrl: string }> {
+    const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/issues/${issueNumber}/comments`;
+    const res = await this.transport.fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `token ${token}`,
+        Accept: 'application/vnd.github.v3+json',
+        'User-Agent': 'TryPatchBay-App/1.0',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ body }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      throw new Error(`Failed to create comment on ${owner}/${repo} #${issueNumber}: HTTP ${res.status} ${errText}`);
+    }
+
+    const data = (await res.json()) as { id: number; html_url: string };
+    return { id: data.id, htmlUrl: data.html_url };
+  }
+
   verifyWebhookSignature(rawBody: Buffer, signature: string | undefined): boolean {
     const secret = this.config?.webhookSecret;
     return verifyGitHubWebhookSignature(rawBody, signature, secret).valid;
