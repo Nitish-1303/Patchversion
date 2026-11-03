@@ -9,6 +9,7 @@ import { AuditScorecard } from './components/AuditScorecard';
 import { HealthCard } from './components/HealthCard';
 import { TelemetryBar } from './components/TelemetryBar';
 import { PublicDemoCockpit } from './components/PublicDemoCockpit';
+import { CloudflareDashboardLayout } from './components/CloudflareDashboardLayout';
 import {
   LayersIcon,
   TopologyIcon,
@@ -168,6 +169,7 @@ export default function DashboardPage() {
   const [proofViewTab, setProofViewTab] = useState<'diff' | 'ast' | 'log'>('diff');
   const [proofIsRunning, setProofIsRunning] = useState(false);
   const [proofHumanApproved, setProofHumanApproved] = useState(false);
+  const [dashboardLayout, setDashboardLayout] = useState<'cloudflare' | 'studio'>('cloudflare');
 
   const [loading, setLoading] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
@@ -689,6 +691,30 @@ export default function DashboardPage() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => {
+                handleDemoSignIn();
+                setDashboardLayout('cloudflare');
+              }}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '8px',
+                background: '#ffffff',
+                border: '1px solid #cbd5e1',
+                color: '#0f172a',
+                fontWeight: 600,
+                fontSize: '13px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                cursor: 'pointer',
+              }}
+            >
+              <span>☁️</span>
+              <span>Open Cloudflare Layout</span>
+            </button>
             <a
               href="/api/auth/github/login"
               style={{
@@ -739,7 +765,7 @@ export default function DashboardPage() {
 
   const hasRegressions = findings.some(f => f.isBreaking);
 
-  return (
+  const studioWorkspace = (
     <div className="content-width" style={{ padding: '32px 0 80px' }}>
       {/* Top Studio Browser Frame */}
       <div
@@ -2427,5 +2453,71 @@ export default function DashboardPage() {
         )}
       </div>
     </div>
+  );
+
+  if (dashboardLayout === 'cloudflare') {
+    return (
+      <CloudflareDashboardLayout
+        userEmail={user?.email || 'Yelurunitish006@gmail.com'}
+        onSignOut={handleLogout}
+        activeRepositoryName={selectedRepo?.fullName || 'Nitish-1303/CipherBill'}
+        onOpenTriageStudio={() => setDashboardLayout('studio')}
+      >
+        <div style={{ padding: '0 0 32px' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+            <button
+              type="button"
+              onClick={() => setDashboardLayout('studio')}
+              style={{
+                padding: '6px 14px',
+                fontSize: '12px',
+                fontWeight: 600,
+                borderRadius: '6px',
+                border: '1px solid #cbd5e1',
+                background: '#ffffff',
+                color: '#334155',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
+              }}
+            >
+              <span>🖥️</span>
+              <span>Switch to Full Studio View</span>
+            </button>
+          </div>
+          {studioWorkspace}
+        </div>
+      </CloudflareDashboardLayout>
+    );
+  }
+
+  return (
+    <>
+      <div style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', padding: '8px 24px', display: 'flex', justifyContent: 'flex-end' }}>
+        <button
+          type="button"
+          onClick={() => setDashboardLayout('cloudflare')}
+          style={{
+            padding: '5px 12px',
+            fontSize: '12px',
+            fontWeight: 600,
+            borderRadius: '6px',
+            border: '1px solid #bfdbfe',
+            background: '#eff6ff',
+            color: '#1e40af',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+          }}
+        >
+          <span>☁️</span>
+          <span>Switch to Cloudflare 3-Pane Layout</span>
+        </button>
+      </div>
+      {studioWorkspace}
+    </>
   );
 }
