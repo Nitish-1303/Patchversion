@@ -23,6 +23,7 @@ import {
   GitBranchIcon,
   LockIcon,
   PulseDotIcon,
+  TrypatchbayMark,
 } from '@/app/components/UiIcons';
 
 interface UserInfo {
@@ -647,23 +648,7 @@ export default function DashboardPage() {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div
-              style={{
-                width: '42px',
-                height: '42px',
-                borderRadius: '10px',
-                background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                color: '#ffffff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-                boxShadow: '0 2px 10px rgba(37, 99, 235, 0.3)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-              }}
-            >
-              <ShieldCheckIcon size={22} color="#ffffff" />
-            </div>
+            <TrypatchbayMark size={42} />
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', margin: 0 }}>

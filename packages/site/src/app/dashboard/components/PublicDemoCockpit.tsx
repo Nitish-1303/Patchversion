@@ -16,6 +16,13 @@ import {
   CpuIcon,
   FileDiffIcon,
   TrypatchbayMark,
+  TimerIcon,
+  FolderCodeIcon,
+  RefreshIcon,
+  CopyIcon,
+  CheckIcon,
+  PackageSearchIcon,
+  FileCodeIcon,
 } from '@/app/components/UiIcons';
 
 interface PublicDemoCockpitProps {
@@ -162,26 +169,9 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
         {/* Brand + Live Status Badges */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div
-              style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '8px',
-                background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                boxShadow: '0 2px 8px rgba(37, 99, 235, 0.3)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 800,
-                fontSize: '14px',
-                color: '#ffffff',
-                border: '1px solid rgba(255, 255, 255, 0.3)',
-              }}
-            >
-              <TrypatchbayMark size={20} />
-            </div>
-            <span style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>
-              trypatchbay
+            <TrypatchbayMark size={32} />
+            <span style={{ fontSize: '19px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.025em' }}>
+              try<span style={{ color: '#2563eb' }}>patchbay</span>
             </span>
           </div>
 
@@ -299,10 +289,14 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
               cursor: 'pointer',
               transition: 'all 0.15s ease',
               boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
             }}
             title="Reset demo state"
           >
-            Reset
+            <RefreshIcon size={12} color="#64748b" />
+            <span>Reset</span>
           </button>
 
           {!authenticated && (
@@ -319,9 +313,13 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
                 color: '#0f172a',
                 cursor: 'pointer',
                 boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
               }}
             >
-              Sign in
+              <LockIcon size={12} color="#0f172a" />
+              <span>Sign in</span>
             </button>
           )}
         </div>
@@ -552,7 +550,7 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
                   <span style={{ fontSize: '11px', color: '#2563eb', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                     Pipeline Latency
                   </span>
-                  <TerminalIcon size={15} color="#2563eb" />
+                  <TimerIcon size={16} color="#2563eb" />
                 </div>
                 <div style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a' }}>
                   {proof?.durationMs ? `${(proof.durationMs / 1000).toFixed(1)}s` : '54.3s'}
@@ -576,7 +574,7 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
                   <span style={{ fontSize: '11px', color: '#7e22ce', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                     AST Patch Coverage
                   </span>
-                  <FileDiffIcon size={15} color="#9333ea" />
+                  <FolderCodeIcon size={16} color="#9333ea" />
                 </div>
                 <div style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a' }}>
                   100% (1 / 1 Site)
@@ -600,7 +598,7 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
                   <span style={{ fontSize: '11px', color: '#475569', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                     Sandbox Isolation
                   </span>
-                  <LockIcon size={13} color="#64748b" />
+                  <CpuIcon size={16} color="#475569" />
                 </div>
                 <div style={{ fontSize: '18px', fontWeight: 800, color: '#2563eb', fontFamily: 'monospace' }}>
                   {proof?.sandboxType || 'local-process'}
@@ -684,6 +682,7 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
                 status: proof?.baselineResult?.exitCode === 0 ? 'passed' : 'failed',
                 badge: proof ? `${proof.baselineResult?.passed}/${proof.baselineResult?.total} Pass` : 'Exit 0',
                 color: '#059669',
+                icon: <ShieldCheckIcon size={14} color="#059669" />,
               },
               {
                 num: '02',
@@ -692,6 +691,7 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
                 status: 'passed',
                 badge: 'Lockfile Bumped',
                 color: '#2563eb',
+                icon: <PackageSearchIcon size={14} color="#2563eb" />,
               },
               {
                 num: '03',
@@ -700,6 +700,7 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
                 status: proof?.redResult?.exitCode !== 0 ? 'passed' : 'failed',
                 badge: proof ? `Exit ${proof.redResult?.exitCode} (${proof.redResult?.failed} Fail)` : 'Exit 1',
                 color: '#dc2626',
+                icon: <AlertTriangleIcon size={14} color="#dc2626" />,
               },
               {
                 num: '04',
@@ -708,6 +709,7 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
                 status: 'passed',
                 badge: 'AST Identified',
                 color: '#7c3aed',
+                icon: <FileCodeIcon size={14} color="#7c3aed" />,
               },
               {
                 num: '05',
@@ -716,6 +718,7 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
                 status: 'passed',
                 badge: 'AST Codemod',
                 color: '#2563eb',
+                icon: <FileDiffIcon size={14} color="#2563eb" />,
               },
               {
                 num: '06',
@@ -724,6 +727,7 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
                 status: proof?.greenResult?.exitCode === 0 ? 'passed' : 'failed',
                 badge: proof ? `${proof.greenResult?.passed}/${proof.greenResult?.total} Pass` : 'Exit 0',
                 color: '#059669',
+                icon: <CheckCircleIcon size={14} color="#059669" />,
               },
               {
                 num: '07',
@@ -732,6 +736,7 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
                 status: readiness?.preparedPrPresent ? 'passed' : 'unavailable',
                 badge: 'Evidence Stored',
                 color: '#059669',
+                icon: <GitPullRequestIcon size={14} color="#059669" />,
               },
             ].map((stg) => (
               <div
@@ -754,16 +759,19 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
                     marginBottom: '8px',
                   }}
                 >
-                  <span
-                    style={{
-                      fontFamily: 'ui-monospace, monospace',
-                      fontSize: '11px',
-                      color: stg.color,
-                      fontWeight: 700,
-                    }}
-                  >
-                    STAGE {stg.num}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {stg.icon}
+                    <span
+                      style={{
+                        fontFamily: 'ui-monospace, monospace',
+                        fontSize: '11px',
+                        color: stg.color,
+                        fontWeight: 700,
+                      }}
+                    >
+                      STAGE {stg.num}
+                    </span>
+                  </div>
                   <span
                     style={{
                       fontSize: '10px',
@@ -1009,9 +1017,9 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div style={{ display: 'flex', gap: '6px' }}>
-                  <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ef4444' }} />
-                  <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#f59e0b' }} />
-                  <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10b981' }} />
+                  <div style={{ width: '11px', height: '11px', borderRadius: '50%', background: '#ff5f56', border: '1px solid #e0443e', boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.4)' }} />
+                  <div style={{ width: '11px', height: '11px', borderRadius: '50%', background: '#ffbd2e', border: '1px solid #dea123', boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.4)' }} />
+                  <div style={{ width: '11px', height: '11px', borderRadius: '50%', background: '#27c93f', border: '1px solid #1aab29', boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.4)' }} />
                 </div>
                 <span style={{ fontWeight: 700, color: '#0f172a', marginLeft: '4px' }}>Unified Patch Diff</span>
                 <span style={{ color: '#64748b', fontFamily: 'monospace' }}>
@@ -1034,7 +1042,7 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
                     boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
                   }}
                 >
-                  {copiedDiff ? '✓ Copied Diff' : 'Copy Diff'}
+                  {copiedDiff ? <CheckIcon size={12} color="#059669" /> : <CopyIcon size={12} color="#64748b" />}<span>{copiedDiff ? 'Copied' : 'Copy Diff'}</span>
                 </button>
               )}
             </div>

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { type ReactNode, useEffect, useState } from 'react';
 import { SocialButtons } from './components/SocialIcons';
+import { TrypatchbayMark } from './components/UiIcons';
 
 const LINKS = [
   { href: '/product', label: 'Product' },
@@ -16,14 +17,8 @@ const LINKS = [
 function Wordmark() {
   return (
     <Link href="/" className="wordmark" aria-label="trypatchbay home">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/trypatchbay_icon_square.png"
-        alt="trypatchbay icon"
-        width={22}
-        height={22}
-        style={{ borderRadius: '5px', display: 'inline-block', flexShrink: 0 }}
-      />
+      
+      <TrypatchbayMark size={24} />
       <span className="brand-name">trypatchbay</span>
       <span className="badge badge-light" style={{ marginLeft: '8px', fontSize: '10px' }}>
         PROTOTYPE
