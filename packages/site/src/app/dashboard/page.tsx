@@ -633,12 +633,12 @@ export default function DashboardPage() {
         {/* Developer Workspace Access Header */}
         <div
           style={{
-            background: 'linear-gradient(180deg, #0e1526 0%, #090d18 100%)',
-            border: '1px solid rgba(255, 255, 255, 0.09)',
+            background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
+            border: '1px solid #e2e8f0',
             borderRadius: '14px',
             padding: '20px 24px',
             marginBottom: '24px',
-            boxShadow: '0 12px 36px -10px rgba(0, 0, 0, 0.6)',
+            boxShadow: '0 4px 20px -2px rgba(15, 23, 42, 0.05)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -652,13 +652,13 @@ export default function DashboardPage() {
                 width: '42px',
                 height: '42px',
                 borderRadius: '10px',
-                background: 'linear-gradient(135deg, #2563eb 0%, #1e3a8a 100%)',
+                background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
                 color: '#ffffff',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 flexShrink: 0,
-                boxShadow: '0 0 16px rgba(37, 99, 235, 0.35)',
+                boxShadow: '0 2px 10px rgba(37, 99, 235, 0.3)',
                 border: '1px solid rgba(255, 255, 255, 0.2)',
               }}
             >
@@ -666,16 +666,16 @@ export default function DashboardPage() {
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em', margin: 0 }}>
+                <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', margin: 0 }}>
                   TryPatchBay Developer Workspace
                 </h2>
                 <span
                   style={{
                     fontSize: '11px',
                     fontFamily: 'ui-monospace, monospace',
-                    background: 'rgba(59, 130, 246, 0.15)',
-                    color: '#60a5fa',
-                    border: '1px solid rgba(59, 130, 246, 0.3)',
+                    background: 'rgba(37, 99, 235, 0.08)',
+                    color: '#2563eb',
+                    border: '1px solid rgba(37, 99, 235, 0.25)',
                     padding: '2px 8px',
                     borderRadius: '4px',
                     fontWeight: 600,
@@ -684,7 +684,7 @@ export default function DashboardPage() {
                   PUBLIC DEMO WORKSPACE
                 </span>
               </div>
-              <p style={{ color: '#94a3b8', fontSize: '13px', marginTop: '4px', lineHeight: 1.4, margin: 0 }}>
+              <p style={{ color: '#475569', fontSize: '13px', marginTop: '4px', lineHeight: 1.4, margin: 0 }}>
                 Sign in to inspect your repositories, map AST call sites, and verify automated pull requests.
               </p>
               <span style={{ fontSize: '11px', color: '#64748b' }}>
@@ -699,15 +699,16 @@ export default function DashboardPage() {
               style={{
                 padding: '8px 16px',
                 borderRadius: '8px',
-                background: 'rgba(255, 255, 255, 0.06)',
-                border: '1px solid rgba(255, 255, 255, 0.12)',
-                color: '#f9fafb',
+                background: '#ffffff',
+                border: '1px solid #cbd5e1',
+                color: '#0f172a',
                 textDecoration: 'none',
                 fontWeight: 600,
                 fontSize: '13px',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '8px',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
                 transition: 'all 0.15s ease',
               }}
             >
@@ -726,8 +727,8 @@ export default function DashboardPage() {
                 padding: '8px 18px',
                 minHeight: '38px',
                 background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                boxShadow: '0 0 14px rgba(37, 99, 235, 0.35)',
+                border: '1px solid rgba(37, 99, 235, 0.4)',
+                boxShadow: '0 2px 8px rgba(37, 99, 235, 0.3)',
                 color: '#ffffff',
                 fontWeight: 600,
               }}
