@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { BrandIcon } from '@/app/components/BrandIcons';
 import type { DemoArtifactResponse } from '../../api/dashboard/demo-evidence/route';
 import { getBundledDemoArtifactResponse } from '../data/bundled-artifacts';
 import {
@@ -12,7 +13,6 @@ import {
   GitPullRequestIcon,
   LayersIcon,
   TerminalIcon,
-  SparklesIcon,
   CpuIcon,
   FileDiffIcon,
   TrypatchbayMark,
@@ -248,7 +248,7 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
                 gap: '6px',
               }}
             >
-              <SparklesIcon size={13} color={selectedRun === 'lodash' ? '#ffffff' : '#64748b'} />
+              <BrandIcon name="lodash" size={15} />
               Lodash 3 &rarr; 4 (Real Package)
             </button>
             <button
@@ -270,7 +270,7 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
                 gap: '6px',
               }}
             >
-              <CpuIcon size={13} color={selectedRun === 'mockpay' ? '#ffffff' : '#64748b'} />
+              <BrandIcon name="mockpay" size={15} />
               Mockpay 1 &rarr; 2 (Synthetic)
             </button>
           </div>
@@ -471,6 +471,7 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
                   flexWrap: 'wrap',
                 }}
               >
+                <BrandIcon name={config.packageName} size={28} />
                 <span>{config.packageName}</span>
                 <span style={{ color: '#64748b', fontWeight: 600 }}>v{config.fromVersion}</span>
                 <span style={{ color: '#2563eb' }}>&rarr;</span>

@@ -10,93 +10,28 @@ export interface IconProps {
 }
 
 /**
- * Original TryPatchBay Vector Mark
- * Represents deterministic AST patchbay routing between source breaking APIs
- * and target repositories via a precision telemetry bridge.
+ * TryPatchBay Original Brand Mark
+ * Uses the authentic TryPatchbay brand asset (/trypatchbay_icon_square.png).
  */
-export function TrypatchbayMark({
-  size = 28,
-  className = '',
-}: {
-  size?: number;
-  className?: string;
-}) {
+export function TrypatchbayMark({ size = 22, className = '' }: { size?: number; className?: string }) {
   return (
-    <svg
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/trypatchbay_icon_square.png"
+      alt="trypatchbay"
       width={size}
       height={size}
-      viewBox="0 0 32 32"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
       className={className}
-      aria-hidden="true"
-      style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0 }}
-    >
-      <defs>
-        <linearGradient id="tpb-grad-bg" x1="2" y1="2" x2="30" y2="30" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#3b82f6" />
-          <stop offset="50%" stopColor="#2563eb" />
-          <stop offset="100%" stopColor="#1d4ed8" />
-        </linearGradient>
-        <linearGradient id="tpb-grad-cord" x1="9" y1="23" x2="23" y2="9" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#93c5fd" />
-          <stop offset="50%" stopColor="#ffffff" />
-          <stop offset="100%" stopColor="#67e8f9" />
-        </linearGradient>
-      </defs>
-
-      {/* Modern High-Precision Squircle Badge */}
-      <rect
-        x="2"
-        y="2"
-        width="28"
-        height="28"
-        rx="8"
-        fill="url(#tpb-grad-bg)"
-        stroke="rgba(255, 255, 255, 0.3)"
-        strokeWidth="1"
-      />
-
-      {/* Inner Precision Bevel */}
-      <rect
-        x="3"
-        y="3"
-        width="26"
-        height="26"
-        rx="7"
-        fill="none"
-        stroke="rgba(255, 255, 255, 0.15)"
-        strokeWidth="0.75"
-      />
-
-      {/* Source Jack Port */}
-      <circle cx="10" cy="22" r="3.2" fill="rgba(15, 23, 42, 0.45)" stroke="#93c5fd" strokeWidth="1.2" />
-      <circle cx="10" cy="22" r="1.4" fill="#60a5fa" />
-
-      {/* Target Jack Port */}
-      <circle cx="22" cy="10" r="3.2" fill="rgba(15, 23, 42, 0.45)" stroke="#93c5fd" strokeWidth="1.2" />
-      <circle cx="22" cy="10" r="1.4" fill="#38bdf8" />
-
-      {/* Flowing S-Curve AST Patch Cable */}
-      <path
-        d="M 10 22 C 10 13, 22 19, 22 10"
-        stroke="url(#tpb-grad-cord)"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-      />
-
-      {/* Center Signal Telemetry Pulse */}
-      <circle cx="16" cy="16" r="3.2" fill="#ffffff" fillOpacity="0.25" />
-      <circle cx="16" cy="16" r="1.5" fill="#ffffff" />
-    </svg>
+      style={{ display: 'inline-block', verticalAlign: 'middle', borderRadius: size > 32 ? 8 : 5, flexShrink: 0 }}
+    />
   );
 }
 
 /**
- * Full Brand Lockup: Vector Mark + Precision Typography
+ * Full Brand Lockup with Original Logo Mark + Wordmark
  */
 export function TrypatchbayLogo({
-  markSize = 28,
+  markSize = 24,
   textSize = 18,
   className = '',
 }: {
@@ -119,12 +54,12 @@ export function TrypatchbayLogo({
         style={{
           fontSize: `${textSize}px`,
           fontWeight: 800,
-          letterSpacing: '-0.025em',
+          letterSpacing: '-0.02em',
           color: '#0f172a',
           fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         }}
       >
-        try<span style={{ color: '#2563eb' }}>patchbay</span>
+        trypatchbay
       </span>
     </div>
   );
