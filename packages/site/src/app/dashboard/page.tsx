@@ -633,12 +633,12 @@ export default function DashboardPage() {
         {/* Developer Workspace Access Header */}
         <div
           style={{
-            background: '#ffffff',
-            border: '1px solid #dfe1ef',
-            borderRadius: '12px',
+            background: 'linear-gradient(180deg, #0e1526 0%, #090d18 100%)',
+            border: '1px solid rgba(255, 255, 255, 0.09)',
+            borderRadius: '14px',
             padding: '20px 24px',
             marginBottom: '24px',
-            boxShadow: '0 4px 20px rgba(20, 26, 57, 0.05)',
+            boxShadow: '0 12px 36px -10px rgba(0, 0, 0, 0.6)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -652,28 +652,30 @@ export default function DashboardPage() {
                 width: '42px',
                 height: '42px',
                 borderRadius: '10px',
-                background: '#141a39',
+                background: 'linear-gradient(135deg, #2563eb 0%, #1e3a8a 100%)',
                 color: '#ffffff',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 flexShrink: 0,
+                boxShadow: '0 0 16px rgba(37, 99, 235, 0.35)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
               }}
             >
               <ShieldCheckIcon size={22} color="#ffffff" />
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#141a39', letterSpacing: '-0.02em', margin: 0 }}>
+                <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em', margin: 0 }}>
                   TryPatchBay Developer Workspace
                 </h2>
                 <span
                   style={{
                     fontSize: '11px',
                     fontFamily: 'ui-monospace, monospace',
-                    background: 'rgba(59, 130, 246, 0.1)',
-                    color: '#2563eb',
-                    border: '1px solid rgba(59, 130, 246, 0.25)',
+                    background: 'rgba(59, 130, 246, 0.15)',
+                    color: '#60a5fa',
+                    border: '1px solid rgba(59, 130, 246, 0.3)',
                     padding: '2px 8px',
                     borderRadius: '4px',
                     fontWeight: 600,
@@ -682,7 +684,7 @@ export default function DashboardPage() {
                   PUBLIC DEMO WORKSPACE
                 </span>
               </div>
-              <p style={{ color: '#4e5471', fontSize: '13px', marginTop: '4px', lineHeight: 1.4, margin: 0 }}>
+              <p style={{ color: '#94a3b8', fontSize: '13px', marginTop: '4px', lineHeight: 1.4, margin: 0 }}>
                 Sign in to inspect your repositories, map AST call sites, and verify automated pull requests.
               </p>
               <span style={{ fontSize: '11px', color: '#64748b' }}>
@@ -697,7 +699,8 @@ export default function DashboardPage() {
               style={{
                 padding: '8px 16px',
                 borderRadius: '8px',
-                background: '#1f2937',
+                background: 'rgba(255, 255, 255, 0.06)',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
                 color: '#f9fafb',
                 textDecoration: 'none',
                 fontWeight: 600,
@@ -705,6 +708,7 @@ export default function DashboardPage() {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '8px',
+                transition: 'all 0.15s ease',
               }}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -717,7 +721,16 @@ export default function DashboardPage() {
               className="pill-button pill-button-dark"
               onClick={handleDemoSignIn}
               disabled={loading}
-              style={{ fontSize: '13px', padding: '8px 16px', minHeight: '38px' }}
+              style={{
+                fontSize: '13px',
+                padding: '8px 18px',
+                minHeight: '38px',
+                background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                boxShadow: '0 0 14px rgba(37, 99, 235, 0.35)',
+                color: '#ffffff',
+                fontWeight: 600,
+              }}
             >
               {loading ? 'Initializing Workspace...' : 'Sign in to Developer Workspace'}
             </button>
