@@ -2,7 +2,7 @@ import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
 import semver from 'semver';
-import { Project, CallExpression, Identifier, Node } from 'ts-morph';
+import { Project, CallExpression, Node } from 'ts-morph';
 import { createTwoFilesPatch } from 'diff';
 import { IMigrationRule, MigrationContext, MigrationPrecondition, MigrationResult } from '../types';
 
