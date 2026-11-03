@@ -24,18 +24,14 @@ export async function POST(request: NextRequest) {
   const db = getDatabase();
   const state = await db.createOnboardingState(auth.tenant.id, auth.user.id, targetAccount, 15);
 
-  const appSlug = process.env.GITHUB_APP_SLUG || process.env.GITHUB_APP_NAME;
-  const installUrl = appSlug
-    ? `https://github.com/apps/${encodeURIComponent(appSlug)}/installations/new?state=${encodeURIComponent(state.token)}`
-    : null;
+  const appSlug = process.env.GITHUB_APP_SLUG || process.env.GITHUB_APP_NAME || 'trypatchbay';
+  const installUrl = `https://github.com/apps/${encodeURIComponent(appSlug)}/installations/new?state=${encodeURIComponent(state.token)}`;
 
   return NextResponse.json({
     token: state.token,
     expiresAt: state.expiresAt,
     targetAccount: state.targetAccount,
     installUrl,
-    instructions: appSlug
-      ? 'Redirect user to installUrl to grant permissions. GitHub will return with the state token upon completion.'
-      : 'GitHub App slug not configured in GITHUB_APP_SLUG. Install the app via your organization settings and supply the state token.',
+    instructions: 'Redirect user to installUrl to grant permissions. GitHub will return with the state token upon completion.',
   });
 }
