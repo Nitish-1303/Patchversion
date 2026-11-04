@@ -9,6 +9,7 @@ import { AuditScorecard } from './components/AuditScorecard';
 import { HealthCard } from './components/HealthCard';
 import { TelemetryBar } from './components/TelemetryBar';
 import { PublicDemoCockpit } from './components/PublicDemoCockpit';
+import { PayPalUpgradeModal } from './components/PayPalUpgradeModal';
 import {
   LayersIcon,
   TopologyIcon,
@@ -160,6 +161,9 @@ export default function DashboardPage() {
   const [sortOrder, setSortOrder] = useState<'name' | 'callSites' | 'directFirst'>('directFirst');
   const [activeTab, setActiveTab] = useState<'Breaking Upgrades' | 'Pull Requests' | 'Dependency Inventory'>('Breaking Upgrades');
   const [showGraph, setShowGraph] = useState(false);
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  const [isProUser, setIsProUser] = useState(false);
+  const [freePrsRemaining, setFreePrsRemaining] = useState(1);
 
   // Proof Studio interactive state
   const [proofFixtureKey, setProofFixtureKey] = useState<'mockpay' | 'lodash'>('mockpay');
@@ -872,6 +876,49 @@ export default function DashboardPage() {
 
             <div style={{ height: '20px', width: '1px', background: '#e2e8f0' }} />
 
+            {/* Pro Plan Status / Upgrade Button */}
+            {isProUser ? (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  padding: '4px 10px',
+                  borderRadius: '999px',
+                  background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+                  color: '#1d4ed8',
+                  border: '1px solid #93c5fd',
+                }}
+              >
+                <span>PRO PLAN ($49/mo)</span>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setUpgradeModalOpen(true)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  borderRadius: '6px',
+                  background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 6px rgba(37, 99, 235, 0.25)',
+                }}
+              >
+                <span>⚡ Upgrade to Pro ($49/mo)</span>
+              </button>
+            )}
+
+            <div style={{ height: '20px', width: '1px', background: '#e2e8f0' }} />
+
             <span style={{ fontSize: '11px', color: '#64748b' }}>
               {user?.email}
             </span>
@@ -1566,13 +1613,19 @@ export default function DashboardPage() {
                 <button
                   type="button"
                   onClick={() => {
+                    if (!isProUser && freePrsRemaining <= 0) {
+                      setUpgradeModalOpen(true);
+                      return;
+                    }
                     if (realFinding?.patch) {
                       handleDeliverPR(realFinding.patch.id);
+                      if (!isProUser) setFreePrsRemaining(prev => Math.max(0, prev - 1));
                     } else {
                       // Demo simulation delivery
                       setActionMessage('Delivering Pull Request to GitHub (Simulation Mode)...');
                       setTimeout(() => {
                         setActionMessage('Pull Request delivered successfully! PR #1 created on GitHub (Simulated demo mode).');
+                        if (!isProUser) setFreePrsRemaining(prev => Math.max(0, prev - 1));
                         setActiveTab('Pull Requests');
                       }, 900);
                     }
@@ -1923,6 +1976,16 @@ export default function DashboardPage() {
             </div>
           </div>
         )}
+
+        {/* PayPal Repository Pro Modal */}
+        <PayPalUpgradeModal
+          isOpen={upgradeModalOpen}
+          onClose={() => setUpgradeModalOpen(false)}
+          onPlanActivated={() => {
+            setIsProUser(true);
+            setActionMessage('Repository Pro activated via PayPal! Unlimited pull requests unlocked.');
+          }}
+        />
       </main>
     </div>
   );

@@ -4,6 +4,7 @@ interface CheckoutRequestBody {
   plan?: string;
   tenantId?: string;
   returnUrl?: string;
+  provider?: 'stripe' | 'paypal';
 }
 
 const VALID_PLANS = ['developer', 'repository', 'organization', 'enterprise'] as const;
@@ -29,6 +30,17 @@ export async function POST(req: Request) {
     const plan: Plan = (VALID_PLANS as readonly string[]).includes(planInput)
       ? (planInput as Plan)
       : 'repository';
+
+    // Handle direct PayPal checkout if requested or configured
+    if (body.provider === 'paypal' || process.env.PAYPAL_PAYMENT_URL) {
+      if (process.env.PAYPAL_PAYMENT_URL) {
+        return NextResponse.json({
+          ok: true,
+          provider: 'paypal',
+          url: process.env.PAYPAL_PAYMENT_URL,
+        });
+      }
+    }
 
     const stripeKey = process.env.STRIPE_SECRET_KEY;
     const siteUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
@@ -72,13 +84,13 @@ export async function POST(req: Request) {
       }
     }
 
-    // Graceful fallback when Stripe is not provisioned or configured in preview
+    // Graceful fallback when Stripe/PayPal is not provisioned or configured in preview
     return NextResponse.json({
       ok: true,
       demo: true,
       plan,
       amountCents: PLAN_PRICES[plan].amountCents,
-      message: 'Stripe live billing is not configured in this environment. TryPatchBay prototype access is free during evaluation.',
+      message: 'Payment processor is in developer mode. TryPatchBay prototype access is free during evaluation.',
       redirectUrl: `/signup?plan=${encodeURIComponent(plan)}&billing=preview`,
     });
   } catch (err: unknown) {
@@ -94,11 +106,15 @@ export async function GET(req: Request) {
     ? (planInput as Plan)
     : 'repository';
 
+  const isConfigured = Boolean(
+    process.env.STRIPE_SECRET_KEY || process.env.PAYPAL_PAYMENT_URL || process.env.PAYPAL_CLIENT_ID
+  );
+
   return NextResponse.json({
     ok: true,
     plan,
     priceCents: PLAN_PRICES[plan].amountCents,
-    configured: Boolean(process.env.STRIPE_SECRET_KEY),
+    configured: isConfigured,
     checkoutEndpoint: '/api/billing/checkout',
   });
 }
