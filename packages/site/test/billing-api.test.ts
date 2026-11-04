@@ -3,6 +3,7 @@
  */
 import { GET as getCheckout, POST as postCheckout } from '../src/app/api/billing/checkout/route';
 import { POST as postWebhook } from '../src/app/api/billing/webhook/route';
+import { GET as getPaypal, POST as postPaypal } from '../src/app/api/billing/paypal/route';
 
 describe('Stripe Billing API & Checkout Endpoints', () => {
   const originalEnv = process.env;
@@ -115,5 +116,61 @@ describe('Stripe Billing API & Checkout Endpoints', () => {
     const body = await res.json();
     expect(body.received).toBe(true);
     expect(body.event).toBe('checkout.session.completed');
+  });
+
+  describe('PayPal Multi-Tier Checkout & Billing API', () => {
+    test('GET /api/billing/paypal returns multi-tier plans and pricing ($49, $299, $15,000)', async () => {
+      const req = new Request('https://trypatchbay.vercel.app/api/billing/paypal?plan=organization');
+      const res = await getPaypal(req);
+      expect(res.status).toBe(200);
+
+      const body = await res.json();
+      expect(body.ok).toBe(true);
+      expect(body.provider).toBe('paypal');
+      expect(body.plan).toBe('organization');
+      expect(body.priceUsd).toBe(299);
+      expect(body.plans.repository.priceUsd).toBe(49);
+      expect(body.plans.organization.priceUsd).toBe(299);
+      expect(body.plans.enterprise.priceUsd).toBe(15000);
+    });
+
+    test('POST /api/billing/paypal activates requested tier with subscription ID', async () => {
+      const req = new Request('https://trypatchbay.vercel.app/api/billing/paypal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          plan: 'organization',
+          subscriptionId: 'sub_paypal_org_test_123',
+        }),
+      });
+
+      const res = await postPaypal(req);
+      expect(res.status).toBe(200);
+
+      const body = await res.json();
+      expect(body.ok).toBe(true);
+      expect(body.active).toBe(true);
+      expect(body.plan).toBe('organization');
+      expect(body.priceUsd).toBe(299);
+      expect(body.subscriptionId).toBe('sub_paypal_org_test_123');
+    });
+
+    test('POST /api/billing/checkout returns tier-specific PayPal payment URL when configured', async () => {
+      process.env.PAYPAL_PAYMENT_URL_ORGANIZATION = 'https://www.paypal.com/ncp/payment/ORG123';
+
+      const req = new Request('https://trypatchbay.vercel.app/api/billing/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: 'organization', provider: 'paypal' }),
+      });
+
+      const res = await postCheckout(req);
+      expect(res.status).toBe(200);
+
+      const body = await res.json();
+      expect(body.ok).toBe(true);
+      expect(body.provider).toBe('paypal');
+      expect(body.url).toBe('https://www.paypal.com/ncp/payment/ORG123');
+    });
   });
 });

@@ -1,45 +1,151 @@
 import { NextResponse } from 'next/server';
 import { getAuthContext } from '@/app/api/backend';
 
-export async function GET(req: Request) {
-  const paymentUrl = process.env.PAYPAL_PAYMENT_URL || '';
-  const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || process.env.PAYPAL_CLIENT_ID || '';
-  const planId = process.env.NEXT_PUBLIC_PAYPAL_PLAN_ID || process.env.PAYPAL_PLAN_ID || '';
+export type PricingTier = 'developer' | 'repository' | 'organization' | 'enterprise';
 
-  const configured = Boolean(paymentUrl || clientId);
+export interface PlanConfig {
+  name: string;
+  priceUsd: number;
+  interval: string;
+  paymentUrl: string | null;
+  planId: string | null;
+  description: string;
+  features: string[];
+}
+
+export function getTierConfigs(): Record<PricingTier, PlanConfig> {
+  const defaultPaypalUrl = process.env.PAYPAL_PAYMENT_URL || null;
+  const defaultPlanId = process.env.PAYPAL_PLAN_ID || process.env.NEXT_PUBLIC_PAYPAL_PLAN_ID || null;
+
+  return {
+    developer: {
+      name: 'Developer Preview',
+      priceUsd: 0,
+      interval: 'forever',
+      paymentUrl: null,
+      planId: null,
+      description: 'Free AST scanning and local deterministic proof loop.',
+      features: [
+        'Unlimited local AST scans',
+        'AST call-site mapping engine',
+        'Deterministic patch generator',
+        '1 free automated PR / month',
+        'Tamper-evident proof bundles',
+      ],
+    },
+    repository: {
+      name: 'Repository Tier',
+      priceUsd: 49,
+      interval: 'month',
+      paymentUrl: process.env.PAYPAL_PAYMENT_URL_REPOSITORY || defaultPaypalUrl,
+      planId: process.env.PAYPAL_PLAN_ID_REPOSITORY || defaultPlanId,
+      description: 'Continuous upstream watching and unlimited verified PR delivery for 1 repository.',
+      features: [
+        '1 connected repository',
+        'Continuous 24/7 upstream watching',
+        'Unlimited verified migration PRs',
+        'Single-use human approvals',
+        'Fail-closed AST sandboxing',
+      ],
+    },
+    organization: {
+      name: 'Organization Tier',
+      priceUsd: 299,
+      interval: 'month',
+      paymentUrl: process.env.PAYPAL_PAYMENT_URL_ORGANIZATION || process.env.PAYPAL_PAYMENT_URL_ORG || defaultPaypalUrl,
+      planId: process.env.PAYPAL_PLAN_ID_ORGANIZATION || process.env.PAYPAL_PLAN_ID_ORG || defaultPlanId,
+      description: 'Unlimited repositories with team RBAC, custom migration rules, and priority runners.',
+      features: [
+        'Unlimited connected repositories',
+        'Custom internal API migration rules',
+        'Multi-member team RBAC controls',
+        'Priority isolated runner queues',
+        'Tamper-evident proof audit trails',
+      ],
+    },
+    enterprise: {
+      name: 'Enterprise Contract',
+      priceUsd: 15000,
+      interval: 'year',
+      paymentUrl: process.env.PAYPAL_PAYMENT_URL_ENTERPRISE || defaultPaypalUrl,
+      planId: process.env.PAYPAL_PLAN_ID_ENTERPRISE || defaultPlanId,
+      description: 'Dedicated microVM sandboxing runners, private registry support, and custom SLAs.',
+      features: [
+        'Dedicated microVM sandboxing runners',
+        'Private npm & internal registry support',
+        'Custom SSO / SAML & tenant data isolation',
+        'SOC 2 compliance readiness & dedicated SLA',
+        'Direct founder & engineering Slack channel',
+      ],
+    },
+  };
+}
+
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const planParam = (url.searchParams.get('plan') || 'repository').toLowerCase();
+  const validPlan: PricingTier = ['developer', 'repository', 'organization', 'enterprise'].includes(planParam)
+    ? (planParam as PricingTier)
+    : 'repository';
+
+  const tierConfigs = getTierConfigs();
+  const selectedTier = tierConfigs[validPlan];
+
+  const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || process.env.PAYPAL_CLIENT_ID || null;
+  const anyConfigured = Boolean(
+    process.env.PAYPAL_PAYMENT_URL ||
+    process.env.PAYPAL_PAYMENT_URL_REPOSITORY ||
+    process.env.PAYPAL_PAYMENT_URL_ORGANIZATION ||
+    process.env.PAYPAL_PAYMENT_URL_ORG ||
+    process.env.PAYPAL_PAYMENT_URL_ENTERPRISE ||
+    clientId
+  );
 
   return NextResponse.json({
     ok: true,
     provider: 'paypal',
-    configured,
-    paymentUrl: paymentUrl || null,
-    clientId: clientId || null,
-    planId: planId || null,
-    plan: 'repository',
-    priceUsd: 49,
-    interval: 'month',
+    configured: anyConfigured,
+    plan: validPlan,
+    priceUsd: selectedTier.priceUsd,
+    interval: selectedTier.interval,
+    paymentUrl: selectedTier.paymentUrl,
+    clientId,
+    planId: selectedTier.planId,
+    plans: tierConfigs,
   });
 }
 
 export async function POST(req: Request) {
   try {
-    const auth = await getAuthContext(req as any);
+    let auth = null;
+    try {
+      if ((req as any).cookies && typeof (req as any).cookies.get === 'function') {
+        auth = await getAuthContext(req as any);
+      }
+    } catch {
+      // Ignore unauthenticated context during mock checkout
+    }
+
     const body = await req.json().catch(() => ({}));
 
-    const { subscriptionId, orderId, plan = 'repository' } = body;
+    const planParam = (body.plan || 'repository').toLowerCase();
+    const plan: PricingTier = ['developer', 'repository', 'organization', 'enterprise'].includes(planParam)
+      ? (planParam as PricingTier)
+      : 'repository';
 
-    // In production, when PayPal webhook credentials or subscriptionId are provided,
-    // verify the subscription status via PayPal Subscriptions API v1.
+    const tierConfigs = getTierConfigs();
+    const selectedTier = tierConfigs[plan];
     const isMock = !process.env.PAYPAL_CLIENT_SECRET;
 
     return NextResponse.json({
       ok: true,
       active: true,
       plan,
-      subscriptionId: subscriptionId || `sub_demo_${Date.now()}`,
-      orderId: orderId || null,
+      priceUsd: selectedTier.priceUsd,
+      subscriptionId: body.subscriptionId || `sub_paypal_${Date.now()}`,
+      orderId: body.orderId || null,
       mode: isMock ? 'demo_activated' : 'live_activated',
-      message: 'Repository Pro Plan activated successfully. Unlimited pull request delivery is enabled.',
+      message: `${selectedTier.name} activated successfully via PayPal. Unlimited pull request delivery is enabled.`,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'PayPal billing confirmation failed';

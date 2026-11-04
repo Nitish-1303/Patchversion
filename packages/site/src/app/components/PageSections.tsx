@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { ParallaxCard, Reveal } from './Experience';
+import { PayPalUpgradeModal, type SupportedPlan } from '../dashboard/components/PayPalUpgradeModal';
 import {
   ScanRadarIcon,
   TopologyIcon,
@@ -394,47 +395,56 @@ export function DuskCtaBand({
 }
 
 export function PricingMatrix() {
+  const [checkoutPlan, setCheckoutPlan] = useState<SupportedPlan | null>(null);
+  const [successPlan, setSuccessPlan] = useState<SupportedPlan | null>(null);
+
   const tiers = [
     {
+      id: 'developer' as const,
       name: 'Developer',
       price: '$0',
       period: 'local preview',
       desc: 'For individual developers testing deterministic AST migrations on local fixtures.',
-      cta: 'Start local scan',
+      cta: 'Start local scan (Free)',
       href: '/dashboard',
       featured: false,
+      isPaypal: false,
       features: [
         'Unlimited local AST scans',
         'AST call-site mapping engine',
         'Deterministic patch generator',
+        '1 free automated PR / month',
         'Tamper-evident proof bundles',
-        'Community Discord & docs',
       ],
     },
     {
+      id: 'repository' as const,
       name: 'Repository',
       price: '$49',
       period: 'per repo / month',
       desc: 'Automated package watching, call-site mapping, and verified migration proof runs.',
-      cta: 'Preview repo tier',
-      href: '/signup',
+      cta: 'Pay with PayPal ($49/mo)',
+      href: '#',
       featured: true,
+      isPaypal: true,
       features: [
         '1 connected repository',
         'Continuous upstream package watching',
-        'Up to 50 verified migration runs / mo',
+        'Unlimited verified migration PRs',
         'GitHub App single-use human approvals',
         'Fail-closed PR delivery mutex',
       ],
     },
     {
+      id: 'organization' as const,
       name: 'Organization',
       price: '$299',
       period: 'per org / month',
       desc: 'Unlimited repositories with team governance, RBAC, and custom migration rules.',
-      cta: 'Request org preview',
-      href: '/signup',
+      cta: 'Pay with PayPal ($299/mo)',
+      href: '#',
       featured: false,
+      isPaypal: true,
       features: [
         'Unlimited connected repositories',
         'Custom internal API migration rules',
@@ -444,13 +454,15 @@ export function PricingMatrix() {
       ],
     },
     {
+      id: 'enterprise' as const,
       name: 'Enterprise',
       price: '$15k+',
       period: 'annual contract',
       desc: 'Dedicated microVM sandboxing runners, private npm registries, and custom SLAs.',
-      cta: 'Talk to founders',
-      href: '/contact',
+      cta: 'Pay with PayPal ($15k/yr)',
+      href: '#',
       featured: false,
+      isPaypal: true,
       features: [
         'Dedicated microVM sandboxing runners',
         'Private npm & internal registry support',
@@ -466,8 +478,40 @@ export function PricingMatrix() {
       <PageHeading
         eyebrow="PLANNED COMMERCIAL MODEL"
         title="Predictable, repository-based pricing."
-        description="Initial pricing hypotheses. Early developer access is free; paid tiers will activate as hosted microVM sandboxes come online."
+        description="Select a plan below to checkout directly via PayPal. Payouts route straight to your account with instant activation."
       />
+
+      {successPlan && (
+        <div
+          style={{
+            padding: '14px 20px',
+            marginBottom: '24px',
+            background: '#ecfdf5',
+            border: '1px solid #a7f3d0',
+            borderRadius: '10px',
+            color: '#065f46',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <CheckCircleIcon size={20} color="#059669" />
+            <div>
+              <strong>Subscription Activated via PayPal!</strong>
+              <p style={{ margin: '2px 0 0', fontSize: '13px' }}>
+                Your {successPlan} plan is now active. You have unlocked unlimited automated pull requests.
+              </p>
+            </div>
+          </div>
+          <Link href="/dashboard" className="pill-button pill-button-dark" style={{ fontSize: '13px', padding: '6px 14px' }}>
+            Go to Dashboard &rarr;
+          </Link>
+        </div>
+      )}
+
       <div className="pricing-grid-4">
         {tiers.map((t, idx) => (
           <Reveal key={t.name} delay={idx * 60}>
@@ -494,17 +538,66 @@ export function PricingMatrix() {
                   ))}
                 </ul>
               </div>
-              <Link
-                href={t.href}
-                className={`pill-button ${t.featured ? 'pill-button-dark' : 'pill-button-light'}`}
-                style={{ width: '100%', marginTop: '16px' }}
-              >
-                {t.cta}
-              </Link>
+
+              {t.isPaypal ? (
+                <button
+                  type="button"
+                  onClick={() => setCheckoutPlan(t.id)}
+                  className={`pill-button ${t.featured ? 'pill-button-dark' : 'pill-button-light'}`}
+                  style={{
+                    width: '100%',
+                    marginTop: '16px',
+                    cursor: 'pointer',
+                    background: t.featured ? '#ffc439' : '#ffffff',
+                    color: t.featured ? '#003087' : '#0f172a',
+                    border: t.featured ? '1px solid #e0aa28' : '1px solid #cbd5e1',
+                    fontWeight: 700,
+                  }}
+                >
+                  {t.cta}
+                </button>
+              ) : (
+                <Link
+                  href={t.href}
+                  className="pill-button pill-button-light"
+                  style={{ width: '100%', marginTop: '16px' }}
+                >
+                  {t.cta}
+                </Link>
+              )}
             </div>
           </Reveal>
         ))}
       </div>
+
+      <div
+        style={{
+          marginTop: '28px',
+          textAlign: 'center',
+          fontSize: '12px',
+          color: '#64748b',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px',
+        }}
+      >
+        <ShieldCheckIcon size={16} color="#059669" />
+        <span>Official PayPal Checkout &middot; Instant activation &middot; Cancel anytime</span>
+      </div>
+
+      {/* Multi-plan PayPal Checkout Modal */}
+      {checkoutPlan && (
+        <PayPalUpgradeModal
+          isOpen={Boolean(checkoutPlan)}
+          initialPlan={checkoutPlan}
+          onClose={() => setCheckoutPlan(null)}
+          onUpgradeSuccess={(plan) => {
+            setSuccessPlan(plan || checkoutPlan);
+            setCheckoutPlan(null);
+          }}
+        />
+      )}
     </section>
   );
 }

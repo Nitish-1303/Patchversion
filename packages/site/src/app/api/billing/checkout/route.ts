@@ -32,12 +32,18 @@ export async function POST(req: Request) {
       : 'repository';
 
     // Handle direct PayPal checkout if requested or configured
+    const planPaypalUrl =
+      (plan === 'repository' && (process.env.PAYPAL_PAYMENT_URL_REPOSITORY || process.env.PAYPAL_PAYMENT_URL)) ||
+      (plan === 'organization' && (process.env.PAYPAL_PAYMENT_URL_ORGANIZATION || process.env.PAYPAL_PAYMENT_URL_ORG || process.env.PAYPAL_PAYMENT_URL)) ||
+      (plan === 'enterprise' && (process.env.PAYPAL_PAYMENT_URL_ENTERPRISE || process.env.PAYPAL_PAYMENT_URL)) ||
+      process.env.PAYPAL_PAYMENT_URL;
+
     if (body.provider === 'paypal' || process.env.PAYPAL_PAYMENT_URL) {
-      if (process.env.PAYPAL_PAYMENT_URL) {
+      if (planPaypalUrl) {
         return NextResponse.json({
           ok: true,
           provider: 'paypal',
-          url: process.env.PAYPAL_PAYMENT_URL,
+          url: planPaypalUrl,
         });
       }
     }
@@ -107,7 +113,13 @@ export async function GET(req: Request) {
     : 'repository';
 
   const isConfigured = Boolean(
-    process.env.STRIPE_SECRET_KEY || process.env.PAYPAL_PAYMENT_URL || process.env.PAYPAL_CLIENT_ID
+    process.env.STRIPE_SECRET_KEY ||
+    process.env.PAYPAL_PAYMENT_URL ||
+    process.env.PAYPAL_PAYMENT_URL_REPOSITORY ||
+    process.env.PAYPAL_PAYMENT_URL_ORGANIZATION ||
+    process.env.PAYPAL_PAYMENT_URL_ORG ||
+    process.env.PAYPAL_PAYMENT_URL_ENTERPRISE ||
+    process.env.PAYPAL_CLIENT_ID
   );
 
   return NextResponse.json({

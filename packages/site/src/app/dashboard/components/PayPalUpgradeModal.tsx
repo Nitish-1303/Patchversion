@@ -3,11 +3,87 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheckIcon, CheckCircleIcon, TrypatchbayMark } from '@/app/components/UiIcons';
 
-interface PayPalUpgradeModalProps {
+export type SupportedPlan = 'developer' | 'repository' | 'organization' | 'enterprise';
+
+interface PlanDetail {
+  id: SupportedPlan;
+  name: string;
+  badge: string;
+  priceUsd: number;
+  period: string;
+  desc: string;
+  features: string[];
+}
+
+const PLANS: Record<SupportedPlan, PlanDetail> = {
+  developer: {
+    id: 'developer',
+    name: 'Developer Preview',
+    badge: 'FREE',
+    priceUsd: 0,
+    period: 'forever',
+    desc: 'Free AST scanning and local deterministic proof loop.',
+    features: [
+      'Unlimited local AST scans',
+      'AST call-site mapping engine',
+      'Deterministic patch generator',
+      '1 free automated PR / month',
+      'Tamper-evident proof bundles',
+    ],
+  },
+  repository: {
+    id: 'repository',
+    name: 'Repository Tier',
+    badge: 'POPULAR',
+    priceUsd: 49,
+    period: 'per repo / month',
+    desc: 'Continuous upstream watching, blast radius mapping, and unlimited verified PR delivery.',
+    features: [
+      '1 connected repository',
+      'Continuous 24/7 upstream watching',
+      'Unlimited verified migration PRs',
+      'GitHub App single-use human approvals',
+      'Fail-closed AST sandboxing',
+    ],
+  },
+  organization: {
+    id: 'organization',
+    name: 'Organization Tier',
+    badge: 'TEAMS',
+    priceUsd: 299,
+    period: 'per org / month',
+    desc: 'Unlimited repositories with team RBAC, custom migration rules, and priority runners.',
+    features: [
+      'Unlimited connected repositories',
+      'Custom internal API migration rules',
+      'Multi-member team RBAC controls',
+      'Priority isolated runner queues',
+      'Tamper-evident proof audit trails',
+    ],
+  },
+  enterprise: {
+    id: 'enterprise',
+    name: 'Enterprise Contract',
+    badge: 'ANNUAL',
+    priceUsd: 15000,
+    period: 'annual contract',
+    desc: 'Dedicated microVM sandboxing runners, private registry support, and custom SLAs.',
+    features: [
+      'Dedicated microVM sandboxing runners',
+      'Private npm & internal registry support',
+      'Custom SSO / SAML & tenant data isolation',
+      'SOC 2 compliance readiness & dedicated SLA',
+      'Direct founder & engineering Slack channel',
+    ],
+  },
+};
+
+export interface PayPalUpgradeModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onUpgradeSuccess?: () => void;
-  onPlanActivated?: () => void;
+  initialPlan?: SupportedPlan;
+  onUpgradeSuccess?: (plan?: SupportedPlan) => void;
+  onPlanActivated?: (plan?: SupportedPlan) => void;
   userEmail?: string;
   tenantName?: string;
 }
@@ -15,11 +91,13 @@ interface PayPalUpgradeModalProps {
 export function PayPalUpgradeModal({
   isOpen,
   onClose,
+  initialPlan = 'repository',
   onUpgradeSuccess,
   onPlanActivated,
   userEmail,
   tenantName,
 }: PayPalUpgradeModalProps) {
+  const [selectedPlan, setSelectedPlan] = useState<SupportedPlan>(initialPlan);
   const [loading, setLoading] = useState(false);
   const [paypalConfig, setPaypalConfig] = useState<{
     configured: boolean;
@@ -28,33 +106,39 @@ export function PayPalUpgradeModal({
   }>({
     configured: false,
     paymentUrl: null,
-    priceUsd: 49,
+    priceUsd: PLANS[initialPlan]?.priceUsd ?? 49,
   });
 
-  const notifySuccess = () => {
-    if (onUpgradeSuccess) onUpgradeSuccess();
-    if (onPlanActivated) onPlanActivated();
+  useEffect(() => {
+    setSelectedPlan(initialPlan);
+  }, [initialPlan]);
+
+  const notifySuccess = (plan: SupportedPlan) => {
+    if (onUpgradeSuccess) onUpgradeSuccess(plan);
+    if (onPlanActivated) onPlanActivated(plan);
   };
 
   useEffect(() => {
     if (!isOpen) return;
-    fetch('/api/billing/paypal')
+    fetch(`/api/billing/paypal?plan=${selectedPlan}`)
       .then(res => res.json())
       .then(data => {
         if (data.ok) {
           setPaypalConfig({
             configured: data.configured,
             paymentUrl: data.paymentUrl,
-            priceUsd: data.priceUsd || 49,
+            priceUsd: data.priceUsd ?? PLANS[selectedPlan].priceUsd,
           });
         }
       })
       .catch(() => {
         // Fall back gracefully
       });
-  }, [isOpen]);
+  }, [isOpen, selectedPlan]);
 
   if (!isOpen) return null;
+
+  const currentPlan = PLANS[selectedPlan] || PLANS.repository;
 
   const handleDemoActivate = async () => {
     setLoading(true);
@@ -63,12 +147,14 @@ export function PayPalUpgradeModal({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          plan: 'repository',
-          subscriptionId: `sub_paypal_sim_${Date.now()}`,
+          plan: selectedPlan,
+          subscriptionId: `sub_paypal_${selectedPlan}_${Date.now()}`,
+          userEmail,
+          tenantName,
         }),
       });
       if (res.ok) {
-        notifySuccess();
+        notifySuccess(selectedPlan);
         onClose();
       }
     } finally {
@@ -79,7 +165,7 @@ export function PayPalUpgradeModal({
   const handlePayPalRedirect = () => {
     if (paypalConfig.paymentUrl) {
       window.open(paypalConfig.paymentUrl, '_blank', 'noopener,noreferrer');
-      notifySuccess();
+      notifySuccess(selectedPlan);
       onClose();
     } else {
       handleDemoActivate();
@@ -110,7 +196,7 @@ export function PayPalUpgradeModal({
         style={{
           background: '#ffffff',
           borderRadius: '16px',
-          maxWidth: '520px',
+          maxWidth: '560px',
           width: '100%',
           overflow: 'hidden',
           boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1)',
@@ -130,7 +216,7 @@ export function PayPalUpgradeModal({
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <TrypatchbayMark size={28} />
               <span style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.06em', color: '#93c5fd' }}>
-                TRYPATCHBAY REPOSITORY PRO
+                PAYPAL CHECKOUT &middot; TRYPATCHBAY
               </span>
             </div>
             <button
@@ -149,13 +235,54 @@ export function PayPalUpgradeModal({
             </button>
           </div>
 
+          {/* Tier Switcher Tabs */}
+          <div
+            style={{
+              display: 'flex',
+              gap: '6px',
+              marginTop: '18px',
+              background: 'rgba(255, 255, 255, 0.08)',
+              padding: '4px',
+              borderRadius: '8px',
+            }}
+          >
+            {(['repository', 'organization', 'enterprise'] as SupportedPlan[]).map(planId => {
+              const p = PLANS[planId];
+              const isSelected = selectedPlan === planId;
+              return (
+                <button
+                  key={planId}
+                  type="button"
+                  onClick={() => setSelectedPlan(planId)}
+                  style={{
+                    flex: 1,
+                    padding: '8px 10px',
+                    fontSize: '12px',
+                    fontWeight: isSelected ? 700 : 500,
+                    borderRadius: '6px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    background: isSelected ? '#ffffff' : 'transparent',
+                    color: isSelected ? '#0f172a' : '#94a3b8',
+                    boxShadow: isSelected ? '0 1px 3px rgba(0,0,0,0.2)' : 'none',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {p.name.replace(' Tier', '').replace(' Contract', '')} (${p.priceUsd >= 1000 ? `$${p.priceUsd / 1000}k` : `$${p.priceUsd}`})
+                </button>
+              );
+            })}
+          </div>
+
           <div style={{ marginTop: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-              <span style={{ fontSize: '36px', fontWeight: 800, color: '#ffffff' }}>$49</span>
-              <span style={{ fontSize: '14px', color: '#94a3b8' }}>/ month per repository</span>
+              <span style={{ fontSize: '36px', fontWeight: 800, color: '#ffffff' }}>
+                ${currentPlan.priceUsd >= 1000 ? `${(currentPlan.priceUsd / 1000).toLocaleString()}k` : currentPlan.priceUsd}
+              </span>
+              <span style={{ fontSize: '14px', color: '#94a3b8' }}>/ {currentPlan.period}</span>
             </div>
             <p style={{ fontSize: '13px', color: '#cbd5e1', margin: '6px 0 0' }}>
-              Automated AST breaking change migrations, unlimited PR deliveries, and continuous branch protection.
+              {currentPlan.desc}
             </p>
           </div>
         </div>
@@ -163,17 +290,11 @@ export function PayPalUpgradeModal({
         {/* Modal Body & Features */}
         <div style={{ padding: '24px 28px' }}>
           <div style={{ fontSize: '12px', fontWeight: 700, color: '#475569', letterSpacing: '0.04em', marginBottom: '12px' }}>
-            WHAT YOU UNLOCK:
+            WHAT IS INCLUDED IN {currentPlan.name.toUpperCase()}:
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px' }}>
-            {[
-              'Unlimited Automated Migration Pull Requests (no 1 PR/mo limit)',
-              'Continuous 24/7 Webhook Monitoring on every commit and tag',
-              'Cryptographic Red-to-Green Test Proof Artifacts',
-              'Fail-closed AST transformation guarantees (zero hallucinated code)',
-              'Direct founder Slack & email priority support',
-            ].map((feat, idx) => (
+            {currentPlan.features.map((feat, idx) => (
               <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: '#1e293b' }}>
                 <CheckCircleIcon size={16} color="#059669" />
                 <span>{feat}</span>
@@ -189,7 +310,7 @@ export function PayPalUpgradeModal({
               disabled={loading}
               style={{
                 width: '100%',
-                padding: '12px 20px',
+                padding: '13px 20px',
                 borderRadius: '8px',
                 background: '#ffc439',
                 color: '#003087',
@@ -201,14 +322,18 @@ export function PayPalUpgradeModal({
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
-                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.08)',
+                boxShadow: '0 2px 6px rgba(0, 0, 0, 0.08)',
               }}
             >
-              <span>{loading ? 'Connecting to PayPal...' : 'Pay with PayPal ($49.00 USD)'}</span>
+              <span>
+                {loading
+                  ? 'Connecting to PayPal...'
+                  : `Pay with PayPal ($${currentPlan.priceUsd >= 1000 ? (currentPlan.priceUsd).toLocaleString() : currentPlan.priceUsd}.00 USD)`}
+              </span>
             </button>
 
             <p style={{ textAlign: 'center', fontSize: '11px', color: '#64748b', margin: '4px 0 0' }}>
-              Secure checkout via PayPal. Supports PayPal balance, debit, credit card, and bank payout. Cancel anytime in one click.
+              Official PayPal Checkout. Payouts are routed directly to your PayPal account. Cancel anytime.
             </p>
           </div>
         </div>
