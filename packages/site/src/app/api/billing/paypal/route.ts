@@ -12,6 +12,10 @@ export interface PlanConfig {
   features: string[];
 }
 
+export const ACTIVE_PAYPAL_CLIENT_ID = 'BAASotFTsmDk1LL0SyvTHjxkVVUqbg6ONaxOeNg7Fn5G3fuCbb348n99trKyqNXlFSa9EkWAe9dqaaO9e8';
+export const ACTIVE_REPOSITORY_PLAN_ID = 'P-3J256502HE020922SNLVRT7A';
+export const ACTIVE_REPOSITORY_PAYMENT_URL = `https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=${ACTIVE_REPOSITORY_PLAN_ID}`;
+
 export function getTierConfigs(): Record<PricingTier, PlanConfig> {
   const defaultPaypalUrl = process.env.PAYPAL_PAYMENT_URL || null;
   const defaultPlanId = process.env.PAYPAL_PLAN_ID || process.env.NEXT_PUBLIC_PAYPAL_PLAN_ID || null;
@@ -36,8 +40,8 @@ export function getTierConfigs(): Record<PricingTier, PlanConfig> {
       name: 'Repository Tier',
       priceUsd: 49,
       interval: 'month',
-      paymentUrl: process.env.PAYPAL_PAYMENT_URL_REPOSITORY || defaultPaypalUrl,
-      planId: process.env.PAYPAL_PLAN_ID_REPOSITORY || defaultPlanId,
+      paymentUrl: process.env.PAYPAL_PAYMENT_URL_REPOSITORY || defaultPaypalUrl || ACTIVE_REPOSITORY_PAYMENT_URL,
+      planId: process.env.PAYPAL_PLAN_ID_REPOSITORY || defaultPlanId || ACTIVE_REPOSITORY_PLAN_ID,
       description: 'Continuous upstream watching and unlimited verified PR delivery for 1 repository.',
       features: [
         '1 connected repository',
@@ -90,7 +94,7 @@ export async function GET(req: Request) {
   const tierConfigs = getTierConfigs();
   const selectedTier = tierConfigs[validPlan];
 
-  const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || process.env.PAYPAL_CLIENT_ID || null;
+  const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || process.env.PAYPAL_CLIENT_ID || ACTIVE_PAYPAL_CLIENT_ID;
   const anyConfigured = Boolean(
     process.env.PAYPAL_PAYMENT_URL ||
     process.env.PAYPAL_PAYMENT_URL_REPOSITORY ||

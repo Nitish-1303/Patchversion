@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { CheckCircleIcon, TrypatchbayMark } from '@/app/components/UiIcons';
 
 export type SupportedPlan = 'developer' | 'repository' | 'organization' | 'enterprise';
@@ -88,6 +88,30 @@ export interface PayPalUpgradeModalProps {
   tenantName?: string;
 }
 
+interface PayPalSubscriptionActions {
+  subscription: {
+    create: (options: { plan_id: string }) => Promise<string>;
+  };
+}
+
+interface PayPalSubscriptionData {
+  subscriptionID?: string;
+  orderID?: string;
+}
+
+interface PayPalWindow extends Window {
+  paypal?: {
+    Buttons?: (config: {
+      style?: Record<string, string>;
+      createSubscription: (data: unknown, actions: PayPalSubscriptionActions) => Promise<string>;
+      onApprove: (data: PayPalSubscriptionData) => void;
+      onError?: (err: unknown) => void;
+    }) => {
+      render: (element: HTMLElement | string) => Promise<void>;
+    };
+  };
+}
+
 export function PayPalUpgradeModal({
   isOpen,
   onClose,
@@ -100,20 +124,30 @@ export function PayPalUpgradeModal({
   const [userSelectedPlan, setUserSelectedPlan] = useState<SupportedPlan | null>(null);
   const selectedPlan = userSelectedPlan ?? initialPlan;
   const [loading, setLoading] = useState(false);
+  const [sdkLoaded, setSdkLoaded] = useState(false);
+  const buttonContainerRef = useRef<HTMLDivElement>(null);
+
   const [paypalConfig, setPaypalConfig] = useState<{
     configured: boolean;
     paymentUrl: string | null;
+    clientId: string | null;
+    planId: string | null;
     priceUsd: number;
   }>({
     configured: false,
     paymentUrl: null,
+    clientId: null,
+    planId: null,
     priceUsd: PLANS[initialPlan]?.priceUsd ?? 49,
   });
 
-  const notifySuccess = (plan: SupportedPlan) => {
-    if (onUpgradeSuccess) onUpgradeSuccess(plan);
-    if (onPlanActivated) onPlanActivated(plan);
-  };
+  const notifySuccess = useCallback(
+    (plan: SupportedPlan) => {
+      if (onUpgradeSuccess) onUpgradeSuccess(plan);
+      if (onPlanActivated) onPlanActivated(plan);
+    },
+    [onUpgradeSuccess, onPlanActivated]
+  );
 
   useEffect(() => {
     if (!isOpen) return;
@@ -124,6 +158,8 @@ export function PayPalUpgradeModal({
           setPaypalConfig({
             configured: data.configured,
             paymentUrl: data.paymentUrl,
+            clientId: data.clientId,
+            planId: data.planId,
             priceUsd: data.priceUsd ?? PLANS[selectedPlan].priceUsd,
           });
         }
@@ -132,6 +168,86 @@ export function PayPalUpgradeModal({
         // Fall back gracefully
       });
   }, [isOpen, selectedPlan]);
+
+  // Load official PayPal JavaScript SDK
+  useEffect(() => {
+    if (!isOpen || !paypalConfig.clientId) return;
+
+    const scriptId = 'paypal-smart-sdk';
+    const existingScript = document.getElementById(scriptId) as HTMLScriptElement | null;
+
+    if (!existingScript) {
+      const script = document.createElement('script');
+      script.id = scriptId;
+      script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(
+        paypalConfig.clientId
+      )}&vault=true&intent=subscription`;
+      script.async = true;
+      script.setAttribute('data-sdk-integration-source', 'button-factory');
+      script.onload = () => {
+        setSdkLoaded(true);
+      };
+      document.body.appendChild(script);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setSdkLoaded(true);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [isOpen, paypalConfig.clientId]);
+
+  // Render official PayPal Buttons when container & SDK are ready
+  useEffect(() => {
+    if (!sdkLoaded || !isOpen || !buttonContainerRef.current) return;
+    const targetPlanId = paypalConfig.planId;
+    if (!targetPlanId) return;
+
+    const container = buttonContainerRef.current;
+    container.innerHTML = '';
+
+    try {
+      const win = window as unknown as PayPalWindow;
+      if (win.paypal?.Buttons) {
+        win.paypal
+          .Buttons({
+            style: {
+              shape: 'rect',
+              color: 'blue',
+              layout: 'horizontal',
+              label: 'subscribe',
+            },
+            createSubscription: (_data: unknown, actions: PayPalSubscriptionActions) => {
+              return actions.subscription.create({
+                plan_id: targetPlanId,
+              });
+            },
+            onApprove: (data: PayPalSubscriptionData) => {
+              fetch('/api/billing/paypal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  plan: selectedPlan,
+                  subscriptionId: data.subscriptionID,
+                  orderId: data.orderID,
+                  userEmail,
+                  tenantName,
+                }),
+              }).finally(() => {
+                notifySuccess(selectedPlan);
+                onClose();
+              });
+            },
+          })
+          .render(container)
+          .catch(() => {
+            // Container render failure fallback
+          });
+      }
+    } catch {
+      // Fall back to direct link
+    }
+  }, [sdkLoaded, isOpen, selectedPlan, paypalConfig.planId, userEmail, tenantName, notifySuccess, onClose]);
 
   if (!isOpen) return null;
 
@@ -290,7 +406,7 @@ export function PayPalUpgradeModal({
             WHAT IS INCLUDED IN {currentPlan.name.toUpperCase()}:
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
             {currentPlan.features.map((feat, idx) => (
               <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: '#1e293b' }}>
                 <CheckCircleIcon size={16} color="#059669" />
@@ -299,38 +415,43 @@ export function PayPalUpgradeModal({
             ))}
           </div>
 
-          {/* PayPal Payment Button */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {/* Official PayPal SDK Smart Buttons Container */}
+          <div style={{ minHeight: '44px', marginBottom: '10px' }}>
+            <div ref={buttonContainerRef} id={`paypal-button-container-${paypalConfig.planId || 'default'}`} />
+          </div>
+
+          {/* Fallback Direct Checkout Button */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <button
               type="button"
               onClick={handlePayPalRedirect}
               disabled={loading}
               style={{
                 width: '100%',
-                padding: '13px 20px',
+                padding: '11px 18px',
                 borderRadius: '8px',
                 background: '#ffc439',
                 color: '#003087',
                 border: '1px solid #e0aa28',
-                fontSize: '15px',
+                fontSize: '14px',
                 fontWeight: 800,
                 cursor: loading ? 'wait' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
-                boxShadow: '0 2px 6px rgba(0, 0, 0, 0.08)',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
               }}
             >
               <span>
                 {loading
                   ? 'Connecting to PayPal...'
-                  : `Pay with PayPal ($${currentPlan.priceUsd >= 1000 ? (currentPlan.priceUsd).toLocaleString() : currentPlan.priceUsd}.00 USD)`}
+                  : `Subscribe with PayPal ($${currentPlan.priceUsd >= 1000 ? (currentPlan.priceUsd).toLocaleString() : currentPlan.priceUsd}.00 USD)`}
               </span>
             </button>
 
             <p style={{ textAlign: 'center', fontSize: '11px', color: '#64748b', margin: '4px 0 0' }}>
-              Official PayPal Checkout. Payouts are routed directly to your PayPal account. Cancel anytime.
+              Official PayPal Smart Subscribe. Direct payouts to Yeluru Nitish. Cancel anytime in one click.
             </p>
           </div>
         </div>
