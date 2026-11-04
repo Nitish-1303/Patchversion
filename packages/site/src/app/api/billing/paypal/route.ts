@@ -16,6 +16,9 @@ export const ACTIVE_PAYPAL_CLIENT_ID = 'BAASotFTsmDk1LL0SyvTHjxkVVUqbg6ONaxOeNg7
 export const ACTIVE_REPOSITORY_PLAN_ID = 'P-3J256502HE020922SNLVRT7A';
 export const ACTIVE_REPOSITORY_PAYMENT_URL = `https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=${ACTIVE_REPOSITORY_PLAN_ID}`;
 
+export const ACTIVE_ORGANIZATION_PLAN_ID = 'P-5H742454KV472641MNLVR4QQ';
+export const ACTIVE_ORGANIZATION_PAYMENT_URL = `https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=${ACTIVE_ORGANIZATION_PLAN_ID}`;
+
 export function getTierConfigs(): Record<PricingTier, PlanConfig> {
   const defaultPaypalUrl = process.env.PAYPAL_PAYMENT_URL || null;
   const defaultPlanId = process.env.PAYPAL_PLAN_ID || process.env.NEXT_PUBLIC_PAYPAL_PLAN_ID || null;
@@ -55,8 +58,8 @@ export function getTierConfigs(): Record<PricingTier, PlanConfig> {
       name: 'Organization Tier',
       priceUsd: 299,
       interval: 'month',
-      paymentUrl: process.env.PAYPAL_PAYMENT_URL_ORGANIZATION || process.env.PAYPAL_PAYMENT_URL_ORG || defaultPaypalUrl,
-      planId: process.env.PAYPAL_PLAN_ID_ORGANIZATION || process.env.PAYPAL_PLAN_ID_ORG || defaultPlanId,
+      paymentUrl: process.env.PAYPAL_PAYMENT_URL_ORGANIZATION || process.env.PAYPAL_PAYMENT_URL_ORG || defaultPaypalUrl || ACTIVE_ORGANIZATION_PAYMENT_URL,
+      planId: process.env.PAYPAL_PLAN_ID_ORGANIZATION || process.env.PAYPAL_PLAN_ID_ORG || defaultPlanId || ACTIVE_ORGANIZATION_PLAN_ID,
       description: 'Unlimited repositories with team RBAC, custom migration rules, and priority runners.',
       features: [
         'Unlimited connected repositories',
