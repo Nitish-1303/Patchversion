@@ -172,5 +172,83 @@ describe('Stripe Billing API & Checkout Endpoints', () => {
       expect(body.provider).toBe('paypal');
       expect(body.url).toBe('https://www.paypal.com/ncp/payment/ORG123');
     });
+
+    test('POST /api/billing/paypal rejects request when subscriptionId is missing', async () => {
+      const req = new Request('https://trypatchbay.vercel.app/api/billing/paypal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: 'repository' }),
+      });
+
+      const res = await postPaypal(req);
+      expect(res.status).toBe(400);
+
+      const body = await res.json();
+      expect(body.ok).toBe(false);
+      expect(body.error).toContain('Subscription ID is required');
+    });
+
+    test('POST /api/billing/paypal rejects unverified subscription in non-test mode', async () => {
+      const prevNodeEnv = process.env.NODE_ENV;
+      delete process.env.ALLOW_DEMO_BILLING;
+      delete process.env.ALLOW_TEST_PAYPAL;
+      Object.defineProperty(process.env, 'NODE_ENV', { value: 'production', configurable: true });
+
+      const req = new Request('https://trypatchbay.vercel.app/api/billing/paypal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: 'repository', subscriptionId: 'fake_subscription_id_123' }),
+      });
+
+      const res = await postPaypal(req);
+      expect(res.status).toBe(400);
+
+      const body = await res.json();
+      expect(body.ok).toBe(false);
+      expect(body.error).toContain('PAYPAL_CLIENT_SECRET');
+      Object.defineProperty(process.env, 'NODE_ENV', { value: prevNodeEnv, configurable: true });
+    });
+
+    test('POST /api/billing/webhook enforces idempotent delivery handling', async () => {
+      const eventPayload = {
+        id: 'evt_paypal_idempotent_test_999',
+        event_type: 'BILLING.SUBSCRIPTION.ACTIVATED',
+        resource: {
+          id: 'I-TEST-999',
+          plan_id: 'P-3J256502HE020922SNLVRT7A',
+          status: 'ACTIVE',
+          custom_id: 'tenant_idempotent_test',
+        },
+      };
+
+      const req1 = new Request('https://trypatchbay.vercel.app/api/billing/webhook', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-test-webhook-bypass': 'true',
+        },
+        body: JSON.stringify(eventPayload),
+      });
+
+      const res1 = await postWebhook(req1);
+      expect(res1.status).toBe(200);
+      const body1 = await res1.json();
+      expect(body1.received).toBe(true);
+
+      // Replay identical event
+      const req2 = new Request('https://trypatchbay.vercel.app/api/billing/webhook', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-test-webhook-bypass': 'true',
+        },
+        body: JSON.stringify(eventPayload),
+      });
+
+      const res2 = await postWebhook(req2);
+      expect(res2.status).toBe(200);
+      const body2 = await res2.json();
+      expect(body2.status).toBe('already_processed');
+    });
   });
 });

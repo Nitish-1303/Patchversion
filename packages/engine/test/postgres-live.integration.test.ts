@@ -65,7 +65,7 @@ describeLive('PostgreSQL Real Database Live Integration', () => {
   test('1. Fresh schema creation, repeatable migrations, and pooled connection isolation', async () => {
     // 1. Verify schema integrity and migration status
     const status = await store.getMigrationStatus();
-    expect(status.currentVersion).toBe('001');
+    expect(status.currentVersion).toBe('002');
     expect(status.pendingCount).toBe(0);
 
     const integrity = await store.verifySchemaHealth(testSchema);
@@ -76,6 +76,7 @@ describeLive('PostgreSQL Real Database Live Integration', () => {
     const repeat = await store.runMigrations();
     expect(repeat.applied).toHaveLength(0);
     expect(repeat.alreadyApplied).toContain('001');
+    expect(repeat.alreadyApplied).toContain('002');
 
     // 3. Verify pooled-connection isolation: acquire multiple connections concurrently
     // Every pooled connection must see testSchema in its search_path

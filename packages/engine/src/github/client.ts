@@ -623,6 +623,12 @@ export class GitHubClient {
     baseBranch: string,
     token: string,
   ): Promise<CreatedPullRequest> {
+    if (headBranch === baseBranch) {
+      throw new Error(`Security refusal: head branch cannot be the same as base branch (${baseBranch})`);
+    }
+    if (!headBranch.startsWith('patchversion/')) {
+      throw new Error(`Security refusal: automated migration branches must start with patchversion/ (received: ${headBranch})`);
+    }
     const prKey = `${owner}/${repo}#${headBranch}`;
     if (this.mockPullRequests.has(prKey)) {
       return this.mockPullRequests.get(prKey)!;

@@ -444,6 +444,26 @@ export class WorkflowOrchestrator {
       return existingPr;
     }
 
+    // P0.1 Billing & Entitlements: Enforce plan quota on pull request delivery
+    const findingForQuota = await this.db.getFinding(tenantId, patch.findingId);
+    if (findingForQuota) {
+      const repoForQuota = await this.db.getRepository(tenantId, findingForQuota.repositoryId);
+      if (repoForQuota && !repoForQuota.isDemo) {
+        const tenant = await this.db.getTenant(tenantId);
+        const tenantPlan = tenant?.plan || 'developer';
+        if (tenantPlan === 'developer') {
+          const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+          const monthlyDeliveredCount = await this.db.getMonthlyPullRequestCount(tenantId, thirtyDaysAgo);
+          if (monthlyDeliveredCount >= 1) {
+            throw new Error(
+              'Entitlement limit reached: Developer Preview is limited to 1 automated PR per month. ' +
+              'Upgrade to Repository Tier or higher for unlimited automated PR deliveries.'
+            );
+          }
+        }
+      }
+    }
+
     const claimed = await this.db.claimDelivery(tenantId, patchId, this.workerId);
     if (!claimed) {
       const racePr = await this.db.getPullRequestByFinding(tenantId, patch.findingId);

@@ -203,7 +203,7 @@ describe('GitHub Transport Layer, Fail-Closed Security, and Isolation Tests', ()
       // Branch creation
       transport.post('/repos/acme/project/git/refs', async (url, init) => {
         const body = JSON.parse(init?.body as string);
-        expect(body.ref).toBe('refs/heads/patch-1');
+        expect(body.ref).toBe('refs/heads/patchversion/patch-1');
         return new Response(JSON.stringify({ ref: body.ref }), { status: 201 });
       });
 
@@ -216,7 +216,7 @@ describe('GitHub Transport Layer, Fail-Closed Security, and Isolation Tests', ()
             number: 101,
             url: 'https://api.github.com/repos/acme/project/pulls/101',
             html_url: 'https://github.com/acme/project/pull/101',
-            head: { sha: 'sha123', ref: 'patch-1' },
+            head: { sha: 'sha123', ref: 'patchversion/patch-1' },
             title: body.title,
             body: body.body,
             state: 'open',
@@ -230,19 +230,29 @@ describe('GitHub Transport Layer, Fail-Closed Security, and Isolation Tests', ()
       const content = await client.getRepositoryFileContent('acme', 'project', 'package.json');
       expect(content).toBe('{"version":"1.0.0"}');
 
-      await client.createBranch('acme', 'project', 'patch-1', 'sha_base', 'mock_token');
+      await client.createBranch('acme', 'project', 'patchversion/patch-1', 'sha_base', 'mock_token');
 
       const pr = await client.createPullRequest(
         'acme',
         'project',
         'Upgrade dependency',
         'Fix body',
-        'patch-1',
+        'patchversion/patch-1',
         'main',
         'mock_token',
       );
       expect(pr.number).toBe(101);
       expect(pr.htmlUrl).toBe('https://github.com/acme/project/pull/101');
+
+      // Negative Security Check: Head cannot equal base branch
+      await expect(
+        client.createPullRequest('acme', 'project', 'Upgrade', 'Fix', 'main', 'main', 'mock_token'),
+      ).rejects.toThrow(/Security refusal: head branch cannot be the same as base branch/i);
+
+      // Negative Security Check: Automated PR branches must start with patchversion/
+      await expect(
+        client.createPullRequest('acme', 'project', 'Upgrade', 'Fix', 'random-branch', 'main', 'mock_token'),
+      ).rejects.toThrow(/Security refusal: automated migration branches must start with patchversion\//i);
     });
   });
 

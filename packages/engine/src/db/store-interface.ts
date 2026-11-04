@@ -24,6 +24,16 @@ export interface IPersistenceStore {
   // Tenants & Users
   createTenant(name: string, id?: string): Promise<Tenant> | Tenant;
   getTenant(id: string): Promise<Tenant | null> | Tenant | null;
+  updateTenantPlan(
+    tenantId: string,
+    plan: 'developer' | 'repository' | 'organization' | 'enterprise',
+    subscriptionId?: string,
+    subscriptionStatus?: string,
+  ): Promise<Tenant | null> | Tenant | null;
+  getMonthlyPullRequestCount(
+    tenantId: string,
+    sinceDate: Date,
+  ): Promise<number> | number;
   createUser(
     tenantId: string,
     email: string,
