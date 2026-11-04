@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { getAuthContext } from '@/app/api/backend';
 
 export type PricingTier = 'developer' | 'repository' | 'organization' | 'enterprise';
 
@@ -117,16 +116,13 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    let auth = null;
-    try {
-      if ((req as any).cookies && typeof (req as any).cookies.get === 'function') {
-        auth = await getAuthContext(req as any);
-      }
-    } catch {
-      // Ignore unauthenticated context during mock checkout
-    }
-
-    const body = await req.json().catch(() => ({}));
+    const body = (await req.json().catch(() => ({}))) as {
+      plan?: string;
+      subscriptionId?: string;
+      orderId?: string;
+      userEmail?: string;
+      tenantName?: string;
+    };
 
     const planParam = (body.plan || 'repository').toLowerCase();
     const plan: PricingTier = ['developer', 'repository', 'organization', 'enterprise'].includes(planParam)

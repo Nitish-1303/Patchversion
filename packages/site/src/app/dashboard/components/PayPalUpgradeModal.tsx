@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ShieldCheckIcon, CheckCircleIcon, TrypatchbayMark } from '@/app/components/UiIcons';
+import { CheckCircleIcon, TrypatchbayMark } from '@/app/components/UiIcons';
 
 export type SupportedPlan = 'developer' | 'repository' | 'organization' | 'enterprise';
 
@@ -97,7 +97,8 @@ export function PayPalUpgradeModal({
   userEmail,
   tenantName,
 }: PayPalUpgradeModalProps) {
-  const [selectedPlan, setSelectedPlan] = useState<SupportedPlan>(initialPlan);
+  const [userSelectedPlan, setUserSelectedPlan] = useState<SupportedPlan | null>(null);
+  const selectedPlan = userSelectedPlan ?? initialPlan;
   const [loading, setLoading] = useState(false);
   const [paypalConfig, setPaypalConfig] = useState<{
     configured: boolean;
@@ -108,10 +109,6 @@ export function PayPalUpgradeModal({
     paymentUrl: null,
     priceUsd: PLANS[initialPlan]?.priceUsd ?? 49,
   });
-
-  useEffect(() => {
-    setSelectedPlan(initialPlan);
-  }, [initialPlan]);
 
   const notifySuccess = (plan: SupportedPlan) => {
     if (onUpgradeSuccess) onUpgradeSuccess(plan);
@@ -253,7 +250,7 @@ export function PayPalUpgradeModal({
                 <button
                   key={planId}
                   type="button"
-                  onClick={() => setSelectedPlan(planId)}
+                  onClick={() => setUserSelectedPlan(planId)}
                   style={{
                     flex: 1,
                     padding: '8px 10px',
