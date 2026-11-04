@@ -19,6 +19,9 @@ export const ACTIVE_REPOSITORY_PAYMENT_URL = `https://www.paypal.com/webapps/bil
 export const ACTIVE_ORGANIZATION_PLAN_ID = 'P-5H742454KV472641MNLVR4QQ';
 export const ACTIVE_ORGANIZATION_PAYMENT_URL = `https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=${ACTIVE_ORGANIZATION_PLAN_ID}`;
 
+export const ACTIVE_ENTERPRISE_PLAN_ID = 'P-1LP49683142123911NLVTCYA';
+export const ACTIVE_ENTERPRISE_PAYMENT_URL = `https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=${ACTIVE_ENTERPRISE_PLAN_ID}`;
+
 export function getTierConfigs(): Record<PricingTier, PlanConfig> {
   const defaultPaypalUrl = process.env.PAYPAL_PAYMENT_URL || null;
   const defaultPlanId = process.env.PAYPAL_PLAN_ID || process.env.NEXT_PUBLIC_PAYPAL_PLAN_ID || null;
@@ -73,8 +76,8 @@ export function getTierConfigs(): Record<PricingTier, PlanConfig> {
       name: 'Enterprise Contract',
       priceUsd: 15000,
       interval: 'year',
-      paymentUrl: process.env.PAYPAL_PAYMENT_URL_ENTERPRISE || defaultPaypalUrl,
-      planId: process.env.PAYPAL_PLAN_ID_ENTERPRISE || defaultPlanId,
+      paymentUrl: process.env.PAYPAL_PAYMENT_URL_ENTERPRISE || defaultPaypalUrl || ACTIVE_ENTERPRISE_PAYMENT_URL,
+      planId: process.env.PAYPAL_PLAN_ID_ENTERPRISE || defaultPlanId || ACTIVE_ENTERPRISE_PLAN_ID,
       description: 'Dedicated microVM sandboxing runners, private registry support, and custom SLAs.',
       features: [
         'Dedicated microVM sandboxing runners',
