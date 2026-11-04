@@ -1,0 +1,22 @@
+# TryPatchBay
+
+> Autonomous AST migration and verified dependency upgrades with red-to-green proof execution.
+
+TryPatchBay detects breaking API changes in upstream software dependencies, maps exact AST call sites across your codebase, and synthesizes deterministic migration patches verified inside isolated Cloud MicroVM fleet sandboxes before pull requests are delivered.
+
+## Core Capabilities
+- AST Call-Site Mapping: Traces upstream breaking changes down to the exact syntax nodes.
+- Deterministic Patch Synthesis: Generates verified parameter, method, and import renames.
+- Sealed Cloud MicroVM Fleet: Executes red-to-green proof test suites in isolated microVMs with HMAC-SHA256 task signing.
+- Verified Pull Requests: Prepares pull requests accompanied by signed test execution logs and AST diff digests.
+
+## Key Links and Documentation
+- [Homepage](https://trypatchbay.vercel.app/)
+- [Product Overview](https://trypatchbay.vercel.app/product)
+- [How It Works](https://trypatchbay.vercel.app/how-it-works)
+- [Architecture and Concepts](https://trypatchbay.vercel.app/docs/concepts)
+- [Security Model and Sandbox Isolation](https://trypatchbay.vercel.app/docs/security)
+- [Getting Started Guide](https://trypatchbay.vercel.app/docs/getting-started)
+- [Competitor Comparison](https://trypatchbay.vercel.app/competitors)
+- [Pricing](https://trypatchbay.vercel.app/pricing)
+- [Changelog](https://trypatchbay.vercel.app/changelog)

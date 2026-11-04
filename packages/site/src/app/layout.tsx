@@ -40,6 +40,16 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://trypatchbay.vercel.app'),
   title: 'trypatchbay: API changes, made reviewable',
   description: DESCRIPTION,
+  keywords: [
+    'automated dependency migration',
+    'breaking changes detection',
+    'AST codemod',
+    'npm breaking changes',
+    'deterministic code migration',
+    'pull request verification',
+    'dependabot alternative',
+    'renovate alternative',
+  ],
   icons: {
     icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }],
   },
@@ -65,12 +75,35 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              '@context': 'https://schema.org',
-              '@type': 'Organization',
-              name: 'trypatchbay',
-              url: 'https://trypatchbay.vercel.app',
-            }).replace(/</g, '\\u003c'),
+            __html: JSON.stringify([
+              {
+                '@context': 'https://schema.org',
+                '@type': 'Organization',
+                name: 'trypatchbay',
+                url: 'https://trypatchbay.vercel.app',
+                logo: 'https://trypatchbay.vercel.app/trypatchbay_icon_square.png',
+                sameAs: ['https://github.com/Nitish-1303/Patchversion'],
+              },
+              {
+                '@context': 'https://schema.org',
+                '@type': 'SoftwareApplication',
+                name: 'TryPatchBay',
+                applicationCategory: 'DeveloperApplication',
+                operatingSystem: 'Cloud, Linux, macOS, Windows',
+                offers: {
+                  '@type': 'Offer',
+                  price: '0',
+                  priceCurrency: 'USD',
+                },
+                description: 'Autonomous AST migration and verified dependency upgrades with red-to-green proof execution.',
+              },
+              {
+                '@context': 'https://schema.org',
+                '@type': 'WebSite',
+                name: 'TryPatchBay',
+                url: 'https://trypatchbay.vercel.app',
+              },
+            ]).replace(/</g, '\\u003c'),
           }}
         />
         <Chrome>{children}</Chrome>
