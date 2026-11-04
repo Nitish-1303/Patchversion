@@ -19,6 +19,7 @@ if (isStrictCi && !connectionString) {
 const describeLive = connectionString ? describe : describe.skip;
 
 describeLive('PostgreSQL Real Database Live Integration', () => {
+  jest.setTimeout(60000);
   let pool: Pool;
   let testSchema: string;
   let store: PostgresStore;

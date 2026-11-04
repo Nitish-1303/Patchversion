@@ -60,6 +60,7 @@ export class WorkflowOrchestrator {
   private scanner: RepositoryScanner;
   private workerId: string;
   private inFlightDeliveries = new Set<string>();
+  private inFlightTenantDeliveries = new Set<string>();
 
   constructor(
     db: IPersistenceStore,
@@ -431,6 +432,8 @@ export class WorkflowOrchestrator {
     }
 
     const inFlightKey = `${tenantId}:${patchId}`;
+    const tenantLockKey = `tenant_quota:${tenantId}`;
+    let lockedTenantQuota = false;
     if (this.inFlightDeliveries.has(inFlightKey)) {
       throw new Error(`Pull request delivery is already in progress for patch ${patchId}`);
     }
@@ -452,9 +455,19 @@ export class WorkflowOrchestrator {
         const tenant = await this.db.getTenant(tenantId);
         const tenantPlan = tenant?.plan || 'developer';
         if (tenantPlan === 'developer') {
+          if (this.inFlightTenantDeliveries.has(tenantLockKey)) {
+            throw new Error(
+              'Concurrent pull request delivery in progress for this tenant. Developer Preview is limited to 1 delivery at a time.'
+            );
+          }
+          this.inFlightTenantDeliveries.add(tenantLockKey);
+          lockedTenantQuota = true;
+
           const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
           const monthlyDeliveredCount = await this.db.getMonthlyPullRequestCount(tenantId, thirtyDaysAgo);
           if (monthlyDeliveredCount >= 1) {
+            this.inFlightTenantDeliveries.delete(tenantLockKey);
+            lockedTenantQuota = false;
             throw new Error(
               'Entitlement limit reached: Developer Preview is limited to 1 automated PR per month. ' +
               'Upgrade to Repository Tier or higher for unlimited automated PR deliveries.'
@@ -567,6 +580,9 @@ export class WorkflowOrchestrator {
       success = true;
       return prRecord;
     } finally {
+      if (lockedTenantQuota) {
+        this.inFlightTenantDeliveries.delete(tenantLockKey);
+      }
       this.inFlightDeliveries.delete(inFlightKey);
       await this.db.releaseDeliveryClaim(tenantId, patchId, success ? 'completed' : 'released');
     }
