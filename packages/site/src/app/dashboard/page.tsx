@@ -9,7 +9,8 @@ import { AuditScorecard } from './components/AuditScorecard';
 import { HealthCard } from './components/HealthCard';
 import { TelemetryBar } from './components/TelemetryBar';
 import { PublicDemoCockpit } from './components/PublicDemoCockpit';
-import { PayPalUpgradeModal } from './components/PayPalUpgradeModal';
+import { PayPalUpgradeModal, type SupportedPlan } from './components/PayPalUpgradeModal';
+import { PricingFeaturesDashboard } from './components/PricingFeaturesDashboard';
 import {
   LayersIcon,
   TopologyIcon,
@@ -159,9 +160,11 @@ export default function DashboardPage() {
   const [depSearch, setDepSearch] = useState('');
   const [depFilter, setDepFilter] = useState<'all' | 'direct' | 'transitive' | 'concerns'>('all');
   const [sortOrder, setSortOrder] = useState<'name' | 'callSites' | 'directFirst'>('directFirst');
-  const [activeTab, setActiveTab] = useState<'Breaking Upgrades' | 'Pull Requests' | 'Dependency Inventory'>('Breaking Upgrades');
+  const [activeTab, setActiveTab] = useState<'Breaking Upgrades' | 'Pull Requests' | 'Dependency Inventory' | 'Plan & Features'>('Breaking Upgrades');
   const [showGraph, setShowGraph] = useState(false);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  const [upgradeModalInitialPlan, setUpgradeModalInitialPlan] = useState<SupportedPlan>('repository');
+  const [currentPlan, setCurrentPlan] = useState<SupportedPlan>('developer');
   const [isProUser, setIsProUser] = useState(false);
   const [freePrsRemaining, setFreePrsRemaining] = useState(1);
 
@@ -892,7 +895,7 @@ export default function DashboardPage() {
                   border: '1px solid #93c5fd',
                 }}
               >
-                <span>PRO PLAN ($49/mo)</span>
+                <span>{currentPlan === 'enterprise' ? 'ENTERPRISE CONTRACT' : currentPlan === 'organization' ? 'ORGANIZATION TIER' : 'PRO PLAN ($49/mo)'}</span>
               </span>
             ) : (
               <button
@@ -1195,6 +1198,38 @@ export default function DashboardPage() {
               }}
             >
               {scanResult?.totalDependencies ?? 0}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('Plan & Features')}
+            style={{
+              padding: '8px 16px',
+              fontSize: '13px',
+              fontWeight: activeTab === 'Plan & Features' ? 700 : 500,
+              color: activeTab === 'Plan & Features' ? '#0f172a' : '#64748b',
+              background: 'transparent',
+              border: 'none',
+              borderBottom: activeTab === 'Plan & Features' ? '2px solid #2563eb' : '2px solid transparent',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <span>Plan & Features</span>
+            <span
+              style={{
+                fontSize: '10px',
+                padding: '1px 6px',
+                borderRadius: '999px',
+                background: currentPlan === 'enterprise' ? '#d1fae5' : currentPlan === 'organization' ? '#ede9fe' : currentPlan === 'repository' ? '#dbeafe' : '#f1f5f9',
+                color: currentPlan === 'enterprise' ? '#065f46' : currentPlan === 'organization' ? '#5b21b6' : currentPlan === 'repository' ? '#1e40af' : '#64748b',
+                fontWeight: 700,
+              }}
+            >
+              {currentPlan.toUpperCase()}
             </span>
           </button>
         </div>
@@ -1977,14 +2012,33 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* ============================================================== */}
+        {/* TAB 4: PRICING TIER FEATURES & GOVERNANCE DASHBOARD            */}
+        {/* ============================================================== */}
+        {activeTab === 'Plan & Features' && (
+          <PricingFeaturesDashboard
+            currentPlan={currentPlan}
+            onOpenUpgradeModal={(targetPlan) => {
+              setUpgradeModalInitialPlan(targetPlan);
+              setUpgradeModalOpen(true);
+            }}
+            tenantName={tenant?.name ?? 'Personal Workspace'}
+            repoCount={repositories.length || 1}
+          />
+        )}
+
         {/* PayPal Repository Pro Modal */}
         <PayPalUpgradeModal
           isOpen={upgradeModalOpen}
+          initialPlan={upgradeModalInitialPlan}
           onClose={() => setUpgradeModalOpen(false)}
-          onPlanActivated={() => {
+          onPlanActivated={(plan) => {
             setIsProUser(true);
-            setActionMessage('Repository Pro activated via PayPal! Unlimited pull requests unlocked.');
+            if (plan) setCurrentPlan(plan);
+            setActionMessage(`${plan ? plan.toUpperCase() : 'Tier'} activated via PayPal! Unlimited pull requests unlocked.`);
           }}
+          tenantName={tenant?.name}
+          userEmail={user?.email}
         />
       </main>
     </div>
