@@ -205,6 +205,7 @@ export class PatchversionDatabase implements IPersistenceStore {
     const tenant: Tenant = {
       id: tenantId,
       name,
+      plan: 'developer',
       createdAt: new Date().toISOString(),
     };
     this.data.tenants[tenantId] = tenant;
@@ -214,6 +215,29 @@ export class PatchversionDatabase implements IPersistenceStore {
 
   getTenant(id: string): Tenant | null {
     return this.data.tenants[id] ?? null;
+  }
+
+  updateTenantPlan(
+    tenantId: string,
+    plan: 'developer' | 'repository' | 'organization' | 'enterprise',
+    subscriptionId?: string,
+    subscriptionStatus?: string,
+  ): Tenant | null {
+    const tenant = this.data.tenants[tenantId];
+    if (!tenant) return null;
+    tenant.plan = plan;
+    if (subscriptionId !== undefined) tenant.subscriptionId = subscriptionId;
+    if (subscriptionStatus !== undefined) tenant.subscriptionStatus = subscriptionStatus;
+    tenant.billingUpdatedAt = new Date().toISOString();
+    this.save();
+    return tenant;
+  }
+
+  getMonthlyPullRequestCount(tenantId: string, sinceDate: Date): number {
+    const sinceMs = sinceDate.getTime();
+    return Object.values(this.data.pullRequests).filter(
+      pr => pr.tenantId === tenantId && !pr.isSimulation && new Date(pr.createdAt).getTime() >= sinceMs,
+    ).length;
   }
 
   createUser(

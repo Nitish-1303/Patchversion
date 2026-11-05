@@ -190,7 +190,7 @@ export function PricingFeaturesDashboard({
     a.download = `trypatchbay-soc2-audit-bundle-${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    setExportNotice('Cryptographic proof bundle exported with SHA-256 evidence chain verification.');
+    setExportNotice('Sample evaluation proof bundle exported with SHA-256 evidence chain verification format.');
     setTimeout(() => setExportNotice(null), 5000);
   };
 
@@ -601,7 +601,7 @@ export function PricingFeaturesDashboard({
                   Organization Tier Controls ($299 / month per organization)
                 </h3>
                 <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>
-                  Unlimited repositories, Custom AST Migration Rules Studio, multi-member Team RBAC, and priority runner queues.
+                  Unlimited repositories, Custom AST Migration Rules Studio (Preview), multi-member Team RBAC (Preview), and priority runner queues (Enterprise contract allocation).
                 </p>
               </div>
 
@@ -648,10 +648,10 @@ export function PricingFeaturesDashboard({
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <LayersIcon size={18} color="#8b5cf6" />
-                    <span style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>Custom API Migration Rules Studio</span>
+                    <span style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>Custom Rules Authoring Studio (Preview - Local In-Memory Codemods)</span>
                   </div>
                   <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0' }}>
-                    Author custom AST codemod rules for internal company libraries and private microservice SDKs.
+                    Author custom AST codemod rules for internal company libraries. Preview mode runs in-memory AST transformations for local testing before enterprise rollout.
                   </p>
                 </div>
 
@@ -790,10 +790,10 @@ export function PricingFeaturesDashboard({
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <ShieldCheckIcon size={18} color="#8b5cf6" />
-                    <span style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>Multi-Member Team RBAC Governance</span>
+                    <span style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>Multi-Member Team RBAC Governance (Preview)</span>
                   </div>
                   <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0' }}>
-                    Configure role-based access control (Admin, Security Reviewer, Developer) across your organization.
+                    Configure role-based access control (Admin, Security Reviewer, Developer) across your organization. Authentication: GitHub OAuth (2FA Delegated to GitHub Identity Provider).
                   </p>
                 </div>
 
@@ -861,7 +861,7 @@ export function PricingFeaturesDashboard({
                     <tr style={{ borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>
                       <th style={{ padding: '8px 12px' }}>Member</th>
                       <th style={{ padding: '8px 12px' }}>Role</th>
-                      <th style={{ padding: '8px 12px' }}>2FA Security</th>
+                      <th style={{ padding: '8px 12px' }}>Authentication & 2FA</th>
                       <th style={{ padding: '8px 12px' }}>Status</th>
                     </tr>
                   </thead>
@@ -878,11 +878,7 @@ export function PricingFeaturesDashboard({
                           </span>
                         </td>
                         <td style={{ padding: '10px 12px' }}>
-                          {member.twoFactorEnabled ? (
-                            <span style={{ color: '#059669', fontWeight: 600, fontSize: '11px' }}>Enforced</span>
-                          ) : (
-                            <span style={{ color: '#b45309', fontWeight: 600, fontSize: '11px' }}>Pending</span>
-                          )}
+                          <span style={{ color: '#059669', fontWeight: 600, fontSize: '11px' }}>Delegated (GitHub IdP)</span>
                         </td>
                         <td style={{ padding: '10px 12px' }}>
                           <span style={{ fontSize: '11px', fontWeight: 700, color: member.status === 'active' ? '#059669' : '#64748b' }}>
@@ -955,21 +951,21 @@ export function PricingFeaturesDashboard({
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <CpuIcon size={18} color="#10b981" />
-                  <span style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>Dedicated MicroVM Fleet Telemetry & Runner Isolation</span>
+                  <span style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>Runner Security: Fail-Closed Local Subprocess Refusal (Remote MicroVM cluster requires MICROVM_FLEET_URL)</span>
                 </div>
                 <span style={{ fontSize: '11px', fontWeight: 700, color: '#059669', background: '#ecfdf5', padding: '4px 10px', borderRadius: '6px' }}>
                   FAIL-CLOSED ISOLATION ENFORCED
                 </span>
               </div>
               <p style={{ fontSize: '12px', color: '#475569', margin: '0 0 14px', lineHeight: 1.5 }}>
-                Untrusted repository code is strictly forbidden from executing on the web server. All dependency test runs execute inside isolated, ephemeral worker microVMs with signed HMAC SHA-256 tokens.
+                Untrusted repository code is strictly forbidden from executing on the web server. When no remote microVM fleet is configured via MICROVM_FLEET_URL, local subprocess execution is refused by default to preserve production safety.
               </p>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
                 <div style={{ padding: '12px', background: '#ffffff', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-                  <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>MICROVM FLEET STATUS</div>
-                  <div style={{ fontSize: '16px', fontWeight: 800, color: '#059669', marginTop: '4px' }}>Ready (3 Fleet Workers)</div>
-                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>Fail-closed security provider active</div>
+                  <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>RUNNER SECURITY STATUS</div>
+                  <div style={{ fontSize: '16px', fontWeight: 800, color: '#059669', marginTop: '4px' }}>Fail-Closed Guard Active</div>
+                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>Subprocesses refused without MICROVM_FLEET_URL</div>
                 </div>
 
                 <div style={{ padding: '12px', background: '#ffffff', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
@@ -979,9 +975,9 @@ export function PricingFeaturesDashboard({
                 </div>
 
                 <div style={{ padding: '12px', background: '#ffffff', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-                  <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>DEDICATED SLA</div>
-                  <div style={{ fontSize: '16px', fontWeight: 800, color: '#0f172a', marginTop: '4px' }}>&lt; 15 min Response</div>
-                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>Direct founder & engineering Slack</div>
+                  <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>ENTERPRISE CONTRACT SLA</div>
+                  <div style={{ fontSize: '16px', fontWeight: 800, color: '#0f172a', marginTop: '4px' }}>&lt; 15 min Response Target</div>
+                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>Direct founder and engineering Slack channel</div>
                 </div>
               </div>
             </div>
@@ -990,10 +986,10 @@ export function PricingFeaturesDashboard({
             <div style={{ border: '1px solid #e2e8f0', borderRadius: '10px', padding: '20px', background: '#fafbfc' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                 <LockIcon size={18} color="#10b981" />
-                <span style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>Private NPM & Internal Registry Configuration</span>
+                <span style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>Private Registry Configuration (Enterprise Contract Setup)</span>
               </div>
               <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 14px' }}>
-                Connect private corporate artifact registries (Artifactory, Nexus, AWS CodeArtifact, GitHub Packages) to scan internal packages.
+                Connect private corporate artifact registries (Artifactory, Nexus, AWS CodeArtifact, GitHub Packages) to scan internal packages. Configured via enterprise customer onboarding.
               </p>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginBottom: '14px' }}>
@@ -1060,10 +1056,10 @@ export function PricingFeaturesDashboard({
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <ShieldCheckIcon size={18} color="#10b981" />
-                    <span style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>SOC 2 Compliance & Tamper-Evident Proof Audit Log</span>
+                    <span style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>SOC 2 Compliance and Tamper-Evident Proof Audit Log</span>
                   </div>
                   <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0' }}>
-                    Download a cryptographically signed audit package with SHA-256 evidence digests for external security compliance audits.
+                    Download a sample evaluation audit package with SHA-256 evidence digests for external security compliance audits.
                   </p>
                 </div>
 
@@ -1085,7 +1081,7 @@ export function PricingFeaturesDashboard({
                   }}
                 >
                   <ShieldCheckIcon size={14} color="#ffffff" />
-                  <span>Export Signed SOC 2 Bundle</span>
+                  <span>Download Sample SOC 2 Proof Bundle (Evaluation Format)</span>
                 </button>
               </div>
 

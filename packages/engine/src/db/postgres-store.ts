@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import os from 'os';
-import { Pool, PoolConfig } from 'pg';
+import { Pool, PoolConfig, PoolClient } from 'pg';
 import {
   Tenant,
   User,
@@ -148,29 +148,107 @@ export class PostgresStore implements IPersistenceStore {
     return 'patchversion-serverless-dev-secret-v1';
   }
 
-  // --- Tenants & Users ---
+  // --- Tenants, Users & RLS Tenant Transactions ---
+
+  /**
+   * Executes a database operation within an isolated transaction scoped
+   * strictly to a specific tenant using PostgreSQL Row-Level Security (RLS).
+   * Automatically resets session state on transaction commit/rollback to
+   * prevent connection-pool tenant context leakage.
+   */
+  async withTenantTransaction<T>(tenantId: string, fn: (client: PoolClient) => Promise<T>): Promise<T> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query("SELECT set_config('app.current_tenant_id', $1, true);", [tenantId]);
+      const result = await fn(client);
+      await client.query('COMMIT');
+      return result;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
 
   async createTenant(name: string, id?: string): Promise<Tenant> {
     const tenantId = id || `tenant_${crypto.randomUUID()}`;
     const now = new Date().toISOString();
     await this.pool.query(
-      'INSERT INTO tenants (id, name, created_at) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING',
-      [tenantId, name, now],
+      'INSERT INTO tenants (id, name, plan, created_at) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO NOTHING',
+      [tenantId, name, 'developer', now],
     );
-    return { id: tenantId, name, createdAt: now };
+    return { id: tenantId, name, plan: 'developer', createdAt: now };
   }
 
   async getTenant(id: string): Promise<Tenant | null> {
-    const rows = await this.query<{ id: string; name: string; created_at: string }>(
-      'SELECT id, name, created_at FROM tenants WHERE id = $1',
+    const rows = await this.query<{
+      id: string;
+      name: string;
+      plan?: string;
+      subscription_id?: string;
+      subscription_status?: string;
+      billing_updated_at?: string;
+      created_at: string;
+    }>(
+      'SELECT id, name, plan, subscription_id, subscription_status, billing_updated_at, created_at FROM tenants WHERE id = $1',
       [id],
     );
     if (!rows[0]) return null;
     return {
       id: rows[0].id,
       name: rows[0].name,
+      plan: (rows[0].plan as Tenant['plan']) || 'developer',
+      subscriptionId: rows[0].subscription_id || undefined,
+      subscriptionStatus: rows[0].subscription_status || undefined,
+      billingUpdatedAt: rows[0].billing_updated_at || undefined,
       createdAt: rows[0].created_at,
     };
+  }
+
+  async updateTenantPlan(
+    tenantId: string,
+    plan: 'developer' | 'repository' | 'organization' | 'enterprise',
+    subscriptionId?: string,
+    subscriptionStatus?: string,
+  ): Promise<Tenant | null> {
+    const rows = await this.query<{
+      id: string;
+      name: string;
+      plan: string;
+      subscription_id?: string;
+      subscription_status?: string;
+      billing_updated_at?: string;
+      created_at: string;
+    }>(
+      `UPDATE tenants
+       SET plan = $2,
+           subscription_id = COALESCE($3, subscription_id),
+           subscription_status = COALESCE($4, subscription_status),
+           billing_updated_at = NOW()
+       WHERE id = $1
+       RETURNING id, name, plan, subscription_id, subscription_status, billing_updated_at, created_at`,
+      [tenantId, plan, subscriptionId || null, subscriptionStatus || null],
+    );
+    if (!rows[0]) return null;
+    return {
+      id: rows[0].id,
+      name: rows[0].name,
+      plan: rows[0].plan as Tenant['plan'],
+      subscriptionId: rows[0].subscription_id || undefined,
+      subscriptionStatus: rows[0].subscription_status || undefined,
+      billingUpdatedAt: rows[0].billing_updated_at || undefined,
+      createdAt: rows[0].created_at,
+    };
+  }
+
+  async getMonthlyPullRequestCount(tenantId: string, sinceDate: Date): Promise<number> {
+    const rows = await this.query<{ count: string }>(
+      'SELECT COUNT(*)::text as count FROM pull_requests WHERE tenant_id = $1 AND created_at >= $2 AND is_simulation = FALSE',
+      [tenantId, sinceDate.toISOString()],
+    );
+    return parseInt(rows[0]?.count || '0', 10);
   }
 
   async createUser(

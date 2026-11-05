@@ -223,7 +223,7 @@ export async function getAuthContext(request: NextRequest): Promise<AuthContext 
   const db = getDatabase();
 
   // Try cookie first
-  let token = request.cookies.get('trypatchbay_session')?.value;
+  let token = request.cookies?.get('trypatchbay_session')?.value;
 
   // Fallback to Bearer token header
   if (!token) {

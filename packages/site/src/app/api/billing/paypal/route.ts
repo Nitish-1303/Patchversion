@@ -1,4 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { getAuthContext, getDatabase } from '@/app/api/backend';
+import { verifyPayPalSubscription } from '../paypal-service';
 
 export type PricingTier = 'developer' | 'repository' | 'organization' | 'enterprise';
 
@@ -126,6 +128,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    const auth = await getAuthContext(req as unknown as NextRequest);
     const body = (await req.json().catch(() => ({}))) as {
       plan?: string;
       subscriptionId?: string;
@@ -135,26 +138,46 @@ export async function POST(req: Request) {
     };
 
     const planParam = (body.plan || 'repository').toLowerCase();
-    const plan: PricingTier = ['developer', 'repository', 'organization', 'enterprise'].includes(planParam)
+    const requestedPlan: PricingTier = ['developer', 'repository', 'organization', 'enterprise'].includes(planParam)
       ? (planParam as PricingTier)
       : 'repository';
 
+    if (!body.subscriptionId) {
+      return NextResponse.json(
+        { ok: false, error: 'Subscription ID is required for PayPal verification.' },
+        { status: 400 },
+      );
+    }
+
+    // Verify subscription with PayPal REST API
+    const verified = await verifyPayPalSubscription(body.subscriptionId, requestedPlan);
+
     const tierConfigs = getTierConfigs();
-    const selectedTier = tierConfigs[plan];
-    const isMock = !process.env.PAYPAL_CLIENT_SECRET;
+    const selectedTier = tierConfigs[verified.plan];
+
+    // Persist verified plan to the authenticated tenant
+    if (auth && auth.tenant) {
+      const db = getDatabase();
+      await db.updateTenantPlan(
+        auth.tenant.id,
+        verified.plan,
+        verified.subscriptionId,
+        verified.status,
+      );
+    }
 
     return NextResponse.json({
       ok: true,
       active: true,
-      plan,
+      plan: verified.plan,
       priceUsd: selectedTier.priceUsd,
-      subscriptionId: body.subscriptionId || `sub_paypal_${Date.now()}`,
+      subscriptionId: verified.subscriptionId,
       orderId: body.orderId || null,
-      mode: isMock ? 'demo_activated' : 'live_activated',
-      message: `${selectedTier.name} activated successfully via PayPal. Unlimited pull request delivery is enabled.`,
+      mode: verified.isMockVerification ? 'demo_activated' : 'live_activated',
+      message: `${selectedTier.name} activated successfully via verified PayPal subscription. Unlimited pull request delivery is enabled.`,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'PayPal billing confirmation failed';
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    return NextResponse.json({ ok: false, error: message }, { status: 400 });
   }
 }

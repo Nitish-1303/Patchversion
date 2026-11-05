@@ -178,6 +178,10 @@ export interface ProveResult {
 export interface Tenant {
   id: string;
   name: string;
+  plan?: 'developer' | 'repository' | 'organization' | 'enterprise';
+  subscriptionId?: string;
+  subscriptionStatus?: string;
+  billingUpdatedAt?: string;
   createdAt: string;
 }
 

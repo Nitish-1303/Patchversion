@@ -255,4 +255,51 @@ describe('WorkflowOrchestrator - Complete End-to-End Vertical Slice', () => {
       /execution for live repository "acme-corp\/payment-gateway" is disabled/i,
     );
   });
+  test('enforces monthly PR quota on developer plan and unlocks on paid plan upgrade', async () => {
+    // Tenant starts on default developer preview tier
+    const tenant = db.getTenant(tenantId);
+    expect(tenant?.plan).toBe('developer');
+
+    // First patch delivery succeeds
+    const findings = await orchestrator.scanRepository(tenantId, repoId);
+    const finding = findings[0];
+    const { patch, validation } = await orchestrator.generateAndValidateFix(tenantId, finding.id);
+    orchestrator.approvePatch(tenantId, patch.id, userId, patch.diffHash);
+    const pr1 = await orchestrator.deliverPullRequest(tenantId, patch.id, userId);
+    expect(pr1).toBeDefined();
+
+    // Create a second finding and patch
+    const finding2 = await db.saveFinding(tenantId, repoId, {
+      packageName: 'lodash',
+      fromVersion: '3.10.1',
+      toVersion: '4.17.21',
+      isBreaking: true,
+      changeRecord: finding.changeRecord,
+      impactAnalysis: finding.impactAnalysis,
+      status: 'open',
+    });
+    const patch2 = await db.savePatch(tenantId, finding2.id, '--- a/package.json\n+++ b/package.json\n@@ -1 +1 @@\n-"lodash": "3.10.1"\n+"lodash": "4.17.21"');
+    await db.saveValidation(tenantId, patch2.id, {
+      status: 'passed',
+      proof: validation.proof,
+      executionLogs: 'All tests passed',
+      durationMs: 120,
+    });
+    orchestrator.approvePatch(tenantId, patch2.id, userId, patch2.diffHash);
+
+    // Second PR delivery MUST FAIL with monthly quota limit error on developer plan
+    await expect(orchestrator.deliverPullRequest(tenantId, patch2.id, userId)).rejects.toThrow(
+      /Entitlement limit reached: Developer Preview is limited to 1 automated PR per month/i,
+    );
+
+    // Upgrade tenant to repository tier via verified plan update
+    await db.updateTenantPlan(tenantId, 'repository', 'sub_paypal_repo_valid', 'active');
+    const updatedTenant = db.getTenant(tenantId);
+    expect(updatedTenant?.plan).toBe('repository');
+
+    // Deliver again on repository tier: should now succeed!
+    const pr2 = await orchestrator.deliverPullRequest(tenantId, patch2.id, userId);
+    expect(pr2).toBeDefined();
+    expect(pr2.id).not.toBe(pr1.id);
+  });
 });

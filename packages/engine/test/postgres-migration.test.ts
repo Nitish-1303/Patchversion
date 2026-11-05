@@ -59,6 +59,7 @@ describe('PostgreSQL Versioned Schema Migrations & Advisory Locking', () => {
     expect(advisoryLockReleased).toBe(true);
     expect(report.success).toBe(true);
     expect(report.applied).toContain('001');
+    expect(report.applied).toContain('002');
     expect(report.alreadyApplied).toHaveLength(0);
 
     // Verify advisory lock ID
@@ -74,21 +75,17 @@ describe('PostgreSQL Versioned Schema Migrations & Advisory Locking', () => {
 
   test('runMigrations detects already-applied migrations and is idempotent', async () => {
     const files = loadMigrationFiles();
-    const initial = files.find((f) => f.version === '001')!;
+    const rows = files.map((f) => ({
+      version: f.version,
+      name: f.name,
+      checksum: f.checksum,
+      applied_at: new Date().toISOString(),
+    }));
 
     const mockClient = {
       query: jest.fn(async (text: string) => {
         if (text.includes('SELECT version, name, checksum, applied_at FROM schema_migrations')) {
-          return {
-            rows: [
-              {
-                version: '001',
-                name: 'initial_schema',
-                checksum: initial.checksum,
-                applied_at: new Date().toISOString(),
-              },
-            ],
-          };
+          return { rows };
         }
         return { rows: [] };
       }),
@@ -104,7 +101,8 @@ describe('PostgreSQL Versioned Schema Migrations & Advisory Locking', () => {
     expect(report.success).toBe(true);
     expect(report.applied).toHaveLength(0);
     expect(report.alreadyApplied).toContain('001');
-    expect(report.currentVersion).toBe('001');
+    expect(report.alreadyApplied).toContain('002');
+    expect(report.currentVersion).toBe(files[files.length - 1].version);
   });
 
   test('runMigrations fails fail-closed and throws error on checksum tampering', async () => {
@@ -135,19 +133,18 @@ describe('PostgreSQL Versioned Schema Migrations & Advisory Locking', () => {
   });
 
   test('getMigrationStatus accurately reports applied and pending migrations', async () => {
+    const files = loadMigrationFiles();
+    const rows = files.map((f) => ({
+      version: f.version,
+      name: f.name,
+      checksum: f.checksum,
+      applied_at: new Date().toISOString(),
+    }));
+
     const mockClient = {
       query: jest.fn(async (text: string) => {
         if (text.includes('SELECT version, name, checksum, applied_at FROM schema_migrations')) {
-          return {
-            rows: [
-              {
-                version: '001',
-                name: 'initial_schema',
-                checksum: 'fake_checksum',
-                applied_at: new Date().toISOString(),
-              },
-            ],
-          };
+          return { rows };
         }
         return { rows: [] };
       }),
@@ -159,8 +156,8 @@ describe('PostgreSQL Versioned Schema Migrations & Advisory Locking', () => {
     } as unknown as Pool;
 
     const status = await getMigrationStatus(mockPool);
-    expect(status.currentVersion).toBe('001');
-    expect(status.appliedCount).toBe(1);
+    expect(status.currentVersion).toBe(files[files.length - 1].version);
+    expect(status.appliedCount).toBe(files.length);
     expect(status.pendingCount).toBe(0);
   });
 
@@ -198,7 +195,7 @@ describe('PostgreSQL Versioned Schema Migrations & Advisory Locking', () => {
           };
         }
         if (text.includes('SELECT version FROM schema_migrations')) {
-          return { rows: [{ version: '001' }] };
+          return { rows: [{ version: '002' }, { version: '001' }] };
         }
         return { rows: [] };
       }),
@@ -212,6 +209,6 @@ describe('PostgreSQL Versioned Schema Migrations & Advisory Locking', () => {
     const integrity = await verifySchemaIntegrity(mockPool);
     expect(integrity.ok).toBe(true);
     expect(integrity.missingTables).toHaveLength(0);
-    expect(integrity.currentVersion).toBe('001');
+    expect(integrity.currentVersion).toBe('002');
   });
 });
