@@ -1322,3 +1322,38 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Dashboard Option 3 sidebar shell */
+.d3-shell {
+  display: flex;
+}
+@media (max-width: 900px) {
+  .d3-shell {
+    flex-direction: column;
+  }
+  .d3-aside {
+    width: 100% !important;
+    border-right: none !important;
+    border-bottom: 1px solid #E3E6EB;
+  }
+  .d3-nav {
+    flex-direction: row !important;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .d3-nav > button {
+    white-space: nowrap;
+    flex: none;
+    padding: 8px 10px !important;
+    font-size: 12.5px !important;
+  }
+}
+@media (max-width: 760px) {
+  .d3-fixgrid {
+    grid-template-columns: 1fr !important;
+  }
+  .d3-fixgrid > div:first-child {
+    border-right: none !important;
+    border-bottom: 1px solid #E3E6EB;
+  }
+}
