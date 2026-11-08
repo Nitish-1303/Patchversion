@@ -506,7 +506,7 @@ export function PricingMatrix() {
               </p>
             </div>
           </div>
-          <Link href="/dashboard" className="pill-button pill-button-dark" style={{ fontSize: '13px', padding: '6px 14px' }}>
+          <Link target="_blank" rel="noopener noreferrer" href="/dashboard" className="pill-button pill-button-dark" style={{ fontSize: '13px', padding: '6px 14px' }}>
             Go to Dashboard &rarr;
           </Link>
         </div>
@@ -561,6 +561,7 @@ export function PricingMatrix() {
                   href={t.href}
                   className="pill-button pill-button-light"
                   style={{ width: '100%', marginTop: '16px' }}
+                  {...(t.href === '/dashboard' ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                 >
                   {t.cta}
                 </Link>
