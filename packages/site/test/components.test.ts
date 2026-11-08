@@ -71,7 +71,7 @@ test('dashboard route enforces authentication gate and displays sign-in prompt',
   render(createElement(DashboardPage));
 
   expect(container.querySelector('h2')?.textContent).toBe('TryPatchBay Developer Workspace');
-  expect(container.textContent).toContain('Sign in to inspect your repositories, map AST call sites, and verify automated pull requests.');
+  expect(container.textContent).toContain('Sign in to connect your repositories, map AST call sites, and review prepared pull requests.');
   expect(container.textContent).toContain('Sign in to Developer Workspace');
   expect(container.textContent).toContain('Live persistent state store · HMAC cookie authenticated');
   expect(container.textContent).not.toContain('mockpay.charges.create');

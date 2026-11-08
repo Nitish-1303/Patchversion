@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { BrandIcon } from '@/app/components/BrandIcons';
 import type { DemoArtifactResponse } from '../../api/dashboard/demo-evidence/route';
 import { getBundledDemoArtifactResponse } from '../data/bundled-artifacts';
@@ -23,6 +24,12 @@ import {
   CheckIcon,
   PackageSearchIcon,
   FileCodeIcon,
+  PatchPanelIcon,
+  PatchCableRunIcon,
+  PatchPlugFixIcon,
+  PatchTerminalCheckIcon,
+  PatchStripIcon,
+  PatchBreakIcon,
 } from '@/app/components/UiIcons';
 
 interface PublicDemoCockpitProps {
@@ -41,6 +48,7 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
   const [copiedCommand, setCopiedCommand] = useState(false);
   const [expandTestOutputs, setExpandTestOutputs] = useState(false);
   const [showFullSource, setShowFullSource] = useState(false);
+  const [section, setSection] = useState<'overview' | 'runs' | 'fixes' | 'tests' | 'artifacts'>('overview');
 
   const handleSelectRun = (run: 'lodash' | 'mockpay') => {
     setSelectedRun(run);
@@ -119,6 +127,7 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
     setActiveTab('pr');
     setExpandTestOutputs(false);
     setShowFullSource(false);
+    setSection('overview');
   };
 
   const proof = data?.evidence?.proof as {
@@ -142,191 +151,261 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
 
   return (
     <div
+      className="d3-shell"
       style={{
-        background: '#ffffff',
-        color: '#0f172a',
+        background: '#F7F8FA',
+        color: '#15171C',
         fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        borderRadius: '16px',
-        overflow: 'hidden',
-        border: '1px solid #e2e8f0',
-        boxShadow: '0 10px 30px -4px rgba(15, 23, 42, 0.06), 0 1px 3px 0 rgba(15, 23, 42, 0.04)',
+        minHeight: '100vh',
       }}
     >
-      {/* Top Demo Bar / Cockpit Header - Swiss Technical Light */}
-      <div
+      {/* Option 3 Sidebar: brand, section nav, workspace access */}
+      <aside
+        className="d3-aside"
+        aria-label="Dashboard sections"
         style={{
-          borderBottom: '1px solid #e2e8f0',
-          background: 'rgba(255, 255, 255, 0.95)',
-          backdropFilter: 'blur(16px)',
-          padding: '16px 24px',
+          width: '224px',
+          flex: 'none',
+          background: '#ffffff',
+          borderRight: '1px solid #E3E6EB',
+          padding: '16px 12px',
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '14px',
+          flexDirection: 'column',
+          gap: '4px',
         }}
       >
-        {/* Brand + Live Status Badges */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <TrypatchbayMark size={32} />
-            <span style={{ fontSize: '19px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.025em' }}>
-              try<span style={{ color: '#2563eb' }}>patchbay</span>
+        <Link
+          href="/"
+          aria-label="trypatchbay home"
+          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '2px 8px 14px', flexWrap: 'wrap', rowGap: '6px', textDecoration: 'none' }}
+        >
+          <TrypatchbayMark size={20} />
+          <span style={{ fontSize: '15px', fontWeight: 800, letterSpacing: '-0.02em', color: '#0f172a' }}>trypatchbay</span>
+          <span
+            style={{
+              fontSize: '10px',
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              color: '#8C94A4',
+              border: '1px solid #E3E6EB',
+              borderRadius: '4px',
+              padding: '2px 6px',
+              textTransform: 'uppercase',
+            }}
+          >
+            Prototype
+          </span>
+        </Link>
+
+        <nav className="d3-nav" aria-label="Run sections" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {([
+            { id: 'overview', label: 'Overview', Icon: PatchPanelIcon },
+            { id: 'runs', label: 'Runs', Icon: PatchCableRunIcon },
+            { id: 'fixes', label: 'Fixes', Icon: PatchPlugFixIcon },
+            { id: 'tests', label: 'Tests', Icon: PatchTerminalCheckIcon },
+            { id: 'artifacts', label: 'Artifacts', Icon: PatchStripIcon },
+          ] as const).map(item => {
+            const active = section === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={e => {
+                  setSection(item.id);
+                  e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+                }}
+                aria-current={active ? 'page' : undefined}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '9px 12px',
+                  borderRadius: '8px',
+                  fontSize: '13.5px',
+                  fontWeight: active ? 700 : 600,
+                  border: 'none',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  background: active ? '#EDF1FF' : 'transparent',
+                  color: active ? '#2B59FF' : '#64748B',
+                }}
+              >
+                <item.Icon size={16} color={active ? '#2B59FF' : '#8C94A4'} />
+                {item.label}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Workspace access: honest auth gate for the demo workspace */}
+        <div
+          className="d3-access"
+          style={{
+            borderTop: '1px solid #E3E6EB',
+            paddingTop: '14px',
+            marginTop: '14px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <h2 style={{ fontSize: '15px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', margin: 0 }}>
+              TryPatchBay Developer Workspace
+            </h2>
+            <span
+              style={{
+                fontSize: '10px',
+                fontFamily: 'ui-monospace, monospace',
+                background: 'rgba(43, 89, 255, 0.08)',
+                color: '#2B59FF',
+                border: '1px solid rgba(43, 89, 255, 0.25)',
+                padding: '2px 8px',
+                borderRadius: '4px',
+                fontWeight: 600,
+              }}
+            >
+              PUBLIC DEMO WORKSPACE
             </span>
           </div>
-
-          <div
+          <p style={{ color: '#475569', fontSize: '12.5px', margin: 0, lineHeight: 1.45 }}>
+            Sign in to connect your repositories, map AST call sites, and review prepared pull requests.
+          </p>
+          <a
+            href="/api/auth/github/login"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '6px',
-              fontSize: '11px',
-              fontFamily: 'ui-monospace, monospace',
-              background: 'rgba(37, 99, 235, 0.08)',
-              color: '#2563eb',
-              border: '1px solid rgba(37, 99, 235, 0.25)',
-              padding: '4px 10px',
-              borderRadius: '999px',
-              fontWeight: 700,
-              letterSpacing: '0.02em',
-            }}
-          >
-            <PulseDotIcon size={7} color="#2563eb" />
-            PUBLIC DEMO WORKSPACE (READ-ONLY)
-          </div>
-
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '5px',
-              fontSize: '11px',
-              fontFamily: 'ui-monospace, monospace',
-              background: '#f1f5f9',
-              color: '#64748b',
-              border: '1px solid #e2e8f0',
-              padding: '4px 10px',
-              borderRadius: '999px',
-              fontWeight: 600,
-            }}
-            title="Execution is strictly limited to local trusted test fixtures. Does not execute customer code."
-          >
-            <LockIcon size={11} color="#64748b" />
-            FIXTURE DEMONSTRATION
-          </div>
-        </div>
-
-        {/* Fixture Selector Segmented Control & Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          {/* Segmented Switcher */}
-          <div
-            style={{
-              display: 'inline-flex',
-              background: '#f1f5f9',
-              border: '1px solid #e2e8f0',
+              justifyContent: 'center',
+              gap: '8px',
+              padding: '8px 12px',
               borderRadius: '8px',
-              padding: '3px',
-              gap: '3px',
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => handleSelectRun('lodash')}
-              style={{
-                padding: '6px 14px',
-                fontSize: '12px',
-                fontWeight: 600,
-                borderRadius: '6px',
-                border: 'none',
-                background: selectedRun === 'lodash' ? '#2563eb' : 'transparent',
-                color: selectedRun === 'lodash' ? '#ffffff' : '#64748b',
-                boxShadow: selectedRun === 'lodash' ? '0 1px 3px rgba(37, 99, 235, 0.35)' : 'none',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-              }}
-            >
-              <BrandIcon name="lodash" size={15} />
-              Lodash 3 &rarr; 4 (Real Package)
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSelectRun('mockpay')}
-              style={{
-                padding: '6px 14px',
-                fontSize: '12px',
-                fontWeight: 600,
-                borderRadius: '6px',
-                border: 'none',
-                background: selectedRun === 'mockpay' ? '#2563eb' : 'transparent',
-                color: selectedRun === 'mockpay' ? '#ffffff' : '#64748b',
-                boxShadow: selectedRun === 'mockpay' ? '0 1px 3px rgba(37, 99, 235, 0.35)' : 'none',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-              }}
-            >
-              <BrandIcon name="mockpay" size={15} />
-              Mockpay 1 &rarr; 2 (Synthetic)
-            </button>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleReset}
-            style={{
-              padding: '6px 12px',
-              fontSize: '12px',
-              fontWeight: 500,
-              borderRadius: '8px',
-              border: '1px solid #cbd5e1',
               background: '#ffffff',
-              color: '#475569',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
+              border: '1px solid #cbd5e1',
+              color: '#0f172a',
+              textDecoration: 'none',
+              fontWeight: 600,
+              fontSize: '12.5px',
             }}
-            title="Reset demo state"
           >
-            <RefreshIcon size={12} color="#64748b" />
-            <span>Reset</span>
-          </button>
-
+            <BrandIcon name="github" size={15} />
+            Continue with GitHub
+          </a>
           {!authenticated && (
             <button
               type="button"
               onClick={onSignInClick}
               style={{
-                padding: '6px 14px',
-                fontSize: '12px',
-                fontWeight: 600,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                padding: '8px 12px',
                 borderRadius: '8px',
-                background: '#ffffff',
-                border: '1px solid #cbd5e1',
-                color: '#0f172a',
+                background: '#2B59FF',
+                border: '1px solid #2B59FF',
+                color: '#ffffff',
+                fontWeight: 600,
+                fontSize: '12.5px',
                 cursor: 'pointer',
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+              }}
+            >
+              Sign in to Developer Workspace
+            </button>
+          )}
+          <span style={{ fontSize: '10.5px', color: '#64748b' }}>
+            Live persistent state store · HMAC cookie authenticated
+          </span>
+        </div>
+      </aside>
+
+      {/* Main column */}
+      <div className="d3-main" style={{ flex: 1, minWidth: 0, padding: '22px 26px 60px' }}>
+        {/* Section top bar */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '10px',
+            marginBottom: '18px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap' }}>
+            <h2 style={{ fontSize: '19px', fontWeight: 800, letterSpacing: '-0.01em', color: '#15171C', margin: 0 }}>
+              {section === 'overview' && 'Overview'}
+              {section === 'runs' && 'Runs'}
+              {section === 'fixes' && 'Fixes'}
+              {section === 'tests' && 'Tests'}
+              {section === 'artifacts' && 'Artifacts'}
+            </h2>
+            <span style={{ fontSize: '12.5px', color: '#64748B' }}>
+              What trypatchbay did on local demo fixtures
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <span
+              style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '6px',
+                fontSize: '11.5px',
+                fontWeight: 700,
+                borderRadius: '999px',
+                padding: '4px 11px',
+                background: '#FDF3E3',
+                color: '#B45309',
               }}
             >
-              <LockIcon size={12} color="#0f172a" />
-              <span>Sign in</span>
+              <PulseDotIcon size={7} color="#B45309" />
+              Demo run · illustrative data
+            </span>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                fontSize: '11px',
+                fontFamily: 'ui-monospace, monospace',
+                background: '#f1f5f9',
+                color: '#64748b',
+                border: '1px solid #E3E6EB',
+                padding: '4px 10px',
+                borderRadius: '999px',
+                fontWeight: 600,
+              }}
+              title="Execution is strictly limited to local trusted test fixtures. Does not execute customer code."
+            >
+              <LockIcon size={11} color="#64748b" />
+              FIXTURE DEMONSTRATION
+            </span>
+            <button
+              type="button"
+              onClick={handleReset}
+              style={{
+                padding: '6px 12px',
+                fontSize: '12px',
+                fontWeight: 500,
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1',
+                background: '#ffffff',
+                color: '#475569',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
+              }}
+              title="Reset demo state"
+            >
+              <RefreshIcon size={12} color="#64748b" />
+              <span>Reset</span>
             </button>
-          )}
+          </div>
         </div>
-      </div>
 
-      {/* Main Content Area */}
-      <div style={{ padding: '28px 24px' }}>
+
         {/* Loading / Error States */}
         {!data && (
           <div
@@ -373,15 +452,317 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
           </div>
         )}
 
+        {section === 'overview' && (
+          <>
+            {/* Stat tiles from the selected run's real proof data */}
+            {config && (
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+                  gap: '12px',
+                  marginBottom: '16px',
+                }}
+              >
+                {[
+                  {
+                    Icon: PatchBreakIcon,
+                    color: '#DC2626',
+                    value: String(proof?.coverageTotal ?? 1),
+                    label: 'Break found',
+                  },
+                  {
+                    Icon: PatchPlugFixIcon,
+                    color: '#2B59FF',
+                    value: String(proof?.fixedFiles?.length ?? (proof?.fixDiff ? 1 : 0)),
+                    label: 'Fix written',
+                  },
+                  {
+                    Icon: PatchTerminalCheckIcon,
+                    color: '#059669',
+                    value: proof?.greenResult ? `${proof.greenResult.passed}/${proof.greenResult.total}` : '-',
+                    label: 'Tests green',
+                  },
+                  {
+                    Icon: GitPullRequestIcon,
+                    color: '#059669',
+                    value: readiness?.preparedPrPresent ? '1' : '0',
+                    label: 'PR prepared',
+                  },
+                ].map(tile => (
+                  <div
+                    key={tile.label}
+                    style={{
+                      background: '#ffffff',
+                      border: '1px solid #E3E6EB',
+                      borderRadius: '10px',
+                      padding: '16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: '38px',
+                        height: '38px',
+                        borderRadius: '9px',
+                        background: `${tile.color}14`,
+                        border: `1px solid ${tile.color}33`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flex: 'none',
+                      }}
+                    >
+                      <tile.Icon size={19} color={tile.color} />
+                    </span>
+                    <div>
+                      <div style={{ fontSize: '21px', fontWeight: 800, letterSpacing: '-0.02em', color: '#15171C' }}>{tile.value}</div>
+                      <div style={{ fontSize: '12px', color: '#64748B' }}>{tile.label}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Selected run: the break and the fix, compact */}
+            {config && (
+              <div
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid #E3E6EB',
+                  borderRadius: '10px',
+                  marginBottom: '16px',
+                  overflow: 'hidden',
+                }}
+              >
+                <div
+                  style={{
+                    padding: '13px 16px',
+                    borderBottom: '1px solid #E3E6EB',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '8px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '9px', fontWeight: 700, fontSize: '14px', color: '#15171C' }}>
+                    <BrandIcon name={config.packageName} size={18} />
+                    <span style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 600 }}>
+                      {config.packageName} v{config.fromVersion} &rarr; v{config.toVersion}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        background: config.isRealPackage ? '#F1F3F7' : '#FDF3E3',
+                        color: config.isRealPackage ? '#64748B' : '#B45309',
+                        border: '1px solid #E3E6EB',
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                      }}
+                    >
+                      {config.isRealPackage ? 'Real package' : 'Synthetic example'}
+                    </span>
+                  </div>
+                  {readiness?.overallStatus === 'passed' && (
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        background: '#E8F7F1',
+                        color: '#059669',
+                        borderRadius: '999px',
+                        padding: '4px 11px',
+                        fontSize: '11.5px',
+                        fontWeight: 700,
+                      }}
+                    >
+                      <CheckIcon size={12} color="#059669" strokeWidth={2.4} />
+                      Verified
+                    </span>
+                  )}
+                </div>
+                <div className="d3-fixgrid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+                  <div style={{ borderRight: '1px solid #E3E6EB', padding: '14px 16px' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#DC2626', marginBottom: '8px' }}>
+                      Before · breaks on v{config.toVersion}
+                    </div>
+                    <div
+                      style={{
+                        fontFamily: 'ui-monospace, monospace',
+                        fontSize: '12.5px',
+                        color: '#DC2626',
+                        background: '#FBEAEA',
+                        border: '1px solid #F3C8C8',
+                        borderRadius: '8px',
+                        padding: '10px 12px',
+                        overflowX: 'auto',
+                      }}
+                    >
+                      {config.originalCall}
+                    </div>
+                    <div style={{ fontSize: '11.5px', color: '#64748B', marginTop: '8px', fontFamily: 'ui-monospace, monospace' }}>
+                      {config.sourceFileRel} · line {config.sourceLine}
+                    </div>
+                  </div>
+                  <div style={{ padding: '14px 16px' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#059669', marginBottom: '8px' }}>
+                      After · trypatchbay fix
+                    </div>
+                    <div
+                      style={{
+                        fontFamily: 'ui-monospace, monospace',
+                        fontSize: '12.5px',
+                        color: '#059669',
+                        background: '#E8F7F1',
+                        border: '1px solid #BEE6D5',
+                        borderRadius: '8px',
+                        padding: '10px 12px',
+                        overflowX: 'auto',
+                      }}
+                    >
+                      {config.replacementCall}
+                    </div>
+                    {proof?.greenResult && (
+                      <div style={{ fontSize: '11.5px', color: '#059669', marginTop: '8px', fontFamily: 'ui-monospace, monospace' }}>
+                        Tests pass: {proof.greenResult.passed}/{proof.greenResult.total} · exit {proof.greenResult.exitCode}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Recent demo runs: the two honest local fixtures */}
+            <div style={{ background: '#ffffff', border: '1px solid #E3E6EB', borderRadius: '10px', overflow: 'hidden' }}>
+              <div
+                style={{
+                  padding: '11px 16px',
+                  borderBottom: '1px solid #E3E6EB',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  letterSpacing: '0.07em',
+                  textTransform: 'uppercase',
+                  color: '#64748B',
+                }}
+              >
+                Recent runs
+              </div>
+              <div style={{ padding: '6px 10px' }}>
+                {(['lodash', 'mockpay'] as const).map(runKey => {
+                  const resp = getBundledDemoArtifactResponse(runKey);
+                  const rc = resp.config;
+                  const rp = resp.evidence.proof as { greenResult?: { passed: number; total: number }; repoId?: string } | null;
+                  const active = selectedRun === runKey;
+                  return (
+                    <button
+                      key={runKey}
+                      type="button"
+                      onClick={() => { handleSelectRun(runKey); setSection('runs'); }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        width: '100%',
+                        textAlign: 'left',
+                        padding: '10px 8px',
+                        border: 'none',
+                        borderBottom: runKey === 'lodash' ? '1px solid #F1F3F7' : 'none',
+                        background: active ? '#F7F9FF' : 'transparent',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontSize: '13.5px',
+                        color: '#15171C',
+                      }}
+                    >
+                      <CheckCircleIcon size={16} color="#059669" />
+                      <span style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 600 }}>
+                        {rc ? `${rc.packageName} ${rc.fromVersion} \u2192 ${rc.toVersion}` : runKey}
+                      </span>
+                      <span style={{ color: '#64748B', fontSize: '12.5px' }}>{rp?.repoId ?? 'demo fixture'}</span>
+                      <span style={{ flex: 1 }} />
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          borderRadius: '999px',
+                          padding: '3px 10px',
+                          background: rc?.isRealPackage ? '#F1F3F7' : '#FDF3E3',
+                          color: rc?.isRealPackage ? '#64748B' : '#B45309',
+                        }}
+                      >
+                        {rc?.isRealPackage ? 'Real package' : 'Synthetic example'}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          borderRadius: '999px',
+                          padding: '3px 10px',
+                          background: '#E8F7F1',
+                          color: '#059669',
+                        }}
+                      >
+                        {rp?.greenResult ? `${rp.greenResult.passed}/${rp.greenResult.total} green` : 'no proof'}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        )}
+
+        {section === 'runs' && (
+          <>
+            {/* Run selector: pick which local demo fixture to inspect */}
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '18px' }}>
+              {(['lodash', 'mockpay'] as const).map(runKey => {
+                const resp = getBundledDemoArtifactResponse(runKey);
+                const rc = resp.config;
+                const active = selectedRun === runKey;
+                return (
+                  <button
+                    key={runKey}
+                    type="button"
+                    onClick={() => handleSelectRun(runKey)}
+                    aria-pressed={active}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '8px 14px',
+                      fontSize: '12.5px',
+                      fontWeight: 600,
+                      borderRadius: '8px',
+                      border: active ? '1.5px solid #2B59FF' : '1px solid #E3E6EB',
+                      background: active ? '#EDF1FF' : '#ffffff',
+                      color: active ? '#2B59FF' : '#475569',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <BrandIcon name={rc?.packageName === 'mockpay' ? 'mockpay' : 'lodash'} size={15} />
+                    {rc ? `${rc.packageName} ${rc.fromVersion} \u2192 ${rc.toVersion}` : runKey}
+                    {rc?.isRealPackage ? ' (Real Package)' : ' (Synthetic)'}
+                  </button>
+                );
+              })}
+            </div>
+
         {/* 4-Step How TryPatchBay Works Banner */}
         <div
           style={{
-            background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-            borderRadius: '14px',
-            padding: '20px 24px',
-            color: '#ffffff',
+            background: '#ffffff',
+            border: '1px solid #E3E6EB',
+            borderRadius: '10px',
+            padding: '18px 22px',
+            color: '#15171C',
             marginBottom: '24px',
-            boxShadow: '0 4px 20px rgba(15, 23, 42, 0.12)',
+            boxShadow: '0 1px 2px rgba(21, 23, 28, 0.04)',
             display: 'flex',
             flexDirection: 'column',
             gap: '14px',
@@ -403,14 +784,14 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
                   fontWeight: 700,
                   textTransform: 'uppercase',
                   letterSpacing: '0.08em',
-                  color: '#60a5fa',
+                  color: '#2B59FF',
                 }}
               >
                 The TryPatchBay Engine Pipeline
               </span>
-              <span style={{ fontSize: '11px', color: '#94a3b8' }}>&middot;</span>
-              <span style={{ fontSize: '12px', color: '#cbd5e1' }}>
-                How breaking dependencies get migrated with zero hallucinations
+              <span style={{ fontSize: '11px', color: '#8C94A4' }}>&middot;</span>
+              <span style={{ fontSize: '12px', color: '#64748B' }}>
+                How breaking dependencies get migrated and verified
               </span>
             </div>
             <a
@@ -423,16 +804,16 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
                 gap: '6px',
                 fontSize: '11px',
                 fontWeight: 600,
-                color: '#60a5fa',
-                background: 'rgba(59, 130, 246, 0.15)',
-                border: '1px solid rgba(59, 130, 246, 0.3)',
+                color: '#2B59FF',
+                background: '#EDF1FF',
+                border: '1px solid #C9D6FF',
                 padding: '4px 12px',
                 borderRadius: '999px',
                 textDecoration: 'none',
               }}
             >
               <BrandIcon name="github" size={13} />
-              <span>Live Proof: CipherBill PR #56 &nearr;</span>
+              <span>Live Proof: CipherBill PR #56 ↗</span>
             </a>
           </div>
 
@@ -446,17 +827,17 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
             {/* Step 1 */}
             <div
               style={{
-                background: 'rgba(255, 255, 255, 0.04)',
+                background: '#F7F8FA',
                 borderRadius: '8px',
                 padding: '12px 14px',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
+                border: '1px solid #E3E6EB',
               }}
             >
               <div
                 style={{
                   fontSize: '12px',
                   fontWeight: 700,
-                  color: '#f87171',
+                  color: '#DC2626',
                   marginBottom: '4px',
                   display: 'flex',
                   alignItems: 'center',
@@ -465,8 +846,8 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
               >
                 <span
                   style={{
-                    background: '#f87171',
-                    color: '#0f172a',
+                    background: '#DC2626',
+                    color: '#ffffff',
                     width: '18px',
                     height: '18px',
                     borderRadius: '50%',
@@ -481,7 +862,7 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
                 </span>
                 Finds the Break
               </div>
-              <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8', lineHeight: 1.45 }}>
+              <p style={{ margin: 0, fontSize: '12px', color: '#64748B', lineHeight: 1.45 }}>
                 AST parser scans repository call sites and flags deprecated or removed methods down to the line.
               </p>
             </div>
@@ -489,17 +870,17 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
             {/* Step 2 */}
             <div
               style={{
-                background: 'rgba(255, 255, 255, 0.04)',
+                background: '#F7F8FA',
                 borderRadius: '8px',
                 padding: '12px 14px',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
+                border: '1px solid #E3E6EB',
               }}
             >
               <div
                 style={{
                   fontSize: '12px',
                   fontWeight: 700,
-                  color: '#60a5fa',
+                  color: '#2B59FF',
                   marginBottom: '4px',
                   display: 'flex',
                   alignItems: 'center',
@@ -508,8 +889,8 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
               >
                 <span
                   style={{
-                    background: '#60a5fa',
-                    color: '#0f172a',
+                    background: '#2B59FF',
+                    color: '#ffffff',
                     width: '18px',
                     height: '18px',
                     borderRadius: '50%',
@@ -524,7 +905,7 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
                 </span>
                 Rewrites AST Code
               </div>
-              <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8', lineHeight: 1.45 }}>
+              <p style={{ margin: 0, fontSize: '12px', color: '#64748B', lineHeight: 1.45 }}>
                 Synthesizes deterministic codemods using active rules (React 19, Lodash, Next 15, Zod 3, Axios 1.x).
               </p>
             </div>
@@ -532,17 +913,17 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
             {/* Step 3 */}
             <div
               style={{
-                background: 'rgba(255, 255, 255, 0.04)',
+                background: '#F7F8FA',
                 borderRadius: '8px',
                 padding: '12px 14px',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
+                border: '1px solid #E3E6EB',
               }}
             >
               <div
                 style={{
                   fontSize: '12px',
                   fontWeight: 700,
-                  color: '#34d399',
+                  color: '#059669',
                   marginBottom: '4px',
                   display: 'flex',
                   alignItems: 'center',
@@ -551,8 +932,8 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
               >
                 <span
                   style={{
-                    background: '#34d399',
-                    color: '#0f172a',
+                    background: '#059669',
+                    color: '#ffffff',
                     width: '18px',
                     height: '18px',
                     borderRadius: '50%',
@@ -567,25 +948,25 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
                 </span>
                 Red-to-Green Proof
               </div>
-              <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8', lineHeight: 1.45 }}>
-                Runs test suite in sandbox: Baseline pass &rarr; Bump fail &rarr; Patch turns tests green with SHA-256 evidence.
+              <p style={{ margin: 0, fontSize: '12px', color: '#64748B', lineHeight: 1.45 }}>
+                Runs the test suite in a local process: Baseline pass &rarr; Bump fail &rarr; Patch turns tests green with SHA-256 evidence.
               </p>
             </div>
 
             {/* Step 4 */}
             <div
               style={{
-                background: 'rgba(255, 255, 255, 0.04)',
+                background: '#F7F8FA',
                 borderRadius: '8px',
                 padding: '12px 14px',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
+                border: '1px solid #E3E6EB',
               }}
             >
               <div
                 style={{
                   fontSize: '12px',
                   fontWeight: 700,
-                  color: '#a78bfa',
+                  color: '#7C3AED',
                   marginBottom: '4px',
                   display: 'flex',
                   alignItems: 'center',
@@ -594,8 +975,8 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
               >
                 <span
                   style={{
-                    background: '#a78bfa',
-                    color: '#0f172a',
+                    background: '#7C3AED',
+                    color: '#ffffff',
                     width: '18px',
                     height: '18px',
                     borderRadius: '50%',
@@ -608,9 +989,9 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
                 >
                   4
                 </span>
-                Delivers GitHub PR
+                Prepares GitHub PR
               </div>
-              <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8', lineHeight: 1.45 }}>
+              <p style={{ margin: 0, fontSize: '12px', color: '#64748B', lineHeight: 1.45 }}>
                 Prepares pull request with complete test outputs, diffs, and proof logs embedded for review.
               </p>
             </div>
@@ -801,7 +1182,7 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
                   {proof?.durationMs ? `${(proof.durationMs / 1000).toFixed(1)}s` : '54.3s'}
                 </div>
                 <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
-                  Full local sandbox execution
+                  Runs in a local process
                 </div>
               </div>
 
@@ -829,7 +1210,7 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
                 </div>
               </div>
 
-              {/* Card 4: Sandbox Environment */}
+              {/* Card 4: Execution Environment */}
               <div
                 style={{
                   background: 'rgba(100, 116, 139, 0.06)',
@@ -841,7 +1222,7 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
                   <span style={{ fontSize: '11px', color: '#475569', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    Sandbox Isolation
+                    Execution Environment
                   </span>
                   <CpuIcon size={16} color="#475569" />
                 </div>
@@ -874,13 +1255,26 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
               </div>
               <div>
                 <strong style={{ color: '#0f172a' }}>Truthful boundary disclosure:</strong> TryPatchBay is an early-stage prototype. This
-                demonstration uses a trusted local migration fixture running against authentic npm packages (<code>{config.packageName}@{config.fromVersion}</code> &rarr; <code>{config.packageName}@{config.toVersion}</code>).
+                demonstration uses a trusted local migration fixture{config.isRealPackage ? (
+                  <>
+                    {' '}running against authentic npm packages (<code>{config.packageName}@{config.fromVersion}</code> &rarr; <code>{config.packageName}@{config.toVersion}</code>)
+                  </>
+                ) : (
+                  <>
+                    {' '}with a synthetic package (<code>{config.packageName} {config.fromVersion} &rarr; {config.toVersion}</code>); no real npm package is involved
+                  </>
+                )}.
                 Arbitrary customer repository execution is fail-closed disabled until isolated microVM compute is provisioned.
               </div>
             </div>
           </div>
         )}
 
+          </>
+        )}
+
+        {section === 'tests' && (
+          <>
         {/* SECTION B: 7-Stage Red-to-Green Stepper Pipeline */}
         <div style={{ marginBottom: '28px' }}>
           <div
@@ -915,7 +1309,7 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
               gap: '10px',
             }}
           >
@@ -968,7 +1362,7 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
               {
                 num: '06',
                 title: 'Verification',
-                detail: 'Sandbox re-test green',
+                detail: 'Local re-test green',
                 status: proof?.greenResult?.exitCode === 0 ? 'passed' : 'failed',
                 badge: proof ? `${proof.greenResult?.passed}/${proof.greenResult?.total} Pass` : 'Exit 0',
                 color: '#059669',
@@ -977,7 +1371,7 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
               {
                 num: '07',
                 title: 'Evidence Bundle',
-                detail: 'SHA-256 tamper-evident PR',
+                detail: 'SHA-256 digests recorded',
                 status: readiness?.preparedPrPresent ? 'passed' : 'unavailable',
                 badge: 'Evidence Stored',
                 color: '#059669',
@@ -1043,6 +1437,11 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
           </div>
         </div>
 
+          </>
+        )}
+
+        {section === 'fixes' && (
+          <>
         {/* SECTION C: Call Site & Deterministic Patch Comparison */}
         <div style={{ marginBottom: '28px' }}>
           <div
@@ -1340,6 +1739,11 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
           </div>
         </div>
 
+          </>
+        )}
+
+        {section === 'tests' && (
+          <>
         {/* SECTION D: Empirical Test Evidence (Red-to-Green Traces) */}
         <div style={{ marginBottom: '28px' }}>
           <div
@@ -1581,6 +1985,11 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
           </div>
         </div>
 
+          </>
+        )}
+
+        {section === 'artifacts' && (
+          <>
         {/* SECTION E: Evidence Inspector & Prepared PR */}
         <div style={{ marginBottom: '28px' }}>
           <div
@@ -1927,6 +2336,8 @@ export function PublicDemoCockpit({ onSignInClick, authenticated = false }: Publ
             <div>npm test</div>
           </div>
         </div>
+          </>
+        )}
       </div>
     </div>
   );
