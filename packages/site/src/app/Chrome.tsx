@@ -75,6 +75,11 @@ export default function Chrome({ children }: { children: ReactNode }) {
 
   const closeMenu = () => setMenuOpen(false);
 
+  // The dashboard is a standalone full-screen app surface: no site header or footer.
+  if (pathname === '/dashboard' || pathname.startsWith('/dashboard/')) {
+    return <main id="main-content">{children}</main>;
+  }
+
   return (
     <>
       <header className={`site-header${scrolled ? ' is-scrolled' : ''}`}>
@@ -91,7 +96,7 @@ export default function Chrome({ children }: { children: ReactNode }) {
             <Link href="/login" className="nav-signin-link" onClick={closeMenu}>
               Sign in
             </Link>
-            <Link href="/dashboard" className="pill-button pill-button-dark nav-cta" onClick={closeMenu}>
+            <Link href="/dashboard" className="pill-button pill-button-dark nav-cta" onClick={closeMenu} target="_blank" rel="noopener noreferrer">
               Open dashboard
             </Link>
           </div>
