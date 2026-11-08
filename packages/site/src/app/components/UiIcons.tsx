@@ -65,6 +65,90 @@ export function TrypatchbayLogo({
   );
 }
 
+/* Dashboard section icons, drawn in the patch-cable language of the brand mark:
+   patchbay panels, jack sockets, and cables with round plugs. */
+
+export function PatchPanelIcon({ size = 16, color = 'currentColor', strokeWidth = 2, className = '' }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <rect x="3" y="6" width="18" height="12" rx="3" fill={color} fillOpacity="0.08" />
+      <rect x="3" y="6" width="18" height="12" rx="3" />
+      <circle cx="8" cy="12" r="1.6" fill={color} fillOpacity="0.2" />
+      <circle cx="8" cy="12" r="1.6" />
+      <circle cx="16" cy="12" r="1.6" fill={color} fillOpacity="0.2" />
+      <circle cx="16" cy="12" r="1.6" />
+      <path d="M12 13.6 C 12 16.5 9.5 16.5 9.5 19.5" />
+      <circle cx="12" cy="12" r="1.6" fill={color} />
+    </svg>
+  );
+}
+
+export function PatchCableRunIcon({ size = 16, color = 'currentColor', strokeWidth = 2, className = '' }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <circle cx="6" cy="6" r="2.3" fill={color} fillOpacity="0.18" />
+      <circle cx="6" cy="6" r="2.3" />
+      <circle cx="18" cy="18" r="2.3" fill={color} fillOpacity="0.18" />
+      <circle cx="18" cy="18" r="2.3" />
+      <path d="M6 8.3 C 6 15 9 18 15.7 18" />
+    </svg>
+  );
+}
+
+export function PatchPlugFixIcon({ size = 16, color = 'currentColor', strokeWidth = 2, className = '' }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <circle cx="8" cy="12" r="3" fill={color} fillOpacity="0.14" />
+      <circle cx="8" cy="12" r="3" />
+      <rect x="13.5" y="10" width="7" height="4" rx="2" fill={color} fillOpacity="0.2" />
+      <rect x="13.5" y="10" width="7" height="4" rx="2" />
+      <path d="M13.5 11 L11.2 11" />
+      <path d="M13.5 13 L11.2 13" />
+    </svg>
+  );
+}
+
+export function PatchTerminalCheckIcon({ size = 16, color = 'currentColor', strokeWidth = 2, className = '' }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <rect x="3" y="4.5" width="18" height="15" rx="3" fill={color} fillOpacity="0.08" />
+      <rect x="3" y="4.5" width="18" height="15" rx="3" />
+      <polyline points="7 9.5 9.5 12 7 14.5" />
+      <polyline points="12.5 13.2 14.4 15.1 18.2 9.6" />
+    </svg>
+  );
+}
+
+export function PatchStripIcon({ size = 16, color = 'currentColor', strokeWidth = 2, className = '' }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <rect x="3" y="8" width="18" height="8" rx="2.5" fill={color} fillOpacity="0.08" />
+      <rect x="3" y="8" width="18" height="8" rx="2.5" />
+      <circle cx="8" cy="12" r="1.5" fill={color} fillOpacity="0.2" />
+      <circle cx="8" cy="12" r="1.5" />
+      <circle cx="12.5" cy="12" r="1.5" fill={color} fillOpacity="0.2" />
+      <circle cx="12.5" cy="12" r="1.5" />
+      <path d="M16 13.5 C 16 17 13 17.5 13 20.5" />
+      <circle cx="16" cy="12" r="1.5" fill={color} />
+    </svg>
+  );
+}
+
+export function PatchBreakIcon({ size = 16, color = 'currentColor', strokeWidth = 2, className = '' }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <rect x="2.5" y="10" width="6" height="4" rx="2" fill={color} fillOpacity="0.2" />
+      <rect x="2.5" y="10" width="6" height="4" rx="2" />
+      <path d="M8.5 11 L10.3 11" />
+      <path d="M8.5 13 L10.3 13" />
+      <circle cx="18" cy="12" r="3" fill={color} fillOpacity="0.14" />
+      <circle cx="18" cy="12" r="3" />
+      <path d="M13 9.8 L14.1 8.2" />
+      <path d="M13 14.2 L14.1 15.8" />
+    </svg>
+  );
+}
+
 export function ShieldCheckIcon({ size = 16, color = 'currentColor', strokeWidth = 1.75, className = '' }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
@@ -405,4 +489,4 @@ export function PulseDotIcon({ color = '#10b981', size = 8 }: { color?: string; 
       />
     </span>
   );
-}
+      }
