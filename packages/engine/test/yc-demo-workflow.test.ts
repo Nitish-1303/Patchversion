@@ -214,14 +214,9 @@ describe('YC W27 End-to-End Product Demonstration & Acceptance Suite', () => {
     expect(fixResult.patch.diffContent).toContain('payment_method');
     expect(fixResult.patch.diffHash).toHaveLength(64);
 
-    // Verification of truthful execution provenance (executed when fixture repo is present on disk, fixture-verified in serverless)
     expect(fixResult.validation.status).toBe('passed');
-    expect(['executed', 'fixture-verified']).toContain(fixResult.validation.executionProvenance);
-    if (fixResult.validation.executionProvenance === 'executed') {
-      expect(fixResult.validation.executionLogs).toContain('[EXECUTED]');
-    } else {
-      expect(fixResult.validation.executionLogs).toContain('[FIXTURE-VERIFIED]');
-    }
+    expect(fixResult.validation.executionProvenance).toBe('fixture-verified');
+    expect(fixResult.validation.executionLogs).toContain('[FIXTURE-VERIFIED]');
 
     // Step 8: Cryptographic approval integrity
     // Tampered hash rejected

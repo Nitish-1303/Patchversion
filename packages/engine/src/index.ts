@@ -84,6 +84,10 @@ export {
 export {
   resolveExecutionProvider,
   isQualifiedIsolationActive,
+  isIndependentlyQualifiedIsolation,
+  assertStrongSigningSecret,
+  FORBIDDEN_DEFAULT_FLEET_SECRETS,
+  TEST_DOUBLE_ISOLATED_PROVIDER_NAME,
   type ResolveProviderOptions,
 } from './sandbox/provider-adapter';
 export { WorkerExecutionService, type WorkerServiceConfig } from './sandbox/worker-service';

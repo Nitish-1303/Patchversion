@@ -216,6 +216,7 @@ export interface IExecutionProvider {
 
   /**
    * Check whether the provider backend is operational and passes health checks.
+   * A true result is NOT independent qualification.
    */
   isAvailable(): Promise<boolean>;
 
@@ -223,6 +224,26 @@ export interface IExecutionProvider {
    * Acquire a fresh, disposable workspace with strict isolation boundaries.
    */
   createWorkspace(options?: WorkspaceProvisionOptions): Promise<IDisposableWorkspace>;
+}
+
+/** Secrets that must never be used for fleet HMAC (documented defaults / examples). */
+export const FORBIDDEN_DEFAULT_FLEET_SECRETS = new Set([
+  'trypatchbay-default-fleet-signing-secret',
+  'dev-worker-signing-secret-key-32b',
+]);
+
+export function assertStrongSigningSecret(secret: string | undefined): string {
+  if (!secret || secret.trim().length < 16) {
+    throw new Error(
+      'Execution provider signing secret is missing or too short. Refusing default or empty fleet HMAC secrets.',
+    );
+  }
+  if (FORBIDDEN_DEFAULT_FLEET_SECRETS.has(secret.trim())) {
+    throw new Error(
+      'Forbidden default fleet HMAC secret. Configure a unique MICROVM_SIGNING_SECRET / PATCHVERSION_SIGNING_SECRET.',
+    );
+  }
+  return secret;
 }
 
 /**
@@ -308,7 +329,7 @@ export interface IExecutionJobProvider {
   submitJob(job: ExecutionJob): Promise<JobSubmissionResult>;
   getJobStatus(jobId: string): Promise<ExecutionJobStatus | null>;
   cancelJob(jobId: string): Promise<boolean>;
-  collectArtifacts(jobId: string): Promise<ExecutionArtifacts | null>;
+  collectArtifacts(jobId: string, tenantId?: string): Promise<ExecutionArtifacts | null>;
   cleanupJob(jobId: string): Promise<void>;
 }
 
@@ -319,6 +340,7 @@ export function createJobSignature(
   job: Omit<ExecutionJob, 'signature'>,
   signingSecret: string,
 ): string {
+  assertStrongSigningSecret(signingSecret);
   const commandsDigest = crypto
     .createHash('sha256')
     .update(JSON.stringify(job.commands ?? []))
@@ -354,6 +376,9 @@ export function verifyJobSignature(
   if (!signingSecret || signingSecret.trim() === '') {
     return { valid: false, reason: 'missing_signing_secret' };
   }
+  if (FORBIDDEN_DEFAULT_FLEET_SECRETS.has(signingSecret.trim())) {
+    return { valid: false, reason: 'forbidden_default_signing_secret' };
+  }
   if (Date.now() > job.expiresAt) {
     return { valid: false, reason: 'expired_job' };
   }
@@ -373,6 +398,7 @@ export function createArtifactsSignature(
   artifacts: Omit<ExecutionArtifacts, 'signature'>,
   signingSecret: string,
 ): string {
+  assertStrongSigningSecret(signingSecret);
   const hashKeys = Object.keys(artifacts.artifactHashes).sort().join(',');
   const payload = [
     artifacts.jobId,
@@ -432,7 +458,7 @@ export class LocalTrustedFixtureProvider implements IExecutionJobProvider {
   >();
 
   constructor(signingSecret: string, options?: LocalTrustedFixtureProviderOptions) {
-    this.signingSecret = signingSecret;
+    this.signingSecret = assertStrongSigningSecret(signingSecret);
     if (options?.fixtureRootDir) {
       this.fixtureRootDir = path.resolve(options.fixtureRootDir);
     } else {
@@ -732,9 +758,13 @@ export class LocalTrustedFixtureProvider implements IExecutionJobProvider {
     return true;
   }
 
-  async collectArtifacts(jobId: string): Promise<ExecutionArtifacts | null> {
+  async collectArtifacts(jobId: string, tenantId?: string): Promise<ExecutionArtifacts | null> {
     const entry = this.jobs.get(jobId);
-    return entry?.artifacts ? { ...entry.artifacts } : null;
+    if (!entry?.artifacts) return null;
+    if (tenantId !== undefined && entry.artifacts.tenantId !== tenantId) {
+      return null;
+    }
+    return { ...entry.artifacts };
   }
 
   async cleanupJob(jobId: string): Promise<void> {
@@ -763,19 +793,19 @@ export class ProductionIsolatedExecutionProvider implements IExecutionJobProvide
   private signingSecret: string;
 
   constructor(signingSecret: string, remoteWorkerUrl?: string, workerAuthToken?: string) {
-    this.signingSecret = signingSecret;
+    this.signingSecret = assertStrongSigningSecret(signingSecret);
     this.remoteWorkerUrl = remoteWorkerUrl;
     this.workerAuthToken = workerAuthToken;
   }
 
   async submitJob(job: ExecutionJob): Promise<JobSubmissionResult> {
-    if (!this.remoteWorkerUrl) {
+    if (!this.remoteWorkerUrl || !this.workerAuthToken || this.workerAuthToken.trim() === '') {
       return {
         jobId: job.jobId,
         status: 'rejected',
         acceptedAt: new Date().toISOString(),
         reason:
-          'Fail-Closed: Production remote worker endpoint is not configured. ' +
+          'Fail-Closed: Production remote worker endpoint or worker auth token is not configured. ' +
           'Untrusted repository execution is strictly disabled on the application host.',
       };
     }
@@ -796,7 +826,7 @@ export class ProductionIsolatedExecutionProvider implements IExecutionJobProvide
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.workerAuthToken ?? ''}`,
+          Authorization: `Bearer ${this.workerAuthToken}`,
         },
         body: JSON.stringify(job),
       });
@@ -823,10 +853,10 @@ export class ProductionIsolatedExecutionProvider implements IExecutionJobProvide
   }
 
   async getJobStatus(jobId: string): Promise<ExecutionJobStatus | null> {
-    if (!this.remoteWorkerUrl) return null;
+    if (!this.remoteWorkerUrl || !this.workerAuthToken) return null;
     try {
       const res = await fetch(`${this.remoteWorkerUrl}/v1/jobs/${encodeURIComponent(jobId)}`, {
-        headers: { Authorization: `Bearer ${this.workerAuthToken ?? ''}` },
+        headers: { Authorization: `Bearer ${this.workerAuthToken}` },
       });
       if (!res.ok) return null;
       return (await res.json()) as ExecutionJobStatus;
@@ -836,11 +866,11 @@ export class ProductionIsolatedExecutionProvider implements IExecutionJobProvide
   }
 
   async cancelJob(jobId: string): Promise<boolean> {
-    if (!this.remoteWorkerUrl) return false;
+    if (!this.remoteWorkerUrl || !this.workerAuthToken) return false;
     try {
       const res = await fetch(`${this.remoteWorkerUrl}/v1/jobs/${encodeURIComponent(jobId)}/cancel`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${this.workerAuthToken ?? ''}` },
+        headers: { Authorization: `Bearer ${this.workerAuthToken}` },
       });
       return res.ok;
     } catch {
@@ -848,17 +878,24 @@ export class ProductionIsolatedExecutionProvider implements IExecutionJobProvide
     }
   }
 
-  async collectArtifacts(jobId: string): Promise<ExecutionArtifacts | null> {
-    if (!this.remoteWorkerUrl) return null;
+  async collectArtifacts(jobId: string, tenantId?: string): Promise<ExecutionArtifacts | null> {
+    if (!this.remoteWorkerUrl || !this.workerAuthToken) return null;
     try {
-      const res = await fetch(`${this.remoteWorkerUrl}/v1/jobs/${encodeURIComponent(jobId)}/artifacts`, {
-        headers: { Authorization: `Bearer ${this.workerAuthToken ?? ''}` },
-      });
+      const tenantQuery = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : '';
+      const res = await fetch(
+        `${this.remoteWorkerUrl}/v1/jobs/${encodeURIComponent(jobId)}/artifacts${tenantQuery}`,
+        {
+          headers: { Authorization: `Bearer ${this.workerAuthToken}` },
+        },
+      );
       if (!res.ok) return null;
       const data = (await res.json()) as ExecutionArtifacts;
       // Verify signature on collected artifacts
       if (!verifyArtifactsSignature(data, this.signingSecret)) {
         throw new Error('Collected artifacts signature is invalid or tampered');
+      }
+      if (tenantId !== undefined && data.tenantId !== tenantId) {
+        return null;
       }
       return data;
     } catch {
@@ -867,11 +904,11 @@ export class ProductionIsolatedExecutionProvider implements IExecutionJobProvide
   }
 
   async cleanupJob(jobId: string): Promise<void> {
-    if (!this.remoteWorkerUrl) return;
+    if (!this.remoteWorkerUrl || !this.workerAuthToken) return;
     try {
       await fetch(`${this.remoteWorkerUrl}/v1/jobs/${encodeURIComponent(jobId)}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${this.workerAuthToken ?? ''}` },
+        headers: { Authorization: `Bearer ${this.workerAuthToken}` },
       });
     } catch { /* ignore */ }
   }

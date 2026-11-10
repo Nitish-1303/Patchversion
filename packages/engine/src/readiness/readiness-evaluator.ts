@@ -121,7 +121,9 @@ export class ReadinessEvaluator {
       }
     }
 
-    // Gate 4: Verified Execution Isolation
+    // Gate 4: Verified Execution Isolation.
+    // isolatedProviderActive is an explicit caller assertion. The readiness CLI
+    // always passes false. Env vars, fleet URLs, and health JSON must not set this.
     if (this.ctx.isolatedProviderActive) {
       gates.push({
         category: 'Execution Boundary',

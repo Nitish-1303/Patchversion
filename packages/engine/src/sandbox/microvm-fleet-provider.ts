@@ -25,6 +25,7 @@ import {
   IsolationResourceExceededError,
   IsolationSecurityViolationError,
   INonceStore,
+  assertStrongSigningSecret,
 } from './execution-provider';
 import { IsolatedRunner, resolvePermittedFixturePath } from './isolated-runner';
 
@@ -49,9 +50,16 @@ function terminateProcessTree(child: ChildProcess): void {
  * Health and capacity telemetry returned by the Cloud MicroVM Fleet.
  */
 export interface MicroVMFleetHealth {
-  status: 'healthy' | 'degraded' | 'unavailable';
+  status: 'healthy' | 'degraded' | 'unavailable' | 'unqualified';
   fleetId: string;
-  provider: 'firecracker-microvm' | 'fly-machines' | 'fargate' | 'mock-microvm';
+  provider:
+    | 'firecracker-microvm'
+    | 'fly-machines'
+    | 'fargate'
+    | 'mock-microvm'
+    | 'host-emulated-not-a-microvm'
+    | 'local-trusted-fixture-worker'
+    | 'unconfigured';
   region: string;
   activeMicroVMs: number;
   availableCapacity: number;
@@ -60,6 +68,8 @@ export interface MicroVMFleetHealth {
   egressPolicySupported: IsolationNetworkPolicy[];
   memoryLimitsMb: { min: number; max: number; default: number };
   version: string;
+  /** Never true from env flags, emulateLocalMicroVM, or fixture-worker health JSON. */
+  isolationQualified: boolean;
 }
 
 /**
@@ -148,8 +158,11 @@ export class MicroVMFleetProvider implements IExecutionProvider, IExecutionJobPr
   >();
 
   constructor(config: MicroVMFleetConfig) {
-    if (!config.signingSecret || config.signingSecret.trim() === '') {
-      throw new Error('MicroVMFleetProvider requires a non-empty cryptographic signingSecret.');
+    assertStrongSigningSecret(config.signingSecret);
+    if (config.fleetEndpoint && (!config.authToken || config.authToken.trim() === '')) {
+      throw new Error(
+        'MicroVMFleetProvider requires a worker auth token when a fleet endpoint is configured. Unauthenticated isolation is refused.',
+      );
     }
     this.config = {
       region: 'iad',
@@ -197,9 +210,9 @@ export class MicroVMFleetProvider implements IExecutionProvider, IExecutionJobPr
       const activeCount = this.activeVMs.size + this.localJobs.size;
       const maxCap = this.config.maxConcurrency ?? 32;
       return {
-        status: 'healthy',
-        fleetId: 'trypatchbay-microvm-fleet-v1',
-        provider: 'mock-microvm',
+        status: 'unqualified',
+        fleetId: 'trypatchbay-host-emulation',
+        provider: 'host-emulated-not-a-microvm',
         region: this.config.region ?? 'iad',
         activeMicroVMs: activeCount,
         availableCapacity: Math.max(0, maxCap - activeCount),
@@ -208,14 +221,15 @@ export class MicroVMFleetProvider implements IExecutionProvider, IExecutionJobPr
         egressPolicySupported: ['none', 'offline-mirrors', 'restricted-egress'],
         memoryLimitsMb: { min: 128, max: 4096, default: 512 },
         version: '0.1.0',
+        isolationQualified: false,
       };
     }
 
     if (!this.config.fleetEndpoint) {
       return {
         status: 'unavailable',
-        fleetId: 'trypatchbay-microvm-fleet-v1',
-        provider: 'firecracker-microvm',
+        fleetId: 'unconfigured',
+        provider: 'unconfigured',
         region: this.config.region ?? 'iad',
         activeMicroVMs: 0,
         availableCapacity: 0,
@@ -224,6 +238,7 @@ export class MicroVMFleetProvider implements IExecutionProvider, IExecutionJobPr
         egressPolicySupported: ['none'],
         memoryLimitsMb: { min: 128, max: 4096, default: 512 },
         version: '0.1.0',
+        isolationQualified: false,
       };
     }
 
@@ -232,25 +247,26 @@ export class MicroVMFleetProvider implements IExecutionProvider, IExecutionJobPr
         headers: this.getAuthHeaders(),
       });
       if (res.ok) {
-        return (await res.json()) as MicroVMFleetHealth;
+        const reported = (await res.json()) as MicroVMFleetHealth;
+        return { ...reported, isolationQualified: false };
       }
-      // Fallback to /health probe
       const basicRes = await fetch(`${this.config.fleetEndpoint}/health`, {
         headers: this.getAuthHeaders(),
       });
       if (basicRes.ok) {
         return {
-          status: 'healthy',
-          fleetId: 'trypatchbay-microvm-fleet-v1',
-          provider: 'firecracker-microvm',
+          status: 'unqualified',
+          fleetId: 'reachable-unqualified-worker',
+          provider: 'local-trusted-fixture-worker',
           region: this.config.region ?? 'iad',
           activeMicroVMs: 0,
-          availableCapacity: this.config.maxConcurrency ?? 32,
+          availableCapacity: 0,
           maxCapacity: this.config.maxConcurrency ?? 32,
-          averageBootDurationMs: 85,
-          egressPolicySupported: ['none', 'offline-mirrors'],
+          averageBootDurationMs: 0,
+          egressPolicySupported: ['none'],
           memoryLimitsMb: { min: 128, max: 4096, default: 512 },
           version: '0.1.0',
+          isolationQualified: false,
         };
       }
     } catch {
@@ -259,8 +275,8 @@ export class MicroVMFleetProvider implements IExecutionProvider, IExecutionJobPr
 
     return {
       status: 'unavailable',
-      fleetId: 'trypatchbay-microvm-fleet-v1',
-      provider: 'firecracker-microvm',
+      fleetId: 'unconfigured',
+      provider: 'unconfigured',
       region: this.config.region ?? 'iad',
       activeMicroVMs: 0,
       availableCapacity: 0,
@@ -269,6 +285,7 @@ export class MicroVMFleetProvider implements IExecutionProvider, IExecutionJobPr
       egressPolicySupported: ['none'],
       memoryLimitsMb: { min: 128, max: 4096, default: 512 },
       version: '0.1.0',
+      isolationQualified: false,
     };
   }
 
@@ -390,14 +407,18 @@ export class MicroVMFleetProvider implements IExecutionProvider, IExecutionJobPr
     return true;
   }
 
-  async collectArtifacts(jobId: string): Promise<ExecutionArtifacts | null> {
+  async collectArtifacts(jobId: string, tenantId?: string): Promise<ExecutionArtifacts | null> {
     let artifacts: ExecutionArtifacts | null = null;
 
     if (this.config.fleetEndpoint && !this.config.emulateLocalMicroVM) {
       try {
-        const res = await fetch(`${this.config.fleetEndpoint}/v1/jobs/${encodeURIComponent(jobId)}/artifacts`, {
-          headers: this.getAuthHeaders(),
-        });
+        const tenantQuery = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : '';
+        const res = await fetch(
+          `${this.config.fleetEndpoint}/v1/jobs/${encodeURIComponent(jobId)}/artifacts${tenantQuery}`,
+          {
+            headers: this.getAuthHeaders(),
+          },
+        );
         if (!res.ok) return null;
         artifacts = (await res.json()) as ExecutionArtifacts;
       } catch {
@@ -406,6 +427,9 @@ export class MicroVMFleetProvider implements IExecutionProvider, IExecutionJobPr
     } else {
       const entry = this.localJobs.get(jobId);
       artifacts = entry?.artifacts ? { ...entry.artifacts } : null;
+    }
+    if (artifacts && tenantId !== undefined && artifacts.tenantId !== tenantId) {
+      return null;
     }
 
     if (!artifacts) return null;
