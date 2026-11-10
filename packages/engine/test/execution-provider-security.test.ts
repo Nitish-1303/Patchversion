@@ -229,13 +229,13 @@ describe('Phase 5 Security Acceptance Tests - Execution Provider Isolation & Inv
     });
 
     await provider.submitJob(job);
-    const status = await provider.getJobStatus(job.jobId);
+    const status = await provider.getJobStatus(job.jobId, job.tenantId);
     expect(status?.status).toBe('failed');
     expect(status?.completedAt).toBeDefined();
 
     // Verify cleanup
-    await provider.cleanupJob(job.jobId);
-    const postCleanup = await provider.getJobStatus(job.jobId);
+    await provider.cleanupJob(job.jobId, job.tenantId);
+    const postCleanup = await provider.getJobStatus(job.jobId, job.tenantId);
     expect(postCleanup).toBeNull();
   });
 

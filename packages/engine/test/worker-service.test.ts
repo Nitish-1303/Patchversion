@@ -89,9 +89,12 @@ describe('WorkerExecutionService (Remote Isolated Runner Protocol)', () => {
     expect(result.status).toBe('completed');
 
     // Query status
-    const statusRes = await fetch(`http://127.0.0.1:${port}/v1/jobs/job_remote_001`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const statusRes = await fetch(
+      `http://127.0.0.1:${port}/v1/jobs/job_remote_001?tenantId=tenant_remote_1`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    );
     expect(statusRes.status).toBe(200);
     const statusData = await statusRes.json();
     expect(statusData.status).toBe('completed');
@@ -172,5 +175,137 @@ describe('WorkerExecutionService (Remote Isolated Runner Protocol)', () => {
     expect(same.status).toBe(200);
     const body = await same.json();
     expect(body.tenantId).toBe('tenant_remote_1');
+  }, 25000);
+
+  it('fails closed on missing, empty, malformed, or wrong tenantId for status, cancel, and DELETE', async () => {
+    const headers = { Authorization: `Bearer ${token}` };
+    const unsignedJob: Omit<ExecutionJob, 'signature'> = {
+      jobId: 'job_lifecycle_gate_001',
+      tenantId: 'tenant_remote_1',
+      repoId: 'repo_remote_1',
+      repoFullName: 'org/repo',
+      sourceLocation: 'fixtures/sample-repo',
+      changeId: 'chg_lifecycle_gate',
+      commands: [
+        {
+          executable: process.platform === 'win32' ? 'cmd.exe' : 'echo',
+          args: process.platform === 'win32' ? ['/c', 'echo lifecycle_gate'] : ['lifecycle_gate'],
+        },
+      ],
+      nonce: crypto.randomBytes(16).toString('hex'),
+      expiresAt: Date.now() + 60000,
+    };
+    const job: ExecutionJob = { ...unsignedJob, signature: createJobSignature(unsignedJob, secret) };
+    const submit = await fetch(`http://127.0.0.1:${port}/v1/jobs`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...headers,
+      },
+      body: JSON.stringify(job),
+    });
+    expect((await submit.json()).status).toBe('completed');
+
+    const notFoundBody = { error: `Job ${job.jobId} not found` };
+    const ops: Array<{ method: string; path: string }> = [
+      { method: 'GET', path: `/v1/jobs/${job.jobId}` },
+      { method: 'GET', path: `/v1/jobs/${job.jobId}/status` },
+      { method: 'POST', path: `/v1/jobs/${job.jobId}/cancel` },
+      { method: 'DELETE', path: `/v1/jobs/${job.jobId}` },
+    ];
+
+    for (const op of ops) {
+      const missing = await fetch(`http://127.0.0.1:${port}${op.path}`, { method: op.method, headers });
+      expect(missing.status).toBe(400);
+      await expect(missing.json()).resolves.toEqual({
+        error: 'tenantId query parameter is required and must be a valid tenant identifier',
+      });
+
+      const empty = await fetch(`http://127.0.0.1:${port}${op.path}?tenantId=`, {
+        method: op.method,
+        headers,
+      });
+      expect(empty.status).toBe(400);
+
+      const malformed = await fetch(
+        `http://127.0.0.1:${port}${op.path}?tenantId=${encodeURIComponent('../evil')}`,
+        { method: op.method, headers },
+      );
+      expect(malformed.status).toBe(400);
+
+      const wrong = await fetch(`http://127.0.0.1:${port}${op.path}?tenantId=tenant_other`, {
+        method: op.method,
+        headers,
+      });
+      expect(wrong.status).toBe(404);
+      const wrongBody = await wrong.json();
+      expect(wrongBody).toEqual(notFoundBody);
+      expect(JSON.stringify(wrongBody)).not.toContain('tenant_remote_1');
+    }
+
+    const ownerStatus = await fetch(
+      `http://127.0.0.1:${port}/v1/jobs/${job.jobId}?tenantId=tenant_remote_1`,
+      { headers },
+    );
+    expect(ownerStatus.status).toBe(200);
+    expect((await ownerStatus.json()).tenantId).toBe('tenant_remote_1');
+
+    const ownerArtifacts = await fetch(
+      `http://127.0.0.1:${port}/v1/jobs/${job.jobId}/artifacts?tenantId=tenant_remote_1`,
+      { headers },
+    );
+    expect(ownerArtifacts.status).toBe(200);
+
+    const wrongCancel = await fetch(
+      `http://127.0.0.1:${port}/v1/jobs/${job.jobId}/cancel?tenantId=tenant_other`,
+      { method: 'POST', headers },
+    );
+    expect(wrongCancel.status).toBe(404);
+
+    const ownerCancel = await fetch(
+      `http://127.0.0.1:${port}/v1/jobs/${job.jobId}/cancel?tenantId=tenant_remote_1`,
+      { method: 'POST', headers },
+    );
+    expect(ownerCancel.status).toBe(200);
+    expect(await ownerCancel.json()).toEqual({ cancelled: true });
+
+    const repeatCancel = await fetch(
+      `http://127.0.0.1:${port}/v1/jobs/${job.jobId}/cancel?tenantId=tenant_remote_1`,
+      { method: 'POST', headers },
+    );
+    expect(repeatCancel.status).toBe(200);
+    expect(await repeatCancel.json()).toEqual({ cancelled: true });
+
+    const wrongDelete = await fetch(
+      `http://127.0.0.1:${port}/v1/jobs/${job.jobId}?tenantId=tenant_other`,
+      { method: 'DELETE', headers },
+    );
+    expect(wrongDelete.status).toBe(404);
+    const stillThere = await fetch(
+      `http://127.0.0.1:${port}/v1/jobs/${job.jobId}?tenantId=tenant_remote_1`,
+      { headers },
+    );
+    expect(stillThere.status).toBe(200);
+
+    const ownerDelete = await fetch(
+      `http://127.0.0.1:${port}/v1/jobs/${job.jobId}?tenantId=tenant_remote_1`,
+      { method: 'DELETE', headers },
+    );
+    expect(ownerDelete.status).toBe(200);
+    expect(await ownerDelete.json()).toEqual({ deleted: true });
+
+    const repeatDelete = await fetch(
+      `http://127.0.0.1:${port}/v1/jobs/${job.jobId}?tenantId=tenant_remote_1`,
+      { method: 'DELETE', headers },
+    );
+    expect(repeatDelete.status).toBe(404);
+    expect(await repeatDelete.json()).toEqual(notFoundBody);
+
+    const unknownJob = await fetch(
+      `http://127.0.0.1:${port}/v1/jobs/job_does_not_exist?tenantId=tenant_remote_1`,
+      { headers },
+    );
+    expect(unknownJob.status).toBe(404);
+    expect(await unknownJob.json()).toEqual({ error: 'Job job_does_not_exist not found' });
   }, 25000);
 });

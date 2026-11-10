@@ -315,6 +315,24 @@ describe('R-EXEC fail-closed isolation (local, unqualified)', () => {
     expect(await provider.collectArtifacts(job.jobId, '')).toBeNull();
     expect(await provider.collectArtifacts(job.jobId, '   ')).toBeNull();
     expect(await provider.collectArtifacts(job.jobId, '../evil')).toBeNull();
+
+    expect(await provider.getJobStatus(job.jobId, 'tenant_a')).not.toBeNull();
+    expect(await provider.getJobStatus(job.jobId, 'tenant_b')).toBeNull();
+    expect(await provider.getJobStatus(job.jobId, '')).toBeNull();
+    expect(await provider.getJobStatus(job.jobId, '../evil')).toBeNull();
+
+    expect(await provider.cancelJob(job.jobId, 'tenant_b')).toBe(false);
+    expect(await provider.cancelJob(job.jobId, '')).toBe(false);
+    const stillOwned = await provider.getJobStatus(job.jobId, 'tenant_a');
+    expect(stillOwned?.status).not.toBe('cancelled');
+    expect(await provider.cancelJob(job.jobId, 'tenant_a')).toBe(true);
+    expect(await provider.cancelJob(job.jobId, 'tenant_a')).toBe(true);
+
+    expect(await provider.cleanupJob(job.jobId, 'tenant_b')).toBe(false);
+    expect(await provider.getJobStatus(job.jobId, 'tenant_a')).not.toBeNull();
+    expect(await provider.cleanupJob(job.jobId, 'tenant_a')).toBe(true);
+    expect(await provider.cleanupJob(job.jobId, 'tenant_a')).toBe(false);
+    expect(await provider.getJobStatus(job.jobId, 'tenant_a')).toBeNull();
     fs.rmSync(tmpFixtureDir, { recursive: true, force: true });
   });
 
