@@ -121,17 +121,20 @@ describe('Cloud MicroVM Fleet Provider - Enterprise Execution Boundary', () => {
       expect(submission.jobId).toBe(job.jobId);
       expect(submission.status).toBe('completed');
 
-      const status = await fleet.getJobStatus(job.jobId);
+      const status = await fleet.getJobStatus(job.jobId, job.tenantId);
       expect(status?.status).toBe('completed');
       expect(status?.exitCode).toBe(0);
+      expect(await fleet.getJobStatus(job.jobId, 'tenant_other')).toBeNull();
+      expect(await fleet.cancelJob(job.jobId, 'tenant_other')).toBe(false);
+      expect(await fleet.cleanupJob(job.jobId, 'tenant_other')).toBe(false);
 
       const artifacts = await fleet.collectArtifacts(job.jobId, job.tenantId);
       expect(artifacts).not.toBeNull();
       expect(artifacts?.stdout).toContain('MICROVM_EXECUTION_OK');
       expect(artifacts?.signature).toBeDefined();
 
-      await fleet.cleanupJob(job.jobId);
-      const afterCleanup = await fleet.getJobStatus(job.jobId);
+      await fleet.cleanupJob(job.jobId, job.tenantId);
+      const afterCleanup = await fleet.getJobStatus(job.jobId, job.tenantId);
       expect(afterCleanup).toBeNull();
     });
 
@@ -205,7 +208,7 @@ describe('Cloud MicroVM Fleet Provider - Enterprise Execution Boundary', () => {
       const tampered = { ...artifacts!, stdout: artifacts!.stdout + '\nMALICIOUS_INJECT' };
       expect(verifyArtifactsSignature(tampered, signingSecret)).toBe(false);
 
-      await fleet.cleanupJob(job.jobId);
+      await fleet.cleanupJob(job.jobId, job.tenantId);
     });
   });
 
@@ -255,7 +258,7 @@ describe('Cloud MicroVM Fleet Provider - Enterprise Execution Boundary', () => {
 
       delete process.env.MICROVM_TEST_SECRET;
       delete process.env.AWS_SECRET_ACCESS_KEY;
-      await fleet.cleanupJob(job.jobId);
+      await fleet.cleanupJob(job.jobId, job.tenantId);
     });
 
     it('rejects directory breakout attempts', async () => {
@@ -279,7 +282,7 @@ describe('Cloud MicroVM Fleet Provider - Enterprise Execution Boundary', () => {
       expect(submission.status).toBe('failed');
       expect(submission.reason).toMatch(/escapes workspace boundary/i);
 
-      await fleet.cleanupJob(job.jobId);
+      await fleet.cleanupJob(job.jobId, job.tenantId);
     });
   });
 
@@ -388,7 +391,7 @@ describe('Cloud MicroVM Fleet Provider - Enterprise Execution Boundary', () => {
       expect(sub.jobId).toBe(job.jobId);
       expect(sub.status).toBe('completed');
 
-      const status = await remoteFleet.getJobStatus(job.jobId);
+      const status = await remoteFleet.getJobStatus(job.jobId, job.tenantId);
       expect(status?.status).toBe('completed');
 
       const artifacts = await remoteFleet.collectArtifacts(job.jobId, job.tenantId);
@@ -396,7 +399,7 @@ describe('Cloud MicroVM Fleet Provider - Enterprise Execution Boundary', () => {
       expect(artifacts?.stdout).toContain('remote_fleet_ok');
       expect(verifyArtifactsSignature(artifacts!, signingSecret)).toBe(true);
 
-      await remoteFleet.cleanupJob(job.jobId);
+      await remoteFleet.cleanupJob(job.jobId, job.tenantId);
     });
   });
 

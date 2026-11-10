@@ -140,16 +140,20 @@ export class WorkerExecutionService {
     if (jobMatch) {
       const jobId = decodeURIComponent(jobMatch[1]);
       const subAction = jobMatch[3];
+      const tenantId = parseRequiredTenantId(url.searchParams.get('tenantId'));
+      if (!tenantId) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(
+          JSON.stringify({
+            error: 'tenantId query parameter is required and must be a valid tenant identifier',
+          }),
+        );
+        return;
+      }
 
       if (method === 'GET' && (!subAction || subAction === 'status')) {
-        const status = await this.provider.getJobStatus(jobId);
+        const status = await this.provider.getJobStatus(jobId, tenantId);
         if (!status) {
-          res.writeHead(404, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: `Job ${jobId} not found` }));
-          return;
-        }
-        const requestedTenant = url.searchParams.get('tenantId');
-        if (requestedTenant && status.tenantId !== requestedTenant) {
           res.writeHead(404, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: `Job ${jobId} not found` }));
           return;
@@ -160,23 +164,18 @@ export class WorkerExecutionService {
       }
 
       if (method === 'POST' && subAction === 'cancel') {
-        const cancelled = await this.provider.cancelJob(jobId);
+        const cancelled = await this.provider.cancelJob(jobId, tenantId);
+        if (!cancelled) {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: `Job ${jobId} not found` }));
+          return;
+        }
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ cancelled }));
+        res.end(JSON.stringify({ cancelled: true }));
         return;
       }
 
       if (method === 'GET' && subAction === 'artifacts') {
-        const tenantId = parseRequiredTenantId(url.searchParams.get('tenantId'));
-        if (!tenantId) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(
-            JSON.stringify({
-              error: 'tenantId query parameter is required and must be a valid tenant identifier',
-            }),
-          );
-          return;
-        }
         const artifacts = await this.provider.collectArtifacts(jobId, tenantId);
         if (!artifacts) {
           res.writeHead(404, { 'Content-Type': 'application/json' });
@@ -189,7 +188,12 @@ export class WorkerExecutionService {
       }
 
       if (method === 'DELETE') {
-        await this.provider.cleanupJob(jobId);
+        const deleted = await this.provider.cleanupJob(jobId, tenantId);
+        if (!deleted) {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: `Job ${jobId} not found` }));
+          return;
+        }
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ deleted: true }));
         return;

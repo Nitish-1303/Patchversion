@@ -327,10 +327,10 @@ export interface ExecutionArtifacts {
 export interface IExecutionJobProvider {
   readonly name: string;
   submitJob(job: ExecutionJob): Promise<JobSubmissionResult>;
-  getJobStatus(jobId: string): Promise<ExecutionJobStatus | null>;
-  cancelJob(jobId: string): Promise<boolean>;
+  getJobStatus(jobId: string, tenantId: string): Promise<ExecutionJobStatus | null>;
+  cancelJob(jobId: string, tenantId: string): Promise<boolean>;
   collectArtifacts(jobId: string, tenantId: string): Promise<ExecutionArtifacts | null>;
-  cleanupJob(jobId: string): Promise<void>;
+  cleanupJob(jobId: string, tenantId: string): Promise<boolean>;
 }
 
 /**
@@ -755,14 +755,19 @@ export class LocalTrustedFixtureProvider implements IExecutionJobProvider {
     }
   }
 
-  async getJobStatus(jobId: string): Promise<ExecutionJobStatus | null> {
+  async getJobStatus(jobId: string, tenantId: string): Promise<ExecutionJobStatus | null> {
+    const requiredTenant = parseRequiredTenantId(tenantId);
+    if (!requiredTenant) return null;
     const entry = this.jobs.get(jobId);
-    return entry ? { ...entry.status } : null;
+    if (!entry || entry.status.tenantId !== requiredTenant) return null;
+    return { ...entry.status };
   }
 
-  async cancelJob(jobId: string): Promise<boolean> {
+  async cancelJob(jobId: string, tenantId: string): Promise<boolean> {
+    const requiredTenant = parseRequiredTenantId(tenantId);
+    if (!requiredTenant) return false;
     const entry = this.jobs.get(jobId);
-    if (!entry) return false;
+    if (!entry || entry.status.tenantId !== requiredTenant) return false;
     entry.isCancelled = true;
     if (entry.activeChild) {
       terminateProcessTree(entry.activeChild);
@@ -783,14 +788,18 @@ export class LocalTrustedFixtureProvider implements IExecutionJobProvider {
     return { ...entry.artifacts };
   }
 
-  async cleanupJob(jobId: string): Promise<void> {
+  async cleanupJob(jobId: string, tenantId: string): Promise<boolean> {
+    const requiredTenant = parseRequiredTenantId(tenantId);
+    if (!requiredTenant) return false;
     const entry = this.jobs.get(jobId);
-    if (entry && entry.workDir) {
+    if (!entry || entry.status.tenantId !== requiredTenant) return false;
+    if (entry.workDir) {
       const runner = new IsolatedRunner();
       runner.cleanupWorkspace(entry.workDir);
       entry.workDir = undefined;
     }
     this.jobs.delete(jobId);
+    return true;
   }
 }
 
@@ -868,26 +877,38 @@ export class ProductionIsolatedExecutionProvider implements IExecutionJobProvide
     }
   }
 
-  async getJobStatus(jobId: string): Promise<ExecutionJobStatus | null> {
-    if (!this.remoteWorkerUrl || !this.workerAuthToken) return null;
+  async getJobStatus(jobId: string, tenantId: string): Promise<ExecutionJobStatus | null> {
+    const requiredTenant = parseRequiredTenantId(tenantId);
+    if (!requiredTenant || !this.remoteWorkerUrl || !this.workerAuthToken) return null;
     try {
-      const res = await fetch(`${this.remoteWorkerUrl}/v1/jobs/${encodeURIComponent(jobId)}`, {
-        headers: { Authorization: `Bearer ${this.workerAuthToken}` },
-      });
+      const tenantQuery = `?tenantId=${encodeURIComponent(requiredTenant)}`;
+      const res = await fetch(
+        `${this.remoteWorkerUrl}/v1/jobs/${encodeURIComponent(jobId)}${tenantQuery}`,
+        {
+          headers: { Authorization: `Bearer ${this.workerAuthToken}` },
+        },
+      );
       if (!res.ok) return null;
-      return (await res.json()) as ExecutionJobStatus;
+      const data = (await res.json()) as ExecutionJobStatus;
+      if (data.tenantId !== requiredTenant) return null;
+      return data;
     } catch {
       return null;
     }
   }
 
-  async cancelJob(jobId: string): Promise<boolean> {
-    if (!this.remoteWorkerUrl || !this.workerAuthToken) return false;
+  async cancelJob(jobId: string, tenantId: string): Promise<boolean> {
+    const requiredTenant = parseRequiredTenantId(tenantId);
+    if (!requiredTenant || !this.remoteWorkerUrl || !this.workerAuthToken) return false;
     try {
-      const res = await fetch(`${this.remoteWorkerUrl}/v1/jobs/${encodeURIComponent(jobId)}/cancel`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${this.workerAuthToken}` },
-      });
+      const tenantQuery = `?tenantId=${encodeURIComponent(requiredTenant)}`;
+      const res = await fetch(
+        `${this.remoteWorkerUrl}/v1/jobs/${encodeURIComponent(jobId)}/cancel${tenantQuery}`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${this.workerAuthToken}` },
+        },
+      );
       return res.ok;
     } catch {
       return false;
@@ -920,13 +941,18 @@ export class ProductionIsolatedExecutionProvider implements IExecutionJobProvide
     }
   }
 
-  async cleanupJob(jobId: string): Promise<void> {
-    if (!this.remoteWorkerUrl || !this.workerAuthToken) return;
+  async cleanupJob(jobId: string, tenantId: string): Promise<boolean> {
+    const requiredTenant = parseRequiredTenantId(tenantId);
+    if (!requiredTenant || !this.remoteWorkerUrl || !this.workerAuthToken) return false;
     try {
-      await fetch(`${this.remoteWorkerUrl}/v1/jobs/${encodeURIComponent(jobId)}`, {
+      const tenantQuery = `?tenantId=${encodeURIComponent(requiredTenant)}`;
+      const res = await fetch(`${this.remoteWorkerUrl}/v1/jobs/${encodeURIComponent(jobId)}${tenantQuery}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${this.workerAuthToken}` },
       });
-    } catch { /* ignore */ }
+      return res.ok;
+    } catch {
+      return false;
+    }
   }
 }
