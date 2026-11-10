@@ -71,9 +71,31 @@ export {
   verifyJobSignature,
   createArtifactsSignature,
   verifyArtifactsSignature,
+  parseRequiredTenantId,
+  parseRequiredJobId,
+  executionJobStorageKey,
+  ExpiringNonceStore,
   LocalTrustedFixtureProvider,
   ProductionIsolatedExecutionProvider,
 } from './sandbox/execution-provider';
+export {
+  LIFECYCLE_CAPABILITY_HEADER,
+  LIFECYCLE_CAPABILITY_ISSUER,
+  LIFECYCLE_CAPABILITY_AUDIENCE,
+  createLifecycleCapability,
+  verifyLifecycleCapability,
+  lifecycleCapabilityHeaders,
+  type LifecycleOp,
+  type LifecycleCapabilityClaims,
+} from './sandbox/lifecycle-capability';
+export {
+  MemoryLifecycleReplayStore,
+  PostgresLifecycleReplayStore,
+  createWorkerReplayStoreFromEnv,
+  LifecycleReplayStoreUnavailableError,
+  type ILifecycleReplayStore,
+  type LifecycleReplayRecord,
+} from './sandbox/lifecycle-replay-store';
 export {
   MicroVMFleetProvider,
   type MicroVMFleetConfig,
@@ -95,6 +117,7 @@ export {
   authorizationMatchesWorkerBearer,
   type WorkerServiceConfig,
 } from './sandbox/worker-service';
+
 export { WorkflowOrchestrator } from './jobs/orchestrator';
 export {
   EvidenceBundleManager,

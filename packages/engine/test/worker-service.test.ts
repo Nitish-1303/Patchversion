@@ -6,7 +6,14 @@ import {
   WorkerExecutionService,
   authorizationMatchesWorkerBearer,
 } from '../src/sandbox/worker-service';
+import { MemoryLifecycleReplayStore } from '../src/sandbox/lifecycle-replay-store';
+
 import { createJobSignature, ExecutionJob } from '../src/sandbox/execution-provider';
+import {
+  LIFECYCLE_CAPABILITY_HEADER,
+  createLifecycleCapability,
+  type LifecycleOp,
+} from '../src/sandbox/lifecycle-capability';
 
 describe('WorkerExecutionService (Remote Isolated Runner Protocol)', () => {
   let worker: WorkerExecutionService;
@@ -15,11 +22,19 @@ describe('WorkerExecutionService (Remote Isolated Runner Protocol)', () => {
   const secret = 'worker-test-signing-secret-key-32b';
   const token = 'worker-bearer-token-123';
 
+  function lifecycleHeaders(jobId: string, op: LifecycleOp, tenantId = 'tenant_remote_1'): Record<string, string> {
+    return {
+      Authorization: `Bearer ${token}`,
+      [LIFECYCLE_CAPABILITY_HEADER]: createLifecycleCapability({ tenantId, jobId, op }, secret),
+    };
+  }
+
   beforeAll(async () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'worker-service-test-'));
     worker = new WorkerExecutionService({
       signingSecret: secret,
       authToken: token,
+      replayStore: new MemoryLifecycleReplayStore(),
     });
     // Start on ephemeral port 0
     port = await worker.start(0);
@@ -137,7 +152,7 @@ describe('WorkerExecutionService (Remote Isolated Runner Protocol)', () => {
     const statusRes = await fetch(
       `http://127.0.0.1:${port}/v1/jobs/job_remote_001?tenantId=tenant_remote_1`,
       {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: lifecycleHeaders('job_remote_001', 'status'),
       },
     );
     expect(statusRes.status).toBe(200);
@@ -147,7 +162,7 @@ describe('WorkerExecutionService (Remote Isolated Runner Protocol)', () => {
     const artifactsRes = await fetch(
       `http://127.0.0.1:${port}/v1/jobs/job_remote_001/artifacts?tenantId=tenant_remote_1`,
       {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: lifecycleHeaders('job_remote_001', 'artifacts'),
       },
     );
     expect(artifactsRes.status).toBe(200);
@@ -185,28 +200,28 @@ describe('WorkerExecutionService (Remote Isolated Runner Protocol)', () => {
     });
     expect((await submit.json()).status).toBe('completed');
 
-    const missing = await fetch(`http://127.0.0.1:${port}/v1/jobs/${job.jobId}/artifacts`, {
+    const missingCap = await fetch(`http://127.0.0.1:${port}/v1/jobs/${job.jobId}/artifacts?tenantId=tenant_remote_1`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    expect(missing.status).toBe(400);
+    expect(missingCap.status).toBe(403);
 
     const empty = await fetch(`http://127.0.0.1:${port}/v1/jobs/${job.jobId}/artifacts?tenantId=`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: lifecycleHeaders(job.jobId, 'artifacts'),
     });
-    expect(empty.status).toBe(400);
+    expect(empty.status).toBe(200);
 
     const malformed = await fetch(
       `http://127.0.0.1:${port}/v1/jobs/${job.jobId}/artifacts?tenantId=${encodeURIComponent('../evil')}`,
       {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: lifecycleHeaders(job.jobId, 'artifacts'),
       },
     );
-    expect(malformed.status).toBe(400);
+    expect(malformed.status).toBe(403);
 
     const wrong = await fetch(
       `http://127.0.0.1:${port}/v1/jobs/${job.jobId}/artifacts?tenantId=tenant_other`,
       {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: lifecycleHeaders(job.jobId, 'artifacts', 'tenant_other'),
       },
     );
     expect(wrong.status).toBe(404);
@@ -214,7 +229,7 @@ describe('WorkerExecutionService (Remote Isolated Runner Protocol)', () => {
     const same = await fetch(
       `http://127.0.0.1:${port}/v1/jobs/${job.jobId}/artifacts?tenantId=tenant_remote_1`,
       {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: lifecycleHeaders(job.jobId, 'artifacts'),
       },
     );
     expect(same.status).toBe(200);
@@ -222,8 +237,8 @@ describe('WorkerExecutionService (Remote Isolated Runner Protocol)', () => {
     expect(body.tenantId).toBe('tenant_remote_1');
   }, 25000);
 
-  it('fails closed on missing, empty, malformed, or wrong tenantId for status, cancel, and DELETE', async () => {
-    const headers = { Authorization: `Bearer ${token}` };
+  it('fails closed on missing capability or wrong tenant for status, cancel, and DELETE', async () => {
+    const bearerOnly = { Authorization: `Bearer ${token}` };
     const unsignedJob: Omit<ExecutionJob, 'signature'> = {
       jobId: 'job_lifecycle_gate_001',
       tenantId: 'tenant_remote_1',
@@ -245,7 +260,7 @@ describe('WorkerExecutionService (Remote Isolated Runner Protocol)', () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...headers,
+        ...bearerOnly,
       },
       body: JSON.stringify(job),
     });
@@ -259,28 +274,32 @@ describe('WorkerExecutionService (Remote Isolated Runner Protocol)', () => {
       { method: 'DELETE', path: `/v1/jobs/${job.jobId}` },
     ];
 
-    for (const op of ops) {
-      const missing = await fetch(`http://127.0.0.1:${port}${op.path}`, { method: op.method, headers });
-      expect(missing.status).toBe(400);
-      await expect(missing.json()).resolves.toEqual({
-        error: 'tenantId query parameter is required and must be a valid tenant identifier',
-      });
+    const opToCap: Record<string, LifecycleOp> = {
+      GET: 'status',
+      POST: 'cancel',
+      DELETE: 'cleanup',
+    };
 
-      const empty = await fetch(`http://127.0.0.1:${port}${op.path}?tenantId=`, {
+    for (const op of ops) {
+      const capOp = op.path.endsWith('/cancel') ? 'cancel' : opToCap[op.method];
+      const missing = await fetch(`http://127.0.0.1:${port}${op.path}?tenantId=tenant_remote_1`, {
         method: op.method,
-        headers,
+        headers: bearerOnly,
       });
-      expect(empty.status).toBe(400);
+      expect(missing.status).toBe(403);
+      const missingBody = await missing.json();
+      expect(missingBody.error).toBe('Forbidden: invalid lifecycle capability');
+      expect(missingBody.reason).toBe('missing_capability');
 
       const malformed = await fetch(
         `http://127.0.0.1:${port}${op.path}?tenantId=${encodeURIComponent('../evil')}`,
-        { method: op.method, headers },
+        { method: op.method, headers: lifecycleHeaders(job.jobId, capOp) },
       );
-      expect(malformed.status).toBe(400);
+      expect(malformed.status).toBe(403);
 
       const wrong = await fetch(`http://127.0.0.1:${port}${op.path}?tenantId=tenant_other`, {
         method: op.method,
-        headers,
+        headers: lifecycleHeaders(job.jobId, capOp, 'tenant_other'),
       });
       expect(wrong.status).toBe(404);
       const wrongBody = await wrong.json();
@@ -290,65 +309,65 @@ describe('WorkerExecutionService (Remote Isolated Runner Protocol)', () => {
 
     const ownerStatus = await fetch(
       `http://127.0.0.1:${port}/v1/jobs/${job.jobId}?tenantId=tenant_remote_1`,
-      { headers },
+      { headers: lifecycleHeaders(job.jobId, 'status') },
     );
     expect(ownerStatus.status).toBe(200);
     expect((await ownerStatus.json()).tenantId).toBe('tenant_remote_1');
 
     const ownerArtifacts = await fetch(
       `http://127.0.0.1:${port}/v1/jobs/${job.jobId}/artifacts?tenantId=tenant_remote_1`,
-      { headers },
+      { headers: lifecycleHeaders(job.jobId, 'artifacts') },
     );
     expect(ownerArtifacts.status).toBe(200);
 
     const wrongCancel = await fetch(
       `http://127.0.0.1:${port}/v1/jobs/${job.jobId}/cancel?tenantId=tenant_other`,
-      { method: 'POST', headers },
+      { method: 'POST', headers: lifecycleHeaders(job.jobId, 'cancel', 'tenant_other') },
     );
     expect(wrongCancel.status).toBe(404);
 
     const ownerCancel = await fetch(
       `http://127.0.0.1:${port}/v1/jobs/${job.jobId}/cancel?tenantId=tenant_remote_1`,
-      { method: 'POST', headers },
+      { method: 'POST', headers: lifecycleHeaders(job.jobId, 'cancel') },
     );
     expect(ownerCancel.status).toBe(200);
     expect(await ownerCancel.json()).toEqual({ cancelled: true });
 
     const repeatCancel = await fetch(
       `http://127.0.0.1:${port}/v1/jobs/${job.jobId}/cancel?tenantId=tenant_remote_1`,
-      { method: 'POST', headers },
+      { method: 'POST', headers: lifecycleHeaders(job.jobId, 'cancel') },
     );
     expect(repeatCancel.status).toBe(200);
     expect(await repeatCancel.json()).toEqual({ cancelled: true });
 
     const wrongDelete = await fetch(
       `http://127.0.0.1:${port}/v1/jobs/${job.jobId}?tenantId=tenant_other`,
-      { method: 'DELETE', headers },
+      { method: 'DELETE', headers: lifecycleHeaders(job.jobId, 'cleanup', 'tenant_other') },
     );
     expect(wrongDelete.status).toBe(404);
     const stillThere = await fetch(
       `http://127.0.0.1:${port}/v1/jobs/${job.jobId}?tenantId=tenant_remote_1`,
-      { headers },
+      { headers: lifecycleHeaders(job.jobId, 'status') },
     );
     expect(stillThere.status).toBe(200);
 
     const ownerDelete = await fetch(
       `http://127.0.0.1:${port}/v1/jobs/${job.jobId}?tenantId=tenant_remote_1`,
-      { method: 'DELETE', headers },
+      { method: 'DELETE', headers: lifecycleHeaders(job.jobId, 'cleanup') },
     );
     expect(ownerDelete.status).toBe(200);
     expect(await ownerDelete.json()).toEqual({ deleted: true });
 
     const repeatDelete = await fetch(
       `http://127.0.0.1:${port}/v1/jobs/${job.jobId}?tenantId=tenant_remote_1`,
-      { method: 'DELETE', headers },
+      { method: 'DELETE', headers: lifecycleHeaders(job.jobId, 'cleanup') },
     );
     expect(repeatDelete.status).toBe(404);
     expect(await repeatDelete.json()).toEqual(notFoundBody);
 
     const unknownJob = await fetch(
       `http://127.0.0.1:${port}/v1/jobs/job_does_not_exist?tenantId=tenant_remote_1`,
-      { headers },
+      { headers: lifecycleHeaders('job_does_not_exist', 'status') },
     );
     expect(unknownJob.status).toBe(404);
     expect(await unknownJob.json()).toEqual({ error: 'Job job_does_not_exist not found' });

@@ -27,8 +27,16 @@ import {
   INonceStore,
   assertStrongSigningSecret,
   parseRequiredTenantId,
+  parseRequiredJobId,
+  executionJobStorageKey,
+  ExpiringNonceStore,
 } from './execution-provider';
 import { IsolatedRunner, resolvePermittedFixturePath } from './isolated-runner';
+import {
+  LIFECYCLE_CAPABILITY_HEADER,
+  createLifecycleCapability,
+  type LifecycleOp,
+} from './lifecycle-capability';
 
 function terminateProcessTree(child: ChildProcess): void {
   if (!child.pid) return;
@@ -172,7 +180,7 @@ export class MicroVMFleetProvider implements IExecutionProvider, IExecutionJobPr
       networkPolicy: 'none',
       ...config,
     };
-    this.nonceStore = config.nonceStore ?? new Set<string>();
+    this.nonceStore = config.nonceStore ?? new ExpiringNonceStore();
   }
 
   /**
@@ -308,7 +316,7 @@ export class MicroVMFleetProvider implements IExecutionProvider, IExecutionJobPr
     }
 
     // 2. Nonce replay prevention
-    const isReplay = await this.checkAndRecordNonce(job.nonce);
+    const isReplay = await this.checkAndRecordNonce(job.nonce, job.expiresAt);
     if (isReplay) {
       return {
         jobId: job.jobId,
@@ -367,16 +375,26 @@ export class MicroVMFleetProvider implements IExecutionProvider, IExecutionJobPr
     return this.executeInEmulatedMicroVM(job);
   }
 
+  private getOwnedLocalJob(jobId: string, tenantId: string) {
+    const requiredTenant = parseRequiredTenantId(tenantId);
+    const key = executionJobStorageKey(tenantId, jobId);
+    if (!requiredTenant || !key) return null;
+    const entry = this.localJobs.get(key);
+    if (!entry || entry.status.tenantId !== requiredTenant) return null;
+    return { key, entry, requiredTenant };
+  }
+
   async getJobStatus(jobId: string, tenantId: string): Promise<ExecutionJobStatus | null> {
     const requiredTenant = parseRequiredTenantId(tenantId);
-    if (!requiredTenant) return null;
+    const requiredJob = parseRequiredJobId(jobId);
+    if (!requiredTenant || !requiredJob) return null;
     if (this.config.fleetEndpoint && !this.config.emulateLocalMicroVM) {
       try {
         const tenantQuery = `?tenantId=${encodeURIComponent(requiredTenant)}`;
         const res = await fetch(
-          `${this.config.fleetEndpoint}/v1/jobs/${encodeURIComponent(jobId)}${tenantQuery}`,
+          `${this.config.fleetEndpoint}/v1/jobs/${encodeURIComponent(requiredJob)}${tenantQuery}`,
           {
-            headers: this.getAuthHeaders(),
+            headers: this.getLifecycleHeaders(requiredJob, requiredTenant, 'status'),
           },
         );
         if (!res.ok) return null;
@@ -388,22 +406,23 @@ export class MicroVMFleetProvider implements IExecutionProvider, IExecutionJobPr
       }
     }
 
-    const entry = this.localJobs.get(jobId);
-    if (!entry || entry.status.tenantId !== requiredTenant) return null;
-    return { ...entry.status };
+    const owned = this.getOwnedLocalJob(requiredJob, requiredTenant);
+    if (!owned) return null;
+    return { ...owned.entry.status };
   }
 
   async cancelJob(jobId: string, tenantId: string): Promise<boolean> {
     const requiredTenant = parseRequiredTenantId(tenantId);
-    if (!requiredTenant) return false;
+    const requiredJob = parseRequiredJobId(jobId);
+    if (!requiredTenant || !requiredJob) return false;
     if (this.config.fleetEndpoint && !this.config.emulateLocalMicroVM) {
       try {
         const tenantQuery = `?tenantId=${encodeURIComponent(requiredTenant)}`;
         const res = await fetch(
-          `${this.config.fleetEndpoint}/v1/jobs/${encodeURIComponent(jobId)}/cancel${tenantQuery}`,
+          `${this.config.fleetEndpoint}/v1/jobs/${encodeURIComponent(requiredJob)}/cancel${tenantQuery}`,
           {
             method: 'POST',
-            headers: this.getAuthHeaders(),
+            headers: this.getLifecycleHeaders(requiredJob, requiredTenant, 'cancel'),
           },
         );
         return res.ok;
@@ -412,29 +431,30 @@ export class MicroVMFleetProvider implements IExecutionProvider, IExecutionJobPr
       }
     }
 
-    const entry = this.localJobs.get(jobId);
-    if (!entry || entry.status.tenantId !== requiredTenant) return false;
-    entry.isCancelled = true;
-    if (entry.activeChild) {
-      terminateProcessTree(entry.activeChild);
+    const owned = this.getOwnedLocalJob(requiredJob, requiredTenant);
+    if (!owned) return false;
+    owned.entry.isCancelled = true;
+    if (owned.entry.activeChild) {
+      terminateProcessTree(owned.entry.activeChild);
     }
-    entry.status.status = 'cancelled';
-    entry.status.completedAt = new Date().toISOString();
+    owned.entry.status.status = 'cancelled';
+    owned.entry.status.completedAt = new Date().toISOString();
     return true;
   }
 
   async collectArtifacts(jobId: string, tenantId: string): Promise<ExecutionArtifacts | null> {
     const requiredTenant = parseRequiredTenantId(tenantId);
-    if (!requiredTenant) return null;
+    const requiredJob = parseRequiredJobId(jobId);
+    if (!requiredTenant || !requiredJob) return null;
     let artifacts: ExecutionArtifacts | null = null;
 
     if (this.config.fleetEndpoint && !this.config.emulateLocalMicroVM) {
       try {
         const tenantQuery = `?tenantId=${encodeURIComponent(requiredTenant)}`;
         const res = await fetch(
-          `${this.config.fleetEndpoint}/v1/jobs/${encodeURIComponent(jobId)}/artifacts${tenantQuery}`,
+          `${this.config.fleetEndpoint}/v1/jobs/${encodeURIComponent(requiredJob)}/artifacts${tenantQuery}`,
           {
-            headers: this.getAuthHeaders(),
+            headers: this.getLifecycleHeaders(requiredJob, requiredTenant, 'artifacts'),
           },
         );
         if (!res.ok) return null;
@@ -443,8 +463,8 @@ export class MicroVMFleetProvider implements IExecutionProvider, IExecutionJobPr
         return null;
       }
     } else {
-      const entry = this.localJobs.get(jobId);
-      artifacts = entry?.artifacts ? { ...entry.artifacts } : null;
+      const owned = this.getOwnedLocalJob(requiredJob, requiredTenant);
+      artifacts = owned?.entry.artifacts ? { ...owned.entry.artifacts } : null;
     }
     if (artifacts && artifacts.tenantId !== requiredTenant) {
       return null;
@@ -463,29 +483,33 @@ export class MicroVMFleetProvider implements IExecutionProvider, IExecutionJobPr
 
   async cleanupJob(jobId: string, tenantId: string): Promise<boolean> {
     const requiredTenant = parseRequiredTenantId(tenantId);
-    if (!requiredTenant) return false;
+    const requiredJob = parseRequiredJobId(jobId);
+    if (!requiredTenant || !requiredJob) return false;
     if (this.config.fleetEndpoint && !this.config.emulateLocalMicroVM) {
       try {
         const tenantQuery = `?tenantId=${encodeURIComponent(requiredTenant)}`;
-        const res = await fetch(`${this.config.fleetEndpoint}/v1/jobs/${encodeURIComponent(jobId)}${tenantQuery}`, {
-          method: 'DELETE',
-          headers: this.getAuthHeaders(),
-        });
+        const res = await fetch(
+          `${this.config.fleetEndpoint}/v1/jobs/${encodeURIComponent(requiredJob)}${tenantQuery}`,
+          {
+            method: 'DELETE',
+            headers: this.getLifecycleHeaders(requiredJob, requiredTenant, 'cleanup'),
+          },
+        );
         return res.ok;
       } catch {
         return false;
       }
     }
 
-    const entry = this.localJobs.get(jobId);
-    if (!entry || entry.status.tenantId !== requiredTenant) return false;
-    if (entry.workDir) {
+    const owned = this.getOwnedLocalJob(requiredJob, requiredTenant);
+    if (!owned) return false;
+    if (owned.entry.workDir) {
       const runner = new IsolatedRunner();
-      runner.cleanupWorkspace(entry.workDir);
-      entry.workDir = undefined;
+      runner.cleanupWorkspace(owned.entry.workDir);
+      owned.entry.workDir = undefined;
     }
-    this.localJobs.delete(jobId);
-    this.activeVMs.delete(jobId);
+    this.localJobs.delete(owned.key);
+    this.activeVMs.delete(requiredJob);
     return true;
   }
 
@@ -691,7 +715,16 @@ export class MicroVMFleetProvider implements IExecutionProvider, IExecutionJobPr
       activeChild: undefined,
       isCancelled: false,
     };
-    this.localJobs.set(job.jobId, entry);
+    const storageKey = executionJobStorageKey(job.tenantId, job.jobId);
+    if (!storageKey) {
+      return {
+        jobId: job.jobId,
+        status: 'rejected',
+        acceptedAt: now,
+        reason: 'Invalid tenantId or jobId for storage',
+      };
+    }
+    this.localJobs.set(storageKey, entry);
 
     const vmInstance: MicroVMInstance = {
       vmId: `vm_${job.jobId}`,
@@ -891,11 +924,11 @@ export class MicroVMFleetProvider implements IExecutionProvider, IExecutionJobPr
     return curr;
   }
 
-  private async checkAndRecordNonce(nonce: string): Promise<boolean> {
+  private async checkAndRecordNonce(nonce: string, expiresAtMs?: number): Promise<boolean> {
     if ('has' in this.nonceStore && typeof this.nonceStore.has === 'function') {
       const exists = await (this.nonceStore as INonceStore).has(nonce);
       if (exists) return true;
-      await (this.nonceStore as INonceStore).add(nonce);
+      await (this.nonceStore as INonceStore).add(nonce, expiresAtMs);
       return false;
     }
     const set = this.nonceStore as Set<string>;
@@ -909,5 +942,18 @@ export class MicroVMFleetProvider implements IExecutionProvider, IExecutionJobPr
       return { Authorization: `Bearer ${this.config.authToken}` };
     }
     return {};
+  }
+
+  private getLifecycleHeaders(
+    jobId: string,
+    tenantId: string,
+    op: LifecycleOp,
+  ): Record<string, string> {
+    const headers = this.getAuthHeaders();
+    headers[LIFECYCLE_CAPABILITY_HEADER] = createLifecycleCapability(
+      { tenantId, jobId, op },
+      this.config.signingSecret,
+    );
+    return headers;
   }
 }

@@ -62,6 +62,7 @@ export const CANONICAL_TABLES = [
   'webhook_deliveries',
   'watch_targets',
   'rate_limits',
+  'lifecycle_capability_replays',
   'schema_migrations',
 ];
 

@@ -4,6 +4,11 @@ import path from 'path';
 import fs from 'fs';
 import { spawn, ChildProcess, execFileSync } from 'child_process';
 import { IsolatedRunner, resolvePermittedFixturePath } from './isolated-runner';
+import {
+  LIFECYCLE_CAPABILITY_HEADER,
+  createLifecycleCapability,
+  type LifecycleOp,
+} from './lifecycle-capability';
 
 function terminateProcessTree(child: ChildProcess): void {
   if (!child.pid) return;
@@ -337,7 +342,7 @@ export interface IExecutionJobProvider {
  * Fail-closed tenant identifier for artifact and claim lookup.
  * Missing, empty, whitespace-only, oversized, NUL, or otherwise malformed values are rejected.
  */
-export function parseRequiredTenantId(raw: string | null | undefined): string | null {
+export function parseRequiredScopedId(raw: string | null | undefined): string | null {
   if (raw == null || typeof raw !== 'string') return null;
   const trimmed = raw.trim();
   if (!trimmed) return null;
@@ -345,6 +350,32 @@ export function parseRequiredTenantId(raw: string | null | undefined): string | 
   if (trimmed.length > 128) return null;
   if (!/^[A-Za-z0-9_.:-]+$/.test(trimmed)) return null;
   return trimmed;
+}
+
+export function parseRequiredTenantId(raw: string | null | undefined): string | null {
+  return parseRequiredScopedId(raw);
+}
+
+export function parseRequiredJobId(raw: string | null | undefined): string | null {
+  return parseRequiredScopedId(raw);
+}
+
+/** Composite in-memory key so the same jobId cannot clobber another tenant. */
+export function executionJobStorageKey(tenantId: string, jobId: string): string | null {
+  const tenant = parseRequiredTenantId(tenantId);
+  const job = parseRequiredJobId(jobId);
+  if (!tenant || !job) return null;
+  return `${encodeURIComponent(tenant)}/${encodeURIComponent(job)}`;
+}
+
+function canonicalJobLimits(limits: Partial<IsolationResourceLimits> | undefined): string {
+  if (!limits) return '';
+  const keys = Object.keys(limits).sort();
+  const canonical: Record<string, unknown> = {};
+  for (const key of keys) {
+    canonical[key] = (limits as Record<string, unknown>)[key];
+  }
+  return JSON.stringify(canonical);
 }
 
 /**
@@ -371,6 +402,8 @@ export function createJobSignature(
     job.changeId,
     commandsDigest,
     patchDigest,
+    job.networkPolicy ?? '',
+    canonicalJobLimits(job.limits),
     job.nonce,
     job.expiresAt.toString(),
   ].join(':');
@@ -440,7 +473,37 @@ export function verifyArtifactsSignature(
 
 export interface INonceStore {
   has(nonce: string): Promise<boolean> | boolean;
-  add(nonce: string): Promise<void> | void;
+  add(nonce: string, expiresAtMs?: number): Promise<void> | void;
+}
+
+const DEFAULT_NONCE_TTL_MS = 15 * 60_000;
+
+/** Process-local nonce set that forgets entries after expiry (F6). */
+export class ExpiringNonceStore implements INonceStore {
+  private entries = new Map<string, number>();
+
+  constructor(private readonly defaultTtlMs = DEFAULT_NONCE_TTL_MS) {}
+
+  has(nonce: string): boolean {
+    this.prune();
+    return this.entries.has(nonce);
+  }
+
+  add(nonce: string, expiresAtMs?: number): void {
+    const exp =
+      typeof expiresAtMs === 'number' && Number.isFinite(expiresAtMs)
+        ? expiresAtMs
+        : Date.now() + this.defaultTtlMs;
+    this.entries.set(nonce, exp);
+    this.prune();
+  }
+
+  private prune(): void {
+    const now = Date.now();
+    for (const [nonce, exp] of this.entries) {
+      if (exp <= now) this.entries.delete(nonce);
+    }
+  }
 }
 
 export interface LocalTrustedFixtureProviderOptions {
@@ -487,7 +550,7 @@ export class LocalTrustedFixtureProvider implements IExecutionJobProvider {
       }
       this.fixtureRootDir = curr;
     }
-    this.nonceStore = options?.nonceStore ?? new Set<string>();
+    this.nonceStore = options?.nonceStore ?? new ExpiringNonceStore();
   }
 
   async submitJob(job: ExecutionJob): Promise<JobSubmissionResult> {
@@ -514,7 +577,7 @@ export class LocalTrustedFixtureProvider implements IExecutionJobProvider {
         reason: 'Duplicate job delivery rejected (nonce already processed)',
       };
     }
-    await this.nonceStore.add(job.nonce);
+    await this.nonceStore.add(job.nonce, job.expiresAt);
 
     // 3. Permitted fixture verification
     const permittedPath = resolvePermittedFixturePath(this.fixtureRootDir, job.sourceLocation);
@@ -575,7 +638,16 @@ export class LocalTrustedFixtureProvider implements IExecutionJobProvider {
       activeChild: undefined,
       isCancelled: false,
     };
-    this.jobs.set(job.jobId, entry);
+    const storageKey = executionJobStorageKey(job.tenantId, job.jobId);
+    if (!storageKey) {
+      return {
+        jobId: job.jobId,
+        status: 'rejected',
+        acceptedAt: now,
+        reason: 'Invalid tenantId or jobId for storage',
+      };
+    }
+    this.jobs.set(storageKey, entry);
 
     // Execute in background / ephemeral workspace
     const timeoutMs = job.limits?.timeoutMs ?? 30_000;
@@ -755,50 +827,51 @@ export class LocalTrustedFixtureProvider implements IExecutionJobProvider {
     }
   }
 
-  async getJobStatus(jobId: string, tenantId: string): Promise<ExecutionJobStatus | null> {
+  private getOwnedJob(jobId: string, tenantId: string) {
     const requiredTenant = parseRequiredTenantId(tenantId);
-    if (!requiredTenant) return null;
-    const entry = this.jobs.get(jobId);
+    const key = executionJobStorageKey(tenantId, jobId);
+    if (!requiredTenant || !key) return null;
+    const entry = this.jobs.get(key);
     if (!entry || entry.status.tenantId !== requiredTenant) return null;
-    return { ...entry.status };
+    return { key, entry, requiredTenant };
+  }
+
+  async getJobStatus(jobId: string, tenantId: string): Promise<ExecutionJobStatus | null> {
+    const owned = this.getOwnedJob(jobId, tenantId);
+    if (!owned) return null;
+    return { ...owned.entry.status };
   }
 
   async cancelJob(jobId: string, tenantId: string): Promise<boolean> {
-    const requiredTenant = parseRequiredTenantId(tenantId);
-    if (!requiredTenant) return false;
-    const entry = this.jobs.get(jobId);
-    if (!entry || entry.status.tenantId !== requiredTenant) return false;
-    entry.isCancelled = true;
-    if (entry.activeChild) {
-      terminateProcessTree(entry.activeChild);
+    const owned = this.getOwnedJob(jobId, tenantId);
+    if (!owned) return false;
+    owned.entry.isCancelled = true;
+    if (owned.entry.activeChild) {
+      terminateProcessTree(owned.entry.activeChild);
     }
-    entry.status.status = 'cancelled';
-    entry.status.completedAt = new Date().toISOString();
+    owned.entry.status.status = 'cancelled';
+    owned.entry.status.completedAt = new Date().toISOString();
     return true;
   }
 
   async collectArtifacts(jobId: string, tenantId: string): Promise<ExecutionArtifacts | null> {
-    const requiredTenant = parseRequiredTenantId(tenantId);
-    if (!requiredTenant) return null;
-    const entry = this.jobs.get(jobId);
-    if (!entry?.artifacts) return null;
-    if (entry.artifacts.tenantId !== requiredTenant) {
+    const owned = this.getOwnedJob(jobId, tenantId);
+    if (!owned?.entry.artifacts) return null;
+    if (owned.entry.artifacts.tenantId !== owned.requiredTenant) {
       return null;
     }
-    return { ...entry.artifacts };
+    return { ...owned.entry.artifacts };
   }
 
   async cleanupJob(jobId: string, tenantId: string): Promise<boolean> {
-    const requiredTenant = parseRequiredTenantId(tenantId);
-    if (!requiredTenant) return false;
-    const entry = this.jobs.get(jobId);
-    if (!entry || entry.status.tenantId !== requiredTenant) return false;
-    if (entry.workDir) {
+    const owned = this.getOwnedJob(jobId, tenantId);
+    if (!owned) return false;
+    if (owned.entry.workDir) {
       const runner = new IsolatedRunner();
-      runner.cleanupWorkspace(entry.workDir);
-      entry.workDir = undefined;
+      runner.cleanupWorkspace(owned.entry.workDir);
+      owned.entry.workDir = undefined;
     }
-    this.jobs.delete(jobId);
+    this.jobs.delete(owned.key);
     return true;
   }
 }
@@ -877,15 +950,26 @@ export class ProductionIsolatedExecutionProvider implements IExecutionJobProvide
     }
   }
 
+  private lifecycleHeaders(jobId: string, tenantId: string, op: LifecycleOp): Record<string, string> {
+    return {
+      Authorization: `Bearer ${this.workerAuthToken}`,
+      [LIFECYCLE_CAPABILITY_HEADER]: createLifecycleCapability(
+        { tenantId, jobId, op },
+        this.signingSecret,
+      ),
+    };
+  }
+
   async getJobStatus(jobId: string, tenantId: string): Promise<ExecutionJobStatus | null> {
     const requiredTenant = parseRequiredTenantId(tenantId);
-    if (!requiredTenant || !this.remoteWorkerUrl || !this.workerAuthToken) return null;
+    const requiredJob = parseRequiredJobId(jobId);
+    if (!requiredTenant || !requiredJob || !this.remoteWorkerUrl || !this.workerAuthToken) return null;
     try {
       const tenantQuery = `?tenantId=${encodeURIComponent(requiredTenant)}`;
       const res = await fetch(
-        `${this.remoteWorkerUrl}/v1/jobs/${encodeURIComponent(jobId)}${tenantQuery}`,
+        `${this.remoteWorkerUrl}/v1/jobs/${encodeURIComponent(requiredJob)}${tenantQuery}`,
         {
-          headers: { Authorization: `Bearer ${this.workerAuthToken}` },
+          headers: this.lifecycleHeaders(requiredJob, requiredTenant, 'status'),
         },
       );
       if (!res.ok) return null;
@@ -899,14 +983,15 @@ export class ProductionIsolatedExecutionProvider implements IExecutionJobProvide
 
   async cancelJob(jobId: string, tenantId: string): Promise<boolean> {
     const requiredTenant = parseRequiredTenantId(tenantId);
-    if (!requiredTenant || !this.remoteWorkerUrl || !this.workerAuthToken) return false;
+    const requiredJob = parseRequiredJobId(jobId);
+    if (!requiredTenant || !requiredJob || !this.remoteWorkerUrl || !this.workerAuthToken) return false;
     try {
       const tenantQuery = `?tenantId=${encodeURIComponent(requiredTenant)}`;
       const res = await fetch(
-        `${this.remoteWorkerUrl}/v1/jobs/${encodeURIComponent(jobId)}/cancel${tenantQuery}`,
+        `${this.remoteWorkerUrl}/v1/jobs/${encodeURIComponent(requiredJob)}/cancel${tenantQuery}`,
         {
           method: 'POST',
-          headers: { Authorization: `Bearer ${this.workerAuthToken}` },
+          headers: this.lifecycleHeaders(requiredJob, requiredTenant, 'cancel'),
         },
       );
       return res.ok;
@@ -917,13 +1002,14 @@ export class ProductionIsolatedExecutionProvider implements IExecutionJobProvide
 
   async collectArtifacts(jobId: string, tenantId: string): Promise<ExecutionArtifacts | null> {
     const requiredTenant = parseRequiredTenantId(tenantId);
-    if (!requiredTenant || !this.remoteWorkerUrl || !this.workerAuthToken) return null;
+    const requiredJob = parseRequiredJobId(jobId);
+    if (!requiredTenant || !requiredJob || !this.remoteWorkerUrl || !this.workerAuthToken) return null;
     try {
       const tenantQuery = `?tenantId=${encodeURIComponent(requiredTenant)}`;
       const res = await fetch(
-        `${this.remoteWorkerUrl}/v1/jobs/${encodeURIComponent(jobId)}/artifacts${tenantQuery}`,
+        `${this.remoteWorkerUrl}/v1/jobs/${encodeURIComponent(requiredJob)}/artifacts${tenantQuery}`,
         {
-          headers: { Authorization: `Bearer ${this.workerAuthToken}` },
+          headers: this.lifecycleHeaders(requiredJob, requiredTenant, 'artifacts'),
         },
       );
       if (!res.ok) return null;
@@ -943,13 +1029,17 @@ export class ProductionIsolatedExecutionProvider implements IExecutionJobProvide
 
   async cleanupJob(jobId: string, tenantId: string): Promise<boolean> {
     const requiredTenant = parseRequiredTenantId(tenantId);
-    if (!requiredTenant || !this.remoteWorkerUrl || !this.workerAuthToken) return false;
+    const requiredJob = parseRequiredJobId(jobId);
+    if (!requiredTenant || !requiredJob || !this.remoteWorkerUrl || !this.workerAuthToken) return false;
     try {
       const tenantQuery = `?tenantId=${encodeURIComponent(requiredTenant)}`;
-      const res = await fetch(`${this.remoteWorkerUrl}/v1/jobs/${encodeURIComponent(jobId)}${tenantQuery}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${this.workerAuthToken}` },
-      });
+      const res = await fetch(
+        `${this.remoteWorkerUrl}/v1/jobs/${encodeURIComponent(requiredJob)}${tenantQuery}`,
+        {
+          method: 'DELETE',
+          headers: this.lifecycleHeaders(requiredJob, requiredTenant, 'cleanup'),
+        },
+      );
       return res.ok;
     } catch {
       return false;

@@ -20,6 +20,10 @@ describe('PostgreSQL Versioned Schema Migrations & Advisory Locking', () => {
     expect(initial?.sql).toContain('CREATE TABLE IF NOT EXISTS tenants');
     expect(initial?.sql).toContain('CREATE TABLE IF NOT EXISTS users');
     expect(initial?.sql).toContain('CREATE TABLE IF NOT EXISTS watch_targets');
+    const replay = files.find((f) => f.version === '002');
+    expect(replay).toBeDefined();
+    expect(replay?.name).toBe('lifecycle_capability_replay');
+    expect(replay?.sql).toContain('CREATE TABLE IF NOT EXISTS lifecycle_capability_replays');
   });
 
   test('runMigrations acquires advisory lock, applies pending migrations, and records migration history', async () => {
@@ -102,9 +106,9 @@ describe('PostgreSQL Versioned Schema Migrations & Advisory Locking', () => {
     const report = await runMigrations(mockPool);
 
     expect(report.success).toBe(true);
-    expect(report.applied).toHaveLength(0);
+    expect(report.applied).toEqual(['002']);
     expect(report.alreadyApplied).toContain('001');
-    expect(report.currentVersion).toBe('001');
+    expect(report.currentVersion).toBe('002');
   });
 
   test('runMigrations fails fail-closed and throws error on checksum tampering', async () => {
@@ -161,7 +165,8 @@ describe('PostgreSQL Versioned Schema Migrations & Advisory Locking', () => {
     const status = await getMigrationStatus(mockPool);
     expect(status.currentVersion).toBe('001');
     expect(status.appliedCount).toBe(1);
-    expect(status.pendingCount).toBe(0);
+    expect(status.pendingCount).toBe(1);
+    expect(status.pending.some((p) => p.startsWith('002_'))).toBe(true);
   });
 
   test('verifySchemaIntegrity reports missing tables when schema is incomplete', async () => {

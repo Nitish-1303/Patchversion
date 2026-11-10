@@ -23,6 +23,7 @@ import {
 } from '../src/sandbox/provider-adapter';
 import { MicroVMFleetProvider } from '../src/sandbox/microvm-fleet-provider';
 import { WorkerExecutionService } from '../src/sandbox/worker-service';
+import { MemoryLifecycleReplayStore } from '../src/sandbox/lifecycle-replay-store';
 
 /**
  * Hostile R-EXEC cases documented here:
@@ -244,6 +245,7 @@ describe('R-EXEC fail-closed isolation (local, unqualified)', () => {
     const worker = new WorkerExecutionService({
       signingSecret,
       authToken: 'mandatory-worker-token-16',
+      replayStore: new MemoryLifecycleReplayStore(),
     });
     const port = await worker.start(0);
     try {
