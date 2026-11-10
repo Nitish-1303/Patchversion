@@ -36,6 +36,12 @@ function findRepoRoot(): string {
 import { SandboxRunner } from '../sandbox/runner';
 import { resolvePermittedFixturePath } from '../sandbox/isolated-runner';
 import { loadConfig } from '../config';
+import {
+  IsolationProviderUnavailableError,
+  UnavailableExecutionProvider,
+  type IExecutionProvider,
+} from '../sandbox/execution-provider';
+import { isIndependentlyQualifiedIsolation } from '../sandbox/provider-adapter';
 
 export interface IRunner {
   proveLoop(repoPath: string, change: ChangeRecord, impact: ImpactAnalysis, fixDiff: string): Promise<ProveResult>;
@@ -43,6 +49,8 @@ export interface IRunner {
 
 export interface OrchestratorOptions {
   workerId?: string;
+  /** Defaults to UnavailableExecutionProvider. Never inferred from env flags. */
+  executionProvider?: IExecutionProvider;
 }
 
 /**
@@ -59,6 +67,7 @@ export class WorkflowOrchestrator {
   private prBot: PRBot;
   private scanner: RepositoryScanner;
   private workerId: string;
+  private executionProvider: IExecutionProvider;
   private inFlightDeliveries = new Set<string>();
 
   constructor(
@@ -81,6 +90,7 @@ export class WorkflowOrchestrator {
         : path.join(process.cwd(), '.patchversion-state'));
     this.prBot = new PRBot(new StateStore(stateDir));
     this.workerId = options?.workerId ?? `worker_${process.pid}`;
+    this.executionProvider = options?.executionProvider ?? new UnavailableExecutionProvider();
   }
 
   getDb(): IPersistenceStore {
@@ -247,16 +257,34 @@ export class WorkflowOrchestrator {
     const repo = await this.db.getRepository(tenantId, finding.repositoryId);
     if (!repo) throw new Error(`Repository ${finding.repositoryId} not found`);
 
-    let repoPath: string | null = null;
-    const isDemoFixture = Boolean(repo.isDemo || repo.fullName === 'patchbay-demo/checkout-service');
-    if (isDemoFixture) {
-      repoPath = resolvePermittedFixturePath(findRepoRoot(), 'fixtures/sample-repo');
-    } else if (repo.localPath) {
-      repoPath = resolvePermittedFixturePath(findRepoRoot(), repo.localPath);
+    const isNamedDemo = Boolean(repo.isDemo || repo.fullName === 'patchbay-demo/checkout-service');
+    const demoPath = isNamedDemo
+      ? resolvePermittedFixturePath(findRepoRoot(), 'fixtures/sample-repo')
+      : null;
+    const localFixturePath = repo.localPath
+      ? resolvePermittedFixturePath(findRepoRoot(), repo.localPath)
+      : null;
+    const repoPath = demoPath ?? localFixturePath;
+    const isTrustedFixture = Boolean(isNamedDemo || repoPath);
+
+    if (!isTrustedFixture) {
+      if (!isIndependentlyQualifiedIsolation(this.executionProvider)) {
+        throw new Error(
+          `Cannot execute test validation: execution for live repository "${repo.fullName}" is disabled. Execution is restricted to trusted demo fixtures until container isolation is qualified.`,
+        );
+      }
+      const available = await this.executionProvider.isAvailable();
+      if (!available) {
+        throw new IsolationProviderUnavailableError(
+          `Independently labeled isolation provider is unavailable for live repository "${repo.fullName}". Failing closed.`,
+        );
+      }
+      throw new Error(
+        `Cannot execute test validation: independently labeled isolation test double cannot run customer suites until independent qualification is accepted. Live repository "${repo.fullName}" remains fail-closed. Host child_process is not used.`,
+      );
     }
 
     if (!repoPath) {
-      if (isDemoFixture) {
         // Deterministic fix and proof generation for demo fixture when filesystem execution is disabled (e.g. serverless)
         const demoDiff =
           '--- a/src/createCharge.js\n+++ b/src/createCharge.js\n@@ -4,1 +4,1 @@\n-  return mockpay.charges.create({ amount, currency, source: token });\n+  return mockpay.charges.create({ amount, currency, payment_method: token });\n';
@@ -310,11 +338,6 @@ export class WorkflowOrchestrator {
         finding.status = 'validated';
         await this.db.saveFinding(tenantId, repo.id, finding);
         return { patch, validation };
-      }
-
-      throw new Error(
-        `Cannot execute test validation: execution for live repository "${repo.fullName}" is disabled. Execution is restricted to trusted demo fixtures until container isolation is qualified.`,
-      );
     }
 
     // Generate fix
@@ -334,9 +357,9 @@ export class WorkflowOrchestrator {
     );
 
     const validationStatus = proveResult.outcome === 'fixed' ? 'passed' : 'failed';
-    const executionProvenance = proveResult.outcome === 'fixed' ? 'executed' : 'not-executed';
+    const executionProvenance: ValidationRecord['executionProvenance'] = 'fixture-verified';
     const executionLogs = proveResult.proof
-      ? `[EXECUTED] Live sandbox proof executed against test suite.\n` +
+      ? `[FIXTURE-VERIFIED] Trusted demo fixture ran on the host IsolatedRunner (not a microVM).\n` +
         `Baseline: Exit ${proveResult.proof.baselineResult.exitCode}\n` +
         `Red: Exit ${proveResult.proof.redResult.exitCode}\n` +
         `Green: Exit ${proveResult.proof.greenResult.exitCode}\n`

@@ -4,69 +4,74 @@ import {
   IExecutionJobProvider,
   UnavailableExecutionProvider,
   LocalTrustedFixtureProvider,
+  assertStrongSigningSecret,
 } from './execution-provider';
-import { MicroVMFleetProvider, MicroVMFleetConfig } from './microvm-fleet-provider';
+import { MicroVMFleetConfig } from './microvm-fleet-provider';
+
+export { assertStrongSigningSecret, FORBIDDEN_DEFAULT_FLEET_SECRETS } from './execution-provider';
 
 export interface ResolveProviderOptions {
   config?: EngineConfig;
   fleetConfig?: Partial<MicroVMFleetConfig>;
   signingSecret?: string;
   allowTrustedFixtureProvider?: boolean;
+  /**
+   * Injected only in tests. Production code must not set this.
+   * A provider is independently qualified only when this object
+   * opts in via independentlyQualified + the test-double name.
+   */
+  independentlyQualifiedProvider?: IExecutionProvider & Partial<IExecutionJobProvider> & {
+    independentlyQualified?: boolean;
+  };
 }
 
+export const TEST_DOUBLE_ISOLATED_PROVIDER_NAME = 'test-double-isolated-provider';
+
 /**
- * Determine whether a qualified container or microVM isolation backend is active.
+ * Independent qualification is never implied by environment variables,
+ * sandboxMode labels, fleet URLs, or health JSON.
  */
 export function isQualifiedIsolationActive(): boolean {
-  return Boolean(
-    process.env.QUALIFIED_ISOLATION_BACKEND ||
-    process.env.MICROVM_FLEET_URL ||
-    process.env.PATCHVERSION_SANDBOX_MODE === 'microvm'
+  return false;
+}
+
+export function isIndependentlyQualifiedIsolation(provider: IExecutionProvider): boolean {
+  const candidate = provider as IExecutionProvider & { independentlyQualified?: boolean };
+  return (
+    provider.type !== 'unavailable' &&
+    provider.name === TEST_DOUBLE_ISOLATED_PROVIDER_NAME &&
+    candidate.independentlyQualified === true
   );
 }
 
 /**
- * Resolve the appropriate execution provider based on configuration and environment.
+ * Resolve the execution provider.
  *
- * FAILS CLOSED: untrusted repository execution is refused unless a qualified
- * MicroVM fleet endpoint is provisioned.
+ * FAILS CLOSED for untrusted repositories. Env flags and emulateLocalMicroVM
+ * never select a customer-capable backend. Trusted fixtures may use
+ * LocalTrustedFixtureProvider when explicitly requested.
  */
 export function resolveExecutionProvider(
   options?: ResolveProviderOptions,
 ): IExecutionProvider & Partial<IExecutionJobProvider> {
-  const signingSecret =
-    options?.signingSecret ??
-    options?.fleetConfig?.signingSecret ??
-    process.env.MICROVM_SIGNING_SECRET ??
-    process.env.PATCHVERSION_SIGNING_SECRET ??
-    'trypatchbay-default-fleet-signing-secret';
-
-  const fleetUrl = options?.fleetConfig?.fleetEndpoint ?? process.env.MICROVM_FLEET_URL;
-  const isMicroVMMode =
-    options?.config?.sandboxMode === 'microvm' ||
-    process.env.PATCHVERSION_SANDBOX_MODE === 'microvm' ||
-    Boolean(fleetUrl) ||
-    Boolean(options?.fleetConfig?.emulateLocalMicroVM);
-
-  if (isMicroVMMode) {
-    return new MicroVMFleetProvider({
-      fleetEndpoint: fleetUrl,
-      authToken: options?.fleetConfig?.authToken ?? process.env.MICROVM_AUTH_TOKEN,
-      signingSecret,
-      emulateLocalMicroVM: options?.fleetConfig?.emulateLocalMicroVM,
-      region: options?.fleetConfig?.region ?? process.env.FLY_REGION ?? process.env.AWS_REGION ?? 'iad',
-      maxConcurrency: options?.fleetConfig?.maxConcurrency,
-      defaultLimits: options?.fleetConfig?.defaultLimits,
-      networkPolicy: options?.fleetConfig?.networkPolicy,
-      fixtureRootDir: options?.fleetConfig?.fixtureRootDir,
-      nonceStore: options?.fleetConfig?.nonceStore,
-    });
+  if (options?.independentlyQualifiedProvider) {
+    const injected = options.independentlyQualifiedProvider;
+    if (!isIndependentlyQualifiedIsolation(injected)) {
+      return new UnavailableExecutionProvider();
+    }
+    return injected;
   }
 
   if (options?.allowTrustedFixtureProvider) {
+    const signingSecret = assertStrongSigningSecret(
+      options.signingSecret ??
+        options.fleetConfig?.signingSecret ??
+        process.env.PATCHVERSION_SIGNING_SECRET ??
+        process.env.MICROVM_SIGNING_SECRET,
+    );
     return new LocalTrustedFixtureProvider(signingSecret, {
-      fixtureRootDir: options?.fleetConfig?.fixtureRootDir,
-      nonceStore: options?.fleetConfig?.nonceStore,
+      fixtureRootDir: options.fleetConfig?.fixtureRootDir,
+      nonceStore: options.fleetConfig?.nonceStore,
     }) as unknown as IExecutionProvider & Partial<IExecutionJobProvider>;
   }
 

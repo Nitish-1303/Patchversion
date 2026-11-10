@@ -83,8 +83,9 @@ describe('Cloud MicroVM Fleet Provider - Enterprise Execution Boundary', () => {
       expect(isUp).toBe(true);
 
       const health = await fleet.getFleetHealth();
-      expect(health.status).toBe('healthy');
-      expect(health.provider).toBe('mock-microvm');
+      expect(health.status).toBe('unqualified');
+      expect(health.provider).toBe('host-emulated-not-a-microvm');
+      expect(health.isolationQualified).toBe(false);
       expect(health.region).toBe('iad');
       expect(health.maxCapacity).toBe(16);
       expect(health.availableCapacity).toBe(16);
@@ -348,10 +349,10 @@ describe('Cloud MicroVM Fleet Provider - Enterprise Execution Boundary', () => {
       expect(isUp).toBe(true);
 
       const health = await remoteFleet.getFleetHealth();
-      expect(health.status).toBe('healthy');
-      expect(health.provider).toBe('firecracker-microvm');
-      expect(health.fleetId).toBe('trypatchbay-microvm-fleet-v1');
-      expect(health.availableCapacity).toBeGreaterThan(0);
+      expect(health.status).toBe('unqualified');
+      expect(health.provider).toBe('local-trusted-fixture-worker');
+      expect(health.isolationQualified).toBe(false);
+      expect(health.availableCapacity).toBe(0);
     });
 
     it('dispatches signed job to remote worker and collects verified artifacts', async () => {
@@ -400,7 +401,7 @@ describe('Cloud MicroVM Fleet Provider - Enterprise Execution Boundary', () => {
   });
 
   describe('7. Provider Adapter & Isolation Gate Resolution', () => {
-    it('detects qualified isolation active state from environment variables', () => {
+    it('never treats environment variables as independent isolation qualification', () => {
       const originalBackend = process.env.QUALIFIED_ISOLATION_BACKEND;
       const originalFleet = process.env.MICROVM_FLEET_URL;
 
@@ -410,13 +411,15 @@ describe('Cloud MicroVM Fleet Provider - Enterprise Execution Boundary', () => {
       expect(isQualifiedIsolationActive()).toBe(false);
 
       process.env.MICROVM_FLEET_URL = 'https://fleet.trypatchbay.internal';
-      expect(isQualifiedIsolationActive()).toBe(true);
+      expect(isQualifiedIsolationActive()).toBe(false);
 
       delete process.env.MICROVM_FLEET_URL;
       process.env.PATCHVERSION_SANDBOX_MODE = 'microvm';
-      expect(isQualifiedIsolationActive()).toBe(true);
+      expect(isQualifiedIsolationActive()).toBe(false);
 
-      // Restore
+      process.env.QUALIFIED_ISOLATION_BACKEND = 'firecracker';
+      expect(isQualifiedIsolationActive()).toBe(false);
+
       if (originalBackend) process.env.QUALIFIED_ISOLATION_BACKEND = originalBackend;
       else delete process.env.QUALIFIED_ISOLATION_BACKEND;
       if (originalFleet) process.env.MICROVM_FLEET_URL = originalFleet;
@@ -424,7 +427,7 @@ describe('Cloud MicroVM Fleet Provider - Enterprise Execution Boundary', () => {
       delete process.env.PATCHVERSION_SANDBOX_MODE;
     });
 
-    it('resolves MicroVMFleetProvider when microvm mode is requested', () => {
+    it('does not resolve MicroVMFleetProvider from emulateLocal or env (fail-closed)', () => {
       const provider = resolveExecutionProvider({
         fleetConfig: {
           emulateLocalMicroVM: true,
@@ -432,8 +435,8 @@ describe('Cloud MicroVM Fleet Provider - Enterprise Execution Boundary', () => {
         },
       });
 
-      expect(provider.name).toBe('microvm-fleet-provider');
-      expect(provider.type).toBe('microvm');
+      expect(provider.name).toBe('unavailable-execution-provider');
+      expect(provider.type).toBe('unavailable');
     });
 
     it('resolves UnavailableExecutionProvider by default (fail-closed)', () => {

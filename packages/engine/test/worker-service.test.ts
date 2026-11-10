@@ -36,7 +36,8 @@ describe('WorkerExecutionService (Remote Isolated Runner Protocol)', () => {
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.status).toBe('ok');
-    expect(data.worker).toBe('trypatchbay-isolated-runner');
+    expect(data.worker).toBe('trypatchbay-local-fixture-worker');
+    expect(data.isolationQualified).toBe(false);
   });
 
   it('rejects unauthenticated requests when authToken is configured', async () => {

@@ -3,22 +3,28 @@ import {
   ExecutionJob,
   LocalTrustedFixtureProvider,
   verifyJobSignature,
+  assertStrongSigningSecret,
 } from './execution-provider';
 
 export interface WorkerServiceConfig {
   port?: number;
-  authToken?: string;
+  authToken: string;
   signingSecret: string;
 }
 
 export class WorkerExecutionService {
   private server: http.Server | null = null;
   private provider: LocalTrustedFixtureProvider;
-  private authToken?: string;
+  private authToken: string;
   private signingSecret: string;
 
   constructor(config: WorkerServiceConfig) {
-    this.signingSecret = config.signingSecret;
+    if (!config.authToken || config.authToken.trim().length < 16) {
+      throw new Error(
+        'WorkerExecutionService requires a non-empty WORKER_AUTH_TOKEN (min 16 chars). Unauthenticated workers are refused.',
+      );
+    }
+    this.signingSecret = assertStrongSigningSecret(config.signingSecret);
     this.authToken = config.authToken;
     this.provider = new LocalTrustedFixtureProvider(config.signingSecret);
   }
@@ -63,42 +69,48 @@ export class WorkerExecutionService {
     const pathname = url.pathname;
     const method = req.method?.toUpperCase();
 
-    // Health probe
+    // Liveness only. Does not imply isolation qualification.
     if (method === 'GET' && (pathname === '/health' || pathname === '/')) {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ status: 'ok', worker: 'trypatchbay-isolated-runner', version: '0.1.0' }));
-      return;
-    }
-
-    // Fleet health and hypervisor capacity probe
-    if (method === 'GET' && pathname === '/v1/fleet/health') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(
         JSON.stringify({
-          status: 'healthy',
-          fleetId: 'trypatchbay-microvm-fleet-v1',
-          provider: 'firecracker-microvm',
-          region: process.env.FLY_REGION || process.env.AWS_REGION || 'iad',
-          activeMicroVMs: 0,
-          availableCapacity: 32,
-          maxCapacity: 32,
-          averageBootDurationMs: 65,
-          egressPolicySupported: ['none', 'offline-mirrors', 'restricted-egress'],
-          memoryLimitsMb: { min: 128, max: 4096, default: 512 },
+          status: 'ok',
+          worker: 'trypatchbay-local-fixture-worker',
           version: '0.1.0',
+          isolationQualified: false,
+          note: 'Host child_process for bundled fixtures only. Not a microVM.',
         }),
       );
       return;
     }
 
-    // Authenticate bearer token if configured
-    if (this.authToken) {
-      const authHeader = req.headers.authorization;
-      if (!authHeader || authHeader !== `Bearer ${this.authToken}`) {
-        res.writeHead(401, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Unauthorized: invalid or missing worker bearer token' }));
-        return;
-      }
+    const authHeader = req.headers.authorization;
+    if (!authHeader || authHeader !== `Bearer ${this.authToken}`) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Unauthorized: invalid or missing worker bearer token' }));
+      return;
+    }
+
+    if (method === 'GET' && pathname === '/v1/fleet/health') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          status: 'unqualified',
+          fleetId: 'trypatchbay-local-fixture-worker',
+          provider: 'local-trusted-fixture-worker',
+          region: process.env.FLY_REGION || process.env.AWS_REGION || 'iad',
+          activeMicroVMs: 0,
+          availableCapacity: 0,
+          maxCapacity: 0,
+          averageBootDurationMs: 0,
+          isolationQualified: false,
+          egressPolicySupported: ['none'],
+          memoryLimitsMb: { min: 128, max: 4096, default: 512 },
+          version: '0.1.0',
+          note: 'This worker is a local fixture runner. It is not Firecracker, netns, or cgroups isolation.',
+        }),
+      );
+      return;
     }
 
     // 1. POST /v1/jobs
@@ -110,7 +122,6 @@ export class WorkerExecutionService {
         return;
       }
 
-      // Verify job signature
       const sig = verifyJobSignature(body, this.signingSecret);
       if (!sig.valid) {
         res.writeHead(403, { 'Content-Type': 'application/json' });
@@ -124,16 +135,20 @@ export class WorkerExecutionService {
       return;
     }
 
-    // Parse job ID from /v1/jobs/:jobId
     const jobMatch = pathname.match(/^\/v1\/jobs\/([^/]+)(\/(status|cancel|artifacts))?$/);
     if (jobMatch) {
       const jobId = decodeURIComponent(jobMatch[1]);
       const subAction = jobMatch[3];
 
-      // 2. GET /v1/jobs/:jobId (or /status)
       if (method === 'GET' && (!subAction || subAction === 'status')) {
         const status = await this.provider.getJobStatus(jobId);
         if (!status) {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: `Job ${jobId} not found` }));
+          return;
+        }
+        const requestedTenant = url.searchParams.get('tenantId');
+        if (requestedTenant && status.tenantId !== requestedTenant) {
           res.writeHead(404, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: `Job ${jobId} not found` }));
           return;
@@ -143,7 +158,6 @@ export class WorkerExecutionService {
         return;
       }
 
-      // 3. POST /v1/jobs/:jobId/cancel
       if (method === 'POST' && subAction === 'cancel') {
         const cancelled = await this.provider.cancelJob(jobId);
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -151,9 +165,9 @@ export class WorkerExecutionService {
         return;
       }
 
-      // 4. GET /v1/jobs/:jobId/artifacts
       if (method === 'GET' && subAction === 'artifacts') {
-        const artifacts = await this.provider.collectArtifacts(jobId);
+        const tenantId = url.searchParams.get('tenantId') ?? undefined;
+        const artifacts = await this.provider.collectArtifacts(jobId, tenantId);
         if (!artifacts) {
           res.writeHead(404, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: `Artifacts for job ${jobId} not ready or found` }));
@@ -164,7 +178,6 @@ export class WorkerExecutionService {
         return;
       }
 
-      // 5. DELETE /v1/jobs/:jobId
       if (method === 'DELETE') {
         await this.provider.cleanupJob(jobId);
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -206,22 +219,28 @@ export class WorkerExecutionService {
   }
 }
 
-// Standalone CLI runner when executed directly
 if (typeof require !== 'undefined' && typeof module !== 'undefined' && require.main === module) {
   const port = parseInt(process.env.PORT || '8080', 10);
   const authToken = process.env.WORKER_AUTH_TOKEN;
-  const signingSecret = process.env.WORKER_SIGNING_SECRET || 'dev-worker-signing-secret-key-32b';
+  const signingSecret = process.env.WORKER_SIGNING_SECRET;
 
-  const worker = new WorkerExecutionService({
-    port,
-    authToken,
-    signingSecret,
-  });
-
-  worker.start(port).then((p) => {
-    console.log(`[trypatchbay-worker] Isolated execution worker listening on port ${p}`);
-  }).catch((err) => {
-    console.error('[trypatchbay-worker] Failed to start worker:', err);
+  try {
+    if (!authToken || authToken.trim().length < 16) {
+      throw new Error('WORKER_AUTH_TOKEN is required');
+    }
+    const worker = new WorkerExecutionService({
+      port,
+      authToken,
+      signingSecret: signingSecret ?? '',
+    });
+    worker.start(port).then((p) => {
+      console.log(`[trypatchbay-worker] Local fixture worker listening on port ${p} (isolationQualified=false)`);
+    }).catch((err) => {
+      console.error('[trypatchbay-worker] Failed to start worker:', err);
+      process.exit(1);
+    });
+  } catch (err) {
+    console.error('[trypatchbay-worker] Refusing to start:', err instanceof Error ? err.message : err);
     process.exit(1);
-  });
+  }
 }

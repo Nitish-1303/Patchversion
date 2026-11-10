@@ -309,7 +309,7 @@ describe('Phase 5 Security Acceptance Tests - Execution Provider Isolation & Inv
 
     const result = await prodProvider.submitJob(job);
     expect(result.status).toBe('rejected');
-    expect(result.reason).toMatch(/Fail-Closed: Production remote worker endpoint is not configured/i);
+    expect(result.reason).toMatch(/Fail-Closed: Production remote worker endpoint or worker auth token is not configured/i);
   });
 
   // 12. Artifacts verification signature
