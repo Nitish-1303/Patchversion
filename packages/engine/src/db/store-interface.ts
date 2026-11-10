@@ -174,10 +174,10 @@ export interface IPersistenceStore {
   recordWebhookDelivery(deliveryId: string, event: string, signature: string): Promise<boolean> | boolean;
   isWebhookProcessed(deliveryId: string): Promise<boolean> | boolean;
 
-  // Jobs
-  claimNextJob(workerId: string): Promise<JobRecord | null> | JobRecord | null;
-  completeJob(jobId: string, result?: unknown): Promise<void> | void;
-  failJob(jobId: string, error: string, retryable?: boolean): Promise<void> | void;
+  // Jobs — tenant ownership required (no job-id-only auth)
+  claimNextJob(tenantId: string, workerId: string): Promise<JobRecord | null> | JobRecord | null;
+  completeJob(tenantId: string, jobId: string, result?: unknown): Promise<void> | void;
+  failJob(tenantId: string, jobId: string, error: string, retryable?: boolean): Promise<void> | void;
 
   // Repository Scans & Dependency Mapping
   saveScanResult(tenantId: string, repositoryId: string, result: RepositoryScanResult): Promise<void> | void;

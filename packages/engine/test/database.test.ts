@@ -98,23 +98,23 @@ describe('PatchversionDatabase - Tenancy, Persistence and Security', () => {
     expect(job.status).toBe('queued');
 
     // Worker claims job
-    const claimed = db.claimNextJob('worker_1');
+    const claimed = db.claimNextJob(tenant.id, 'worker_1');
     expect(claimed).not.toBeNull();
     expect(claimed?.id).toBe(job.id);
     expect(claimed?.status).toBe('running');
     expect(claimed?.attempts).toBe(1);
 
     // Worker fails job with transient error -> retries scheduled with backoff
-    db.failJob(job.id, 'GitHub API 503 rate limit', true, 0);
+    db.failJob(tenant.id, job.id, 'GitHub API 503 rate limit', true, 0);
     const updated = db.getJob(tenant.id, job.id);
     expect(updated?.status).toBe('queued');
     expect(updated?.error).toBe('GitHub API 503 rate limit');
 
     // Terminal failure on exhausted attempts
-    db.claimNextJob('worker_1');
-    db.failJob(job.id, 'Permanent failure', true, 0);
-    db.claimNextJob('worker_1');
-    db.failJob(job.id, 'Permanent failure', true, 0);
+    db.claimNextJob(tenant.id, 'worker_1');
+    db.failJob(tenant.id, job.id, 'Permanent failure', true, 0);
+    db.claimNextJob(tenant.id, 'worker_1');
+    db.failJob(tenant.id, job.id, 'Permanent failure', true, 0);
 
     const failedJob = db.getJob(tenant.id, job.id);
     expect(failedJob?.status).toBe('failed');
