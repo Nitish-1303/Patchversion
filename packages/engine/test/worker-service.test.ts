@@ -2,7 +2,10 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import crypto from 'crypto';
-import { WorkerExecutionService } from '../src/sandbox/worker-service';
+import {
+  WorkerExecutionService,
+  authorizationMatchesWorkerBearer,
+} from '../src/sandbox/worker-service';
 import { createJobSignature, ExecutionJob } from '../src/sandbox/execution-provider';
 
 describe('WorkerExecutionService (Remote Isolated Runner Protocol)', () => {
@@ -40,6 +43,17 @@ describe('WorkerExecutionService (Remote Isolated Runner Protocol)', () => {
     expect(data.isolationQualified).toBe(false);
   });
 
+  const unauthorizedBody = { error: 'Unauthorized: invalid or missing worker bearer token' };
+
+  async function expectUnauthorized(
+    headers?: Record<string, string>,
+    path = '/v1/fleet/health',
+  ): Promise<void> {
+    const res = await fetch(`http://127.0.0.1:${port}${path}`, { headers });
+    expect(res.status).toBe(401);
+    await expect(res.json()).resolves.toEqual(unauthorizedBody);
+  }
+
   it('rejects unauthenticated requests when authToken is configured', async () => {
     const res = await fetch(`http://127.0.0.1:${port}/v1/jobs`, {
       method: 'POST',
@@ -47,6 +61,37 @@ describe('WorkerExecutionService (Remote Isolated Runner Protocol)', () => {
       body: JSON.stringify({ jobId: 'test-job' }),
     });
     expect(res.status).toBe(401);
+    await expect(res.json()).resolves.toEqual(unauthorizedBody);
+  });
+
+  it('accepts a valid worker bearer token', async () => {
+    const res = await fetch(`http://127.0.0.1:${port}/v1/fleet/health`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    expect(res.status).toBe(200);
+    expect((await res.json()).status).toBe('unqualified');
+  });
+
+  it('rejects missing, malformed, invalid, truncated, prefix-padded, and unequal-length bearers', async () => {
+    await expectUnauthorized();
+    await expectUnauthorized({});
+    await expectUnauthorized({ Authorization: '' });
+    await expectUnauthorized({ Authorization: 'Bearer' });
+    await expectUnauthorized({ Authorization: 'Bearer ' });
+    await expectUnauthorized({ Authorization: `bearer ${token}` });
+    await expectUnauthorized({ Authorization: `Basic ${token}` });
+    await expectUnauthorized({ Authorization: token });
+    await expectUnauthorized({ Authorization: `Bearer ${token}x` });
+    await expectUnauthorized({ Authorization: `Bearer  ${token}` });
+    await expectUnauthorized({ Authorization: `xBearer ${token}` });
+    await expectUnauthorized({ Authorization: `Bearer ${token.slice(0, -1)}` });
+    await expectUnauthorized({ Authorization: `Bearer ${token}${token}` });
+    const sameLengthWrong = `Bearer ${'x'.repeat(token.length)}`;
+    await expectUnauthorized({ Authorization: sameLengthWrong });
+    await expectUnauthorized(
+      { Authorization: `Bearer ${token.slice(0, -1)}` },
+      '/v1/jobs/job_anything?tenantId=tenant_remote_1',
+    );
   });
 
   it('accepts and processes valid signed execution jobs', async () => {
@@ -308,4 +353,33 @@ describe('WorkerExecutionService (Remote Isolated Runner Protocol)', () => {
     expect(unknownJob.status).toBe(404);
     expect(await unknownJob.json()).toEqual({ error: 'Job job_does_not_exist not found' });
   }, 25000);
+});
+
+describe('authorizationMatchesWorkerBearer', () => {
+  const token = 'worker-bearer-token-123';
+  const expected = `Bearer ${token}`;
+
+  it('accepts only the exact Bearer token string', () => {
+    expect(authorizationMatchesWorkerBearer(expected, token)).toBe(true);
+  });
+
+  it('rejects missing, non-string, empty, and malformed credentials', () => {
+    expect(authorizationMatchesWorkerBearer(undefined, token)).toBe(false);
+    expect(authorizationMatchesWorkerBearer(['Bearer', token], token)).toBe(false);
+    expect(authorizationMatchesWorkerBearer(expected, '')).toBe(false);
+    expect(authorizationMatchesWorkerBearer('', token)).toBe(false);
+    expect(authorizationMatchesWorkerBearer('Bearer', token)).toBe(false);
+    expect(authorizationMatchesWorkerBearer(`bearer ${token}`, token)).toBe(false);
+    expect(authorizationMatchesWorkerBearer(`Basic ${token}`, token)).toBe(false);
+  });
+
+  it('rejects invalid, truncated, prefix-padded, and unequal-length credentials', () => {
+    expect(authorizationMatchesWorkerBearer(`Bearer ${'x'.repeat(token.length)}`, token)).toBe(false);
+    expect(authorizationMatchesWorkerBearer(`Bearer ${token.slice(0, -1)}`, token)).toBe(false);
+    expect(authorizationMatchesWorkerBearer(`Bearer ${token}x`, token)).toBe(false);
+    expect(authorizationMatchesWorkerBearer(`Bearer  ${token}`, token)).toBe(false);
+    expect(authorizationMatchesWorkerBearer(`x${expected}`, token)).toBe(false);
+    expect(authorizationMatchesWorkerBearer(`${expected} `, token)).toBe(false);
+    expect(authorizationMatchesWorkerBearer(`Bearer ${token}${token}`, token)).toBe(false);
+  });
 });

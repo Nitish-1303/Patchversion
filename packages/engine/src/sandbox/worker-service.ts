@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import http, { IncomingMessage, ServerResponse } from 'http';
 import {
   ExecutionJob,
@@ -6,6 +7,26 @@ import {
   assertStrongSigningSecret,
   parseRequiredTenantId,
 } from './execution-provider';
+
+/**
+ * Timing-safe comparison of the request Authorization header against the
+ * shared fleet WORKER_AUTH_TOKEN. Fail-closed on missing, non-string, or
+ * unequal-length values (timingSafeEqual throws on length mismatch).
+ */
+export function authorizationMatchesWorkerBearer(
+  authorization: string | string[] | undefined,
+  authToken: string,
+): boolean {
+  if (typeof authorization !== 'string' || typeof authToken !== 'string' || authToken.length === 0) {
+    return false;
+  }
+  const provided = Buffer.from(authorization, 'utf8');
+  const expected = Buffer.from(`Bearer ${authToken}`, 'utf8');
+  if (provided.length !== expected.length) {
+    return false;
+  }
+  return crypto.timingSafeEqual(provided, expected);
+}
 
 export interface WorkerServiceConfig {
   port?: number;
@@ -85,8 +106,7 @@ export class WorkerExecutionService {
       return;
     }
 
-    const authHeader = req.headers.authorization;
-    if (!authHeader || authHeader !== `Bearer ${this.authToken}`) {
+    if (!authorizationMatchesWorkerBearer(req.headers.authorization, this.authToken)) {
       res.writeHead(401, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Unauthorized: invalid or missing worker bearer token' }));
       return;
