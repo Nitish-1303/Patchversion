@@ -96,13 +96,81 @@ describe('WorkerExecutionService (Remote Isolated Runner Protocol)', () => {
     const statusData = await statusRes.json();
     expect(statusData.status).toBe('completed');
 
-    // Query artifacts
-    const artifactsRes = await fetch(`http://127.0.0.1:${port}/v1/jobs/job_remote_001/artifacts`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const artifactsRes = await fetch(
+      `http://127.0.0.1:${port}/v1/jobs/job_remote_001/artifacts?tenantId=tenant_remote_1`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    );
     expect(artifactsRes.status).toBe(200);
     const artifacts = await artifactsRes.json();
     expect(artifacts.stdout).toContain('worker_ok');
     expect(artifacts.signature).toBeTruthy();
+    expect(artifacts.tenantId).toBe('tenant_remote_1');
+  }, 25000);
+
+  it('fails closed on missing, empty, malformed, or wrong tenantId for artifacts', async () => {
+    const unsignedJob: Omit<ExecutionJob, 'signature'> = {
+      jobId: 'job_tenant_gate_001',
+      tenantId: 'tenant_remote_1',
+      repoId: 'repo_remote_1',
+      repoFullName: 'org/repo',
+      sourceLocation: 'fixtures/sample-repo',
+      changeId: 'chg_tenant_gate',
+      commands: [
+        {
+          executable: process.platform === 'win32' ? 'cmd.exe' : 'echo',
+          args: process.platform === 'win32' ? ['/c', 'echo tenant_gate'] : ['tenant_gate'],
+        },
+      ],
+      nonce: crypto.randomBytes(16).toString('hex'),
+      expiresAt: Date.now() + 60000,
+    };
+    const job: ExecutionJob = { ...unsignedJob, signature: createJobSignature(unsignedJob, secret) };
+    const submit = await fetch(`http://127.0.0.1:${port}/v1/jobs`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(job),
+    });
+    expect((await submit.json()).status).toBe('completed');
+
+    const missing = await fetch(`http://127.0.0.1:${port}/v1/jobs/${job.jobId}/artifacts`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    expect(missing.status).toBe(400);
+
+    const empty = await fetch(`http://127.0.0.1:${port}/v1/jobs/${job.jobId}/artifacts?tenantId=`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    expect(empty.status).toBe(400);
+
+    const malformed = await fetch(
+      `http://127.0.0.1:${port}/v1/jobs/${job.jobId}/artifacts?tenantId=${encodeURIComponent('../evil')}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    );
+    expect(malformed.status).toBe(400);
+
+    const wrong = await fetch(
+      `http://127.0.0.1:${port}/v1/jobs/${job.jobId}/artifacts?tenantId=tenant_other`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    );
+    expect(wrong.status).toBe(404);
+
+    const same = await fetch(
+      `http://127.0.0.1:${port}/v1/jobs/${job.jobId}/artifacts?tenantId=tenant_remote_1`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    );
+    expect(same.status).toBe(200);
+    const body = await same.json();
+    expect(body.tenantId).toBe('tenant_remote_1');
   }, 25000);
 });

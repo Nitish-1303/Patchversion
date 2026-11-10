@@ -155,7 +155,7 @@ export interface IPersistenceStore {
     patchId: string,
     status: 'released' | 'completed',
   ): Promise<void> | void;
-  getDeliveryClaim(patchId: string): Promise<DeliveryClaimRecord | null> | DeliveryClaimRecord | null;
+  getDeliveryClaim(tenantId: string, patchId: string): Promise<DeliveryClaimRecord | null> | DeliveryClaimRecord | null;
 
   // Watch Targets
   listWatchTargets(tenantId: string): Promise<WatchTargetRecord[]> | WatchTargetRecord[];

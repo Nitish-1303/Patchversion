@@ -1320,10 +1320,15 @@ export class PatchversionDatabase implements IPersistenceStore {
     }
   }
 
-  getDeliveryClaim(patchId: string): DeliveryClaimRecord | null {
+  getDeliveryClaim(tenantId: string, patchId: string): DeliveryClaimRecord | null {
     this.maybeReload();
     if (!this.data.deliveryClaims) return null;
-    return this.data.deliveryClaims[patchId] ?? null;
+    if (!tenantId || typeof tenantId !== 'string' || tenantId.trim() === '' || tenantId.includes('\0')) {
+      return null;
+    }
+    const claim = this.data.deliveryClaims[patchId];
+    if (!claim || claim.tenantId !== tenantId) return null;
+    return claim;
   }
 
   saveScanResult(tenantId: string, repositoryId: string, result: RepositoryScanResult): void {

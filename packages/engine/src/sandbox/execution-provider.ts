@@ -329,8 +329,22 @@ export interface IExecutionJobProvider {
   submitJob(job: ExecutionJob): Promise<JobSubmissionResult>;
   getJobStatus(jobId: string): Promise<ExecutionJobStatus | null>;
   cancelJob(jobId: string): Promise<boolean>;
-  collectArtifacts(jobId: string, tenantId?: string): Promise<ExecutionArtifacts | null>;
+  collectArtifacts(jobId: string, tenantId: string): Promise<ExecutionArtifacts | null>;
   cleanupJob(jobId: string): Promise<void>;
+}
+
+/**
+ * Fail-closed tenant identifier for artifact and claim lookup.
+ * Missing, empty, whitespace-only, oversized, NUL, or otherwise malformed values are rejected.
+ */
+export function parseRequiredTenantId(raw: string | null | undefined): string | null {
+  if (raw == null || typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  if (trimmed.includes('\0')) return null;
+  if (trimmed.length > 128) return null;
+  if (!/^[A-Za-z0-9_.:-]+$/.test(trimmed)) return null;
+  return trimmed;
 }
 
 /**
@@ -758,10 +772,12 @@ export class LocalTrustedFixtureProvider implements IExecutionJobProvider {
     return true;
   }
 
-  async collectArtifacts(jobId: string, tenantId?: string): Promise<ExecutionArtifacts | null> {
+  async collectArtifacts(jobId: string, tenantId: string): Promise<ExecutionArtifacts | null> {
+    const requiredTenant = parseRequiredTenantId(tenantId);
+    if (!requiredTenant) return null;
     const entry = this.jobs.get(jobId);
     if (!entry?.artifacts) return null;
-    if (tenantId !== undefined && entry.artifacts.tenantId !== tenantId) {
+    if (entry.artifacts.tenantId !== requiredTenant) {
       return null;
     }
     return { ...entry.artifacts };
@@ -878,10 +894,11 @@ export class ProductionIsolatedExecutionProvider implements IExecutionJobProvide
     }
   }
 
-  async collectArtifacts(jobId: string, tenantId?: string): Promise<ExecutionArtifacts | null> {
-    if (!this.remoteWorkerUrl || !this.workerAuthToken) return null;
+  async collectArtifacts(jobId: string, tenantId: string): Promise<ExecutionArtifacts | null> {
+    const requiredTenant = parseRequiredTenantId(tenantId);
+    if (!requiredTenant || !this.remoteWorkerUrl || !this.workerAuthToken) return null;
     try {
-      const tenantQuery = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : '';
+      const tenantQuery = `?tenantId=${encodeURIComponent(requiredTenant)}`;
       const res = await fetch(
         `${this.remoteWorkerUrl}/v1/jobs/${encodeURIComponent(jobId)}/artifacts${tenantQuery}`,
         {
@@ -894,7 +911,7 @@ export class ProductionIsolatedExecutionProvider implements IExecutionJobProvide
       if (!verifyArtifactsSignature(data, this.signingSecret)) {
         throw new Error('Collected artifacts signature is invalid or tampered');
       }
-      if (tenantId !== undefined && data.tenantId !== tenantId) {
+      if (data.tenantId !== requiredTenant) {
         return null;
       }
       return data;

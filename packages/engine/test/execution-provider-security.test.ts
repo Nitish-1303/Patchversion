@@ -92,7 +92,7 @@ describe('Phase 5 Security Acceptance Tests - Execution Provider Isolation & Inv
     const result = await provider.submitJob(testSecretJob);
     expect(result.status).toBe('completed');
 
-    const artifacts = await provider.collectArtifacts(testSecretJob.jobId);
+    const artifacts = await provider.collectArtifacts(testSecretJob.jobId, testSecretJob.tenantId);
     expect(artifacts).not.toBeNull();
     expect(artifacts?.stdout).toContain('SECRETS_SCRUBBED');
     expect(artifacts?.stdout).not.toContain('super-secret-ghp-token-12345');
@@ -149,7 +149,7 @@ describe('Phase 5 Security Acceptance Tests - Execution Provider Isolation & Inv
     expect(result.status).toBe('completed');
 
     // Ensure external secret was never copied into the artifacts or workspace
-    const artifacts = await provider.collectArtifacts(job.jobId);
+    const artifacts = await provider.collectArtifacts(job.jobId, job.tenantId);
     expect(artifacts?.artifactHashes['external-link.txt']).toBeUndefined();
     expect(artifacts?.stdout).not.toContain('HOST_CRITICAL_CREDENTIAL_DATA');
 
@@ -211,7 +211,7 @@ describe('Phase 5 Security Acceptance Tests - Execution Provider Isolation & Inv
     const result = await provider.submitJob(networkJob);
     expect(result.status).toBe('completed');
 
-    const artifacts = await provider.collectArtifacts(networkJob.jobId);
+    const artifacts = await provider.collectArtifacts(networkJob.jobId, networkJob.tenantId);
     expect(artifacts?.stdout).toContain('NETWORK_ISOLATED');
   });
 
@@ -318,7 +318,7 @@ describe('Phase 5 Security Acceptance Tests - Execution Provider Isolation & Inv
     const result = await provider.submitJob(job);
     expect(result.status).toBe('completed');
 
-    const artifacts = await provider.collectArtifacts(job.jobId);
+    const artifacts = await provider.collectArtifacts(job.jobId, job.tenantId);
     expect(artifacts).not.toBeNull();
     if (!artifacts) throw new Error('Artifacts missing');
 

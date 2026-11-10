@@ -1670,7 +1670,10 @@ export class PostgresStore implements IPersistenceStore {
     );
   }
 
-  async getDeliveryClaim(patchId: string): Promise<DeliveryClaimRecord | null> {
+  async getDeliveryClaim(tenantId: string, patchId: string): Promise<DeliveryClaimRecord | null> {
+    if (!tenantId || typeof tenantId !== 'string' || tenantId.trim() === '' || tenantId.includes('\0')) {
+      return null;
+    }
     const rows = await this.query<{
       id: string;
       tenant_id: string;
@@ -1679,7 +1682,7 @@ export class PostgresStore implements IPersistenceStore {
       claimed_at: string;
       expires_at: string;
       status: 'active' | 'released' | 'completed';
-    }>('SELECT * FROM delivery_claims WHERE patch_id = $1', [patchId]);
+    }>('SELECT * FROM delivery_claims WHERE tenant_id = $1 AND patch_id = $2', [tenantId, patchId]);
     if (!rows[0]) return null;
     const c = rows[0];
     return {

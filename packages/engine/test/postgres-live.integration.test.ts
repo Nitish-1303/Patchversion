@@ -231,7 +231,7 @@ describeLive('PostgreSQL Real Database Live Integration', () => {
     const claim2 = await store.claimDelivery(tenant.id, patch.id, worker2, 1);
     expect(claim2).toBe(false);
 
-    const record = await store.getDeliveryClaim(patch.id);
+    const record = await store.getDeliveryClaim(tenant.id, patch.id);
     expect(record?.workerId).toBe(worker1);
 
     // Wait for lease expiry (1s)
