@@ -21,6 +21,7 @@ import {
   RepositoryScanResult,
 } from '@patchversion/shared';
 import { IPersistenceStore } from './store-interface';
+import { parseRequiredTenantId } from '../sandbox/execution-provider';
 import {
   runMigrations,
   getMigrationStatus,
@@ -1873,16 +1874,44 @@ export class PostgresStore implements IPersistenceStore {
 
   // --- Durable Job Queue ---
 
-  async claimNextJob(workerId: string): Promise<JobRecord | null> {
+  async claimNextJob(tenantId: string, workerId: string): Promise<JobRecord | null> {
+    const requiredTenant = parseRequiredTenantId(tenantId);
+    if (!requiredTenant) return null;
+
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
+      await client.query(
+        `UPDATE jobs
+         SET status = 'queued', locked_at = NULL, locked_by = NULL, updated_at = NOW()
+         WHERE tenant_id = $1
+           AND status = 'running'
+           AND locked_at IS NOT NULL
+           AND locked_at < NOW() - INTERVAL '10 minutes'
+           AND attempts < max_attempts`,
+        [requiredTenant],
+      );
+      await client.query(
+        `UPDATE jobs
+         SET status = 'failed',
+             error = 'Job abandoned by worker and exceeded max attempts',
+             locked_at = NULL,
+             locked_by = NULL,
+             updated_at = NOW()
+         WHERE tenant_id = $1
+           AND status = 'running'
+           AND locked_at IS NOT NULL
+           AND locked_at < NOW() - INTERVAL '10 minutes'
+           AND attempts >= max_attempts`,
+        [requiredTenant],
+      );
       const res = await client.query(
         `SELECT * FROM jobs
-         WHERE status = 'queued' AND run_after <= NOW()
+         WHERE tenant_id = $1 AND status = 'queued' AND run_after <= NOW()
          ORDER BY run_after ASC
          LIMIT 1
          FOR UPDATE SKIP LOCKED`,
+        [requiredTenant],
       );
       if (res.rows.length === 0) {
         await client.query('COMMIT');
@@ -1891,8 +1920,8 @@ export class PostgresStore implements IPersistenceStore {
       const job = res.rows[0];
       const now = new Date().toISOString();
       await client.query(
-        "UPDATE jobs SET status = 'running', locked_at = $1, locked_by = $2, attempts = attempts + 1, updated_at = $1 WHERE id = $3",
-        [now, workerId, job.id],
+        "UPDATE jobs SET status = 'running', locked_at = $1, locked_by = $2, attempts = attempts + 1, updated_at = $1 WHERE id = $3 AND tenant_id = $4",
+        [now, workerId, job.id, requiredTenant],
       );
       await client.query('COMMIT');
       return {
@@ -1920,22 +1949,36 @@ export class PostgresStore implements IPersistenceStore {
     }
   }
 
-  async completeJob(jobId: string, result?: unknown): Promise<void> {
+  async completeJob(tenantId: string, jobId: string, result?: unknown): Promise<void> {
+    const requiredTenant = parseRequiredTenantId(tenantId);
+    if (!requiredTenant) {
+      throw new Error(`Job ${jobId} not found`);
+    }
     const now = new Date().toISOString();
-    await this.pool.query(
-      "UPDATE jobs SET status = 'completed', result = $1, locked_at = NULL, locked_by = NULL, updated_at = $2 WHERE id = $3",
-      [result ? JSON.stringify(result) : null, now, jobId],
+    const updated = await this.pool.query(
+      "UPDATE jobs SET status = 'completed', result = $1, locked_at = NULL, locked_by = NULL, updated_at = $2 WHERE id = $3 AND tenant_id = $4",
+      [result ? JSON.stringify(result) : null, now, jobId, requiredTenant],
     );
+    if (!updated.rowCount) {
+      throw new Error(`Job ${jobId} not found`);
+    }
   }
 
-  async failJob(jobId: string, error: string, retryable = true): Promise<void> {
+  async failJob(tenantId: string, jobId: string, error: string, retryable = true): Promise<void> {
+    const requiredTenant = parseRequiredTenantId(tenantId);
+    if (!requiredTenant) {
+      throw new Error(`Job ${jobId} not found`);
+    }
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
-      const res = await client.query('SELECT attempts, max_attempts FROM jobs WHERE id = $1 FOR UPDATE', [jobId]);
+      const res = await client.query(
+        'SELECT attempts, max_attempts FROM jobs WHERE id = $1 AND tenant_id = $2 FOR UPDATE',
+        [jobId, requiredTenant],
+      );
       if (res.rows.length === 0) {
         await client.query('ROLLBACK');
-        return;
+        throw new Error(`Job ${jobId} not found`);
       }
       const { attempts, max_attempts } = res.rows[0];
       const now = new Date();
@@ -1943,18 +1986,22 @@ export class PostgresStore implements IPersistenceStore {
         const backoffSeconds = Math.pow(2, attempts) * 10;
         const nextRun = new Date(now.getTime() + backoffSeconds * 1000).toISOString();
         await client.query(
-          "UPDATE jobs SET status = 'queued', error = $1, run_after = $2, locked_at = NULL, locked_by = NULL, updated_at = $3 WHERE id = $4",
-          [error, nextRun, now.toISOString(), jobId],
+          "UPDATE jobs SET status = 'queued', error = $1, run_after = $2, locked_at = NULL, locked_by = NULL, updated_at = $3 WHERE id = $4 AND tenant_id = $5",
+          [error, nextRun, now.toISOString(), jobId, requiredTenant],
         );
       } else {
         await client.query(
-          "UPDATE jobs SET status = 'failed', error = $1, locked_at = NULL, locked_by = NULL, updated_at = $2 WHERE id = $3",
-          [error, now.toISOString(), jobId],
+          "UPDATE jobs SET status = 'failed', error = $1, locked_at = NULL, locked_by = NULL, updated_at = $2 WHERE id = $3 AND tenant_id = $4",
+          [error, now.toISOString(), jobId, requiredTenant],
         );
       }
       await client.query('COMMIT');
     } catch (err) {
-      await client.query('ROLLBACK');
+      try {
+        await client.query('ROLLBACK');
+      } catch {
+        // Transaction may already be rolled back on not-found.
+      }
       throw err;
     } finally {
       client.release();
