@@ -21,6 +21,7 @@ import {
   RepositoryScanResult,
 } from '@patchversion/shared';
 import { IPersistenceStore } from './store-interface';
+import { parseRequiredTenantId } from '../sandbox/execution-provider';
 
 export interface DatabaseSchema {
   schemaVersion: number;
@@ -651,11 +652,16 @@ export class PatchversionDatabase implements IPersistenceStore {
     ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
-  claimNextJob(workerId: string): JobRecord | null {
+  claimNextJob(tenantId: string, workerId: string): JobRecord | null {
+    const requiredTenant = parseRequiredTenantId(tenantId);
+    if (!requiredTenant) return null;
+
     const now = new Date();
     const nowIso = now.toISOString();
 
     for (const job of Object.values(this.data.jobs)) {
+      if (job.tenantId !== requiredTenant) continue;
+
       if (job.status === 'queued' && new Date(job.runAfter) <= now) {
         job.status = 'running';
         job.lockedAt = nowIso;
@@ -665,7 +671,7 @@ export class PatchversionDatabase implements IPersistenceStore {
         this.save();
         return job;
       }
-      // Abandoned worker recovery: lock timeout after 10 minutes
+      // Abandoned worker recovery: lock timeout after 10 minutes (this tenant only)
       if (job.status === 'running' && job.lockedAt) {
         const lockAge = now.getTime() - new Date(job.lockedAt).getTime();
         if (lockAge > 600_000) {
@@ -687,9 +693,12 @@ export class PatchversionDatabase implements IPersistenceStore {
     return null;
   }
 
-  completeJob<TResult>(jobId: string, result: TResult): void {
-    const job = this.data.jobs[jobId];
-    if (!job) throw new Error(`Job ${jobId} not found`);
+  completeJob<TResult>(tenantId: string, jobId: string, result: TResult): void {
+    const requiredTenant = parseRequiredTenantId(tenantId);
+    const job = requiredTenant ? this.data.jobs[jobId] : undefined;
+    if (!requiredTenant || !job || job.tenantId !== requiredTenant) {
+      throw new Error(`Job ${jobId} not found`);
+    }
     job.status = 'completed';
     job.result = result;
     job.lockedAt = undefined;
@@ -698,9 +707,12 @@ export class PatchversionDatabase implements IPersistenceStore {
     this.save();
   }
 
-  failJob(jobId: string, error: string, retryable = true, retryDelayMs?: number): void {
-    const job = this.data.jobs[jobId];
-    if (!job) throw new Error(`Job ${jobId} not found`);
+  failJob(tenantId: string, jobId: string, error: string, retryable = true, retryDelayMs?: number): void {
+    const requiredTenant = parseRequiredTenantId(tenantId);
+    const job = requiredTenant ? this.data.jobs[jobId] : undefined;
+    if (!requiredTenant || !job || job.tenantId !== requiredTenant) {
+      throw new Error(`Job ${jobId} not found`);
+    }
     const now = new Date();
     if (retryable && job.attempts < job.maxAttempts) {
       job.status = 'queued';

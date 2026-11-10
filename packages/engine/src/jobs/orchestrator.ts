@@ -578,15 +578,15 @@ export class WorkflowOrchestrator {
   /**
    * Durable Job Worker: claims and processes the next queued job.
    */
-  async processNextJob(): Promise<JobRecord | null> {
-    const job = await this.db.claimNextJob(this.workerId);
+  async processNextJob(tenantId: string): Promise<JobRecord | null> {
+    const job = await this.db.claimNextJob(tenantId, this.workerId);
     if (!job) return null;
 
     try {
       switch (job.type) {
         case 'scan_dependencies': {
           const scanResult = await this.scanRepositoryWithDependencyMap(job.tenantId, job.repositoryId);
-          await this.db.completeJob(job.id, {
+          await this.db.completeJob(job.tenantId, job.id, {
             findingsCount: scanResult.findings.length,
             findings: scanResult.findings,
             scanResult,
@@ -596,13 +596,13 @@ export class WorkflowOrchestrator {
         case 'prove_fix': {
           const payload = job.payload as { findingId: string };
           const result = await this.generateAndValidateFix(job.tenantId, payload.findingId);
-          await this.db.completeJob(job.id, { patchId: result.patch.id, validationId: result.validation.id });
+          await this.db.completeJob(job.tenantId, job.id, { patchId: result.patch.id, validationId: result.validation.id });
           break;
         }
         case 'deliver_pr': {
           const payload = job.payload as { patchId: string; userId: string };
           const pr = await this.deliverPullRequest(job.tenantId, payload.patchId, payload.userId);
-          await this.db.completeJob(job.id, { prId: pr.id, prUrl: pr.githubPrUrl, prNumber: pr.githubPrNumber });
+          await this.db.completeJob(job.tenantId, job.id, { prId: pr.id, prUrl: pr.githubPrUrl, prNumber: pr.githubPrNumber });
           break;
         }
         default:
@@ -611,7 +611,7 @@ export class WorkflowOrchestrator {
       return job;
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
-      await this.db.failJob(job.id, errorMsg, true);
+      await this.db.failJob(job.tenantId, job.id, errorMsg, true);
       return job;
     }
   }
