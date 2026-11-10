@@ -238,4 +238,46 @@ describe('Audit: Tenant Isolation and Approval Integrity', () => {
     const activeApproval = db.getActiveApproval(tenantA, patch.id);
     expect(activeApproval).toBeNull();
   });
+
+  test('10. getDeliveryClaim is tenant-scoped and fails closed without a valid tenant', () => {
+    const findingA = db.saveFinding(tenantA, repoA, {
+      packageName: 'mockpay',
+      fromVersion: '1.0.0',
+      toVersion: '2.0.0',
+      isBreaking: true,
+      changeRecord: {
+        id: 'c_claim_a',
+        packageName: 'mockpay',
+        ecosystem: 'npm',
+        fromVersion: '1.0.0',
+        toVersion: '2.0.0',
+        detectedAt: '',
+        source: 'registry',
+        sourceUrl: '',
+        rawNotes: '',
+        classification: { isBreaking: true, confidence: 1, affectedExports: [], reason: '' },
+        severity: 'breaking',
+      },
+      impactAnalysis: {
+        changeId: 'c_claim_a',
+        repoId: repoA,
+        affectedCallSites: [],
+        unaffectedCallSites: [],
+        coveragePercent: 0,
+        analyzedAt: '',
+      },
+      status: 'open',
+    });
+    const patchA = db.savePatch(tenantA, findingA.id, '--- a\n+++ b\n');
+    expect(db.claimDelivery(tenantA, patchA.id, 'worker-a', 60)).toBe(true);
+
+    const sameTenant = db.getDeliveryClaim(tenantA, patchA.id);
+    expect(sameTenant?.tenantId).toBe(tenantA);
+    expect(sameTenant?.patchId).toBe(patchA.id);
+
+    expect(db.getDeliveryClaim(tenantB, patchA.id)).toBeNull();
+    expect(db.getDeliveryClaim('', patchA.id)).toBeNull();
+    expect(db.getDeliveryClaim('   ', patchA.id)).toBeNull();
+    expect(db.getDeliveryClaim('tenant_not_the_owner', patchA.id)).toBeNull();
+  });
 });

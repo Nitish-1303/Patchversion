@@ -110,7 +110,7 @@ describe('Distributed Delivery Safety & Shared Session Revocation', () => {
       const claim2 = db2.claimDelivery(tenantId, patch.id, 'worker-pod-2', 60);
       expect(claim2).toBe(false);
 
-      const activeClaim = db2.getDeliveryClaim(patch.id);
+      const activeClaim = db2.getDeliveryClaim(tenantId, patch.id);
       expect(activeClaim).toBeDefined();
       expect(activeClaim?.workerId).toBe('worker-pod-1');
       expect(activeClaim?.status).toBe('active');
@@ -128,7 +128,7 @@ describe('Distributed Delivery Safety & Shared Session Revocation', () => {
       const claim2 = db2.claimDelivery(tenantId, patch.id, 'worker-pod-2', 60);
       expect(claim2).toBe(true);
 
-      const activeClaim = db1.getDeliveryClaim(patch.id);
+      const activeClaim = db1.getDeliveryClaim(tenantId, patch.id);
       expect(activeClaim?.workerId).toBe('worker-pod-2');
     });
 

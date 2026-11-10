@@ -26,6 +26,7 @@ import {
   IsolationSecurityViolationError,
   INonceStore,
   assertStrongSigningSecret,
+  parseRequiredTenantId,
 } from './execution-provider';
 import { IsolatedRunner, resolvePermittedFixturePath } from './isolated-runner';
 
@@ -407,12 +408,14 @@ export class MicroVMFleetProvider implements IExecutionProvider, IExecutionJobPr
     return true;
   }
 
-  async collectArtifacts(jobId: string, tenantId?: string): Promise<ExecutionArtifacts | null> {
+  async collectArtifacts(jobId: string, tenantId: string): Promise<ExecutionArtifacts | null> {
+    const requiredTenant = parseRequiredTenantId(tenantId);
+    if (!requiredTenant) return null;
     let artifacts: ExecutionArtifacts | null = null;
 
     if (this.config.fleetEndpoint && !this.config.emulateLocalMicroVM) {
       try {
-        const tenantQuery = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : '';
+        const tenantQuery = `?tenantId=${encodeURIComponent(requiredTenant)}`;
         const res = await fetch(
           `${this.config.fleetEndpoint}/v1/jobs/${encodeURIComponent(jobId)}/artifacts${tenantQuery}`,
           {
@@ -428,7 +431,7 @@ export class MicroVMFleetProvider implements IExecutionProvider, IExecutionJobPr
       const entry = this.localJobs.get(jobId);
       artifacts = entry?.artifacts ? { ...entry.artifacts } : null;
     }
-    if (artifacts && tenantId !== undefined && artifacts.tenantId !== tenantId) {
+    if (artifacts && artifacts.tenantId !== requiredTenant) {
       return null;
     }
 

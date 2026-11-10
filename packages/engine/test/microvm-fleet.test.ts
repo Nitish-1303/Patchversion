@@ -125,7 +125,7 @@ describe('Cloud MicroVM Fleet Provider - Enterprise Execution Boundary', () => {
       expect(status?.status).toBe('completed');
       expect(status?.exitCode).toBe(0);
 
-      const artifacts = await fleet.collectArtifacts(job.jobId);
+      const artifacts = await fleet.collectArtifacts(job.jobId, job.tenantId);
       expect(artifacts).not.toBeNull();
       expect(artifacts?.stdout).toContain('MICROVM_EXECUTION_OK');
       expect(artifacts?.signature).toBeDefined();
@@ -197,7 +197,7 @@ describe('Cloud MicroVM Fleet Provider - Enterprise Execution Boundary', () => {
       const job = createSignedJob();
       await fleet.submitJob(job);
 
-      const artifacts = await fleet.collectArtifacts(job.jobId);
+      const artifacts = await fleet.collectArtifacts(job.jobId, job.tenantId);
       expect(artifacts).not.toBeNull();
       expect(verifyArtifactsSignature(artifacts!, signingSecret)).toBe(true);
 
@@ -249,7 +249,7 @@ describe('Cloud MicroVM Fleet Provider - Enterprise Execution Boundary', () => {
       const submission = await fleet.submitJob(job);
       expect(submission.status).toBe('completed');
 
-      const artifacts = await fleet.collectArtifacts(job.jobId);
+      const artifacts = await fleet.collectArtifacts(job.jobId, job.tenantId);
       expect(artifacts?.stdout).toContain('SECRETS_SANITIZED_CLEAN');
       expect(artifacts?.stdout).not.toContain('leak-token-sensitive-xyz-987');
 
@@ -391,7 +391,7 @@ describe('Cloud MicroVM Fleet Provider - Enterprise Execution Boundary', () => {
       const status = await remoteFleet.getJobStatus(job.jobId);
       expect(status?.status).toBe('completed');
 
-      const artifacts = await remoteFleet.collectArtifacts(job.jobId);
+      const artifacts = await remoteFleet.collectArtifacts(job.jobId, job.tenantId);
       expect(artifacts).not.toBeNull();
       expect(artifacts?.stdout).toContain('remote_fleet_ok');
       expect(verifyArtifactsSignature(artifacts!, signingSecret)).toBe(true);

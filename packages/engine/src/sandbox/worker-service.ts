@@ -4,6 +4,7 @@ import {
   LocalTrustedFixtureProvider,
   verifyJobSignature,
   assertStrongSigningSecret,
+  parseRequiredTenantId,
 } from './execution-provider';
 
 export interface WorkerServiceConfig {
@@ -166,7 +167,16 @@ export class WorkerExecutionService {
       }
 
       if (method === 'GET' && subAction === 'artifacts') {
-        const tenantId = url.searchParams.get('tenantId') ?? undefined;
+        const tenantId = parseRequiredTenantId(url.searchParams.get('tenantId'));
+        if (!tenantId) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(
+            JSON.stringify({
+              error: 'tenantId query parameter is required and must be a valid tenant identifier',
+            }),
+          );
+          return;
+        }
         const artifacts = await this.provider.collectArtifacts(jobId, tenantId);
         if (!artifacts) {
           res.writeHead(404, { 'Content-Type': 'application/json' });

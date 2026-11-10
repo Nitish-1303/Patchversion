@@ -312,6 +312,9 @@ describe('R-EXEC fail-closed isolation (local, unqualified)', () => {
     expect(mine?.tenantId).toBe('tenant_a');
     const other = await provider.collectArtifacts(job.jobId, 'tenant_b');
     expect(other).toBeNull();
+    expect(await provider.collectArtifacts(job.jobId, '')).toBeNull();
+    expect(await provider.collectArtifacts(job.jobId, '   ')).toBeNull();
+    expect(await provider.collectArtifacts(job.jobId, '../evil')).toBeNull();
     fs.rmSync(tmpFixtureDir, { recursive: true, force: true });
   });
 
