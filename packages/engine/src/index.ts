@@ -90,7 +90,11 @@ export {
   TEST_DOUBLE_ISOLATED_PROVIDER_NAME,
   type ResolveProviderOptions,
 } from './sandbox/provider-adapter';
-export { WorkerExecutionService, type WorkerServiceConfig } from './sandbox/worker-service';
+export {
+  WorkerExecutionService,
+  authorizationMatchesWorkerBearer,
+  type WorkerServiceConfig,
+} from './sandbox/worker-service';
 export { WorkflowOrchestrator } from './jobs/orchestrator';
 export {
   EvidenceBundleManager,
