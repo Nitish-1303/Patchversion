@@ -6,7 +6,17 @@ import {
   verifyJobSignature,
   assertStrongSigningSecret,
   parseRequiredTenantId,
+  parseRequiredJobId,
 } from './execution-provider';
+import {
+  LIFECYCLE_CAPABILITY_HEADER,
+  type LifecycleOp,
+  verifyLifecycleCapability,
+} from './lifecycle-capability';
+import {
+  createWorkerReplayStoreFromEnv,
+  type ILifecycleReplayStore,
+} from './lifecycle-replay-store';
 
 /**
  * Timing-safe comparison of the request Authorization header against the
@@ -32,6 +42,7 @@ export interface WorkerServiceConfig {
   port?: number;
   authToken: string;
   signingSecret: string;
+  replayStore: ILifecycleReplayStore;
 }
 
 export class WorkerExecutionService {
@@ -39,6 +50,8 @@ export class WorkerExecutionService {
   private provider: LocalTrustedFixtureProvider;
   private authToken: string;
   private signingSecret: string;
+  private replayStore: ILifecycleReplayStore;
+  private revokedLifecycleJtis = new Map<string, number>();
 
   constructor(config: WorkerServiceConfig) {
     if (!config.authToken || config.authToken.trim().length < 16) {
@@ -46,8 +59,14 @@ export class WorkerExecutionService {
         'WorkerExecutionService requires a non-empty WORKER_AUTH_TOKEN (min 16 chars). Unauthenticated workers are refused.',
       );
     }
+    if (!config.replayStore) {
+      throw new Error(
+        'WorkerExecutionService requires a durable lifecycle replay store. Mutating capabilities cannot be authorized in-memory.',
+      );
+    }
     this.signingSecret = assertStrongSigningSecret(config.signingSecret);
     this.authToken = config.authToken;
+    this.replayStore = config.replayStore;
     this.provider = new LocalTrustedFixtureProvider(config.signingSecret);
   }
 
@@ -57,7 +76,7 @@ export class WorkerExecutionService {
         try {
           await this.handleRequest(req, res);
         } catch (err) {
-          console.error('[worker-service] Unhandled error:', err);
+          console.error('[worker-service] Unhandled error');
           res.writeHead(500, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: err instanceof Error ? err.message : String(err) }));
         }
@@ -158,17 +177,77 @@ export class WorkerExecutionService {
 
     const jobMatch = pathname.match(/^\/v1\/jobs\/([^/]+)(\/(status|cancel|artifacts))?$/);
     if (jobMatch) {
-      const jobId = decodeURIComponent(jobMatch[1]);
-      const subAction = jobMatch[3];
-      const tenantId = parseRequiredTenantId(url.searchParams.get('tenantId'));
-      if (!tenantId) {
+      let pathJobId: string;
+      try {
+        pathJobId = decodeURIComponent(jobMatch[1]);
+      } catch {
         res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(
-          JSON.stringify({
-            error: 'tenantId query parameter is required and must be a valid tenant identifier',
-          }),
-        );
+        res.end(JSON.stringify({ error: 'jobId is required and must be a valid job identifier' }));
         return;
+      }
+      const subAction = jobMatch[3];
+      let requiredOp: LifecycleOp | null = null;
+      if (method === 'GET' && (!subAction || subAction === 'status')) requiredOp = 'status';
+      else if (method === 'POST' && subAction === 'cancel') requiredOp = 'cancel';
+      else if (method === 'GET' && subAction === 'artifacts') requiredOp = 'artifacts';
+      else if (method === 'DELETE' && !subAction) requiredOp = 'cleanup';
+
+      if (!requiredOp) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Endpoint not found' }));
+        return;
+      }
+
+      const rawCap = req.headers[LIFECYCLE_CAPABILITY_HEADER];
+      const capHeader = Array.isArray(rawCap) ? rawCap[0] : rawCap;
+      const verified = verifyLifecycleCapability(capHeader, this.signingSecret, {
+        jobId: pathJobId,
+        op: requiredOp,
+      });
+      if (!verified.valid) {
+        this.rejectCapability(res, verified.reason);
+        return;
+      }
+      const claims = verified.claims;
+      this.pruneLifecycleJtis();
+      if (this.revokedLifecycleJtis.has(claims.jti)) {
+        this.rejectCapability(res, 'revoked');
+        return;
+      }
+      const queryTenantRaw = url.searchParams.get('tenantId');
+      if (queryTenantRaw !== null && queryTenantRaw !== '') {
+        const queryTenant = parseRequiredTenantId(queryTenantRaw);
+        if (!queryTenant || queryTenant !== claims.tenantId) {
+          this.rejectCapability(res, 'scope_mismatch');
+          return;
+        }
+      }
+
+      const tenantId = claims.tenantId;
+      const jobId = claims.jobId;
+      if (!parseRequiredJobId(pathJobId) || jobId !== parseRequiredJobId(pathJobId)) {
+        this.rejectCapability(res, 'scope_mismatch');
+        return;
+      }
+
+      if (requiredOp === 'cancel' || requiredOp === 'cleanup') {
+        try {
+          const consume = await this.replayStore.consumeMutatingJti({
+            jti: claims.jti,
+            tenantId: claims.tenantId,
+            jobId: claims.jobId,
+            op: requiredOp,
+            exp: claims.exp,
+          });
+          if (consume !== 'consumed') {
+            this.rejectCapability(res, 'replay');
+            return;
+          }
+        } catch (err) {
+          void err;
+          this.rejectCapability(res, 'replay_unavailable');
+          return;
+        }
       }
 
       if (method === 'GET' && (!subAction || subAction === 'status')) {
@@ -251,6 +330,27 @@ export class WorkerExecutionService {
       req.on('error', () => resolve(null));
     });
   }
+
+  revokeLifecycleJti(jti: string): void {
+    if (typeof jti !== 'string' || jti.length < 8) return;
+    this.revokedLifecycleJtis.set(jti, Date.now() + 5 * 60_000);
+    this.pruneLifecycleJtis();
+  }
+
+  private pruneLifecycleJtis(): void {
+    const now = Date.now();
+    for (const [jti, exp] of this.revokedLifecycleJtis) {
+      if (exp <= now) this.revokedLifecycleJtis.delete(jti);
+    }
+  }
+
+  private rejectCapability(
+    res: ServerResponse,
+    reason: string,
+  ): void {
+    res.writeHead(403, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Forbidden: invalid lifecycle capability', reason }));
+  }
 }
 
 if (typeof require !== 'undefined' && typeof module !== 'undefined' && require.main === module) {
@@ -266,6 +366,7 @@ if (typeof require !== 'undefined' && typeof module !== 'undefined' && require.m
       port,
       authToken,
       signingSecret: signingSecret ?? '',
+      replayStore: createWorkerReplayStoreFromEnv(),
     });
     worker.start(port).then((p) => {
       console.log(`[trypatchbay-worker] Local fixture worker listening on port ${p} (isolationQualified=false)`);

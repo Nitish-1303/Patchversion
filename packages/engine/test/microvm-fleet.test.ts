@@ -11,6 +11,7 @@ import {
   verifyArtifactsSignature,
   ExecutionJob,
   WorkerExecutionService,
+  MemoryLifecycleReplayStore,
   resolveExecutionProvider,
   isQualifiedIsolationActive,
 } from '../src';
@@ -333,6 +334,7 @@ describe('Cloud MicroVM Fleet Provider - Enterprise Execution Boundary', () => {
       worker = new WorkerExecutionService({
         signingSecret,
         authToken: workerToken,
+        replayStore: new MemoryLifecycleReplayStore(),
       });
       workerPort = await worker.start(0);
     });
