@@ -60,6 +60,20 @@ npm run build
 npm test
 ```
 
+Supported npm scripts set `DATABASE_URL` and `POSTGRES_URL` to empty strings before they launch a child process. Database commands are the exception: `npm run test:postgres` replaces them with the disposable local database, and `db:check-002`, `db:migrate`, `db:status`, and `db:verify` keep an explicit operator URL. An injected Neon URL stays out of test, build, lint, typecheck, prove, and the dev server. A Next.js `.env` file cannot refill an empty value. The dev server keeps the local file store.
+
+```bash
+npm run test:postgres
+```
+
+That URL has the shape `postgresql://<local-user>:<local-password>@127.0.0.1:5432/<local-database>`. `npm run test:postgres` builds the disposable loopback URL at runtime. `npm run db:check-002` is the explicit read-only check. A missing, local, loopback, disposable, or ambiguous target is `BLOCKED` and is not production verification. The command inspects a database only when the configured URL is an explicit hosted hostname, and then it only sets `default_transaction_read_only`, opens a read-only transaction, and runs `SELECT` queries. It does not migrate.
+
+`npm run db:migrate` and `npm run db:verify` require an explicit URL. They do not fall back to localhost, and connection errors are redacted. `npm run db:status` creates `schema_migrations` when that table is missing. It refuses to run unless `PATCHVERSION_ACK_STATUS_DDL=1` is set for that command. Install, test, build, lint, typecheck, and dev startup do not call these commands and do not set that acknowledgement.
+
+Direct worker startup also refuses an inherited database URL. `node packages/engine/dist/sandbox/worker-service.js` requires `PATCHVERSION_ALLOW_WORKER_DATABASE=1` plus a validated URL, in addition to the existing worker bearer token and signed lifecycle capability checks.
+
+A raw `node` or `psql` process started outside these scripts still inherits the Cloud Agent shell, including a hosted `DATABASE_URL`. Use the npm scripts above for project tasks. A local or mocked check does not verify production migration 002.
+
 ## Reproduction
 
 One command runs the full loop against the bundled fixture: detect a breaking

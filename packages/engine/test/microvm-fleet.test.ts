@@ -10,11 +10,11 @@ import {
   createArtifactsSignature,
   verifyArtifactsSignature,
   ExecutionJob,
-  WorkerExecutionService,
   MemoryLifecycleReplayStore,
   resolveExecutionProvider,
   isQualifiedIsolationActive,
 } from '../src';
+import { WorkerExecutionService } from '../src/sandbox/worker-service';
 
 describe('Cloud MicroVM Fleet Provider - Enterprise Execution Boundary', () => {
   jest.setTimeout(25_000);

@@ -9,17 +9,19 @@
     "packages/shared"
   ],
   "scripts": {
-    "build": "npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run build -w @patchversion/site",
-    "test": "npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run test --workspaces",
-    "typecheck": "npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run typecheck --workspaces",
-    "lint": "eslint .",
-    "prove": "npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run prove -w @patchversion/engine",
-    "prove:real": "npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run prove:real -w @patchversion/engine",
-    "readiness": "npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run readiness -w @patchversion/engine",
-    "db:migrate": "npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run db:migrate -w @patchversion/engine",
-    "db:status": "npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run db:status -w @patchversion/engine",
-    "db:verify": "npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run db:verify -w @patchversion/engine",
-    "cli": "node bin/trypatchbay.js"
+    "build": "node scripts/hosted-db-guard.js strip -- sh -c 'npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run build -w @patchversion/site'",
+    "test": "node scripts/hosted-db-guard.js strip -- sh -c 'npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run test --workspaces'",
+    "test:postgres": "node scripts/hosted-db-guard.js local-test -- npm run test:postgres -w @patchversion/engine",
+    "typecheck": "node scripts/hosted-db-guard.js strip -- sh -c 'npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run typecheck --workspaces'",
+    "lint": "node scripts/hosted-db-guard.js strip -- eslint .",
+    "prove": "node scripts/hosted-db-guard.js strip -- sh -c 'npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run prove -w @patchversion/engine'",
+    "prove:real": "node scripts/hosted-db-guard.js strip -- sh -c 'npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run prove:real -w @patchversion/engine'",
+    "readiness": "node scripts/hosted-db-guard.js strip -- sh -c 'npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run readiness -w @patchversion/engine'",
+    "db:check-002": "node scripts/db-check-002.js",
+    "db:migrate": "node scripts/hosted-db-guard.js strip -- sh -c 'npm run build -w @patchversion/shared && npm run build -w @patchversion/engine' && npm run db:migrate -w @patchversion/engine",
+    "db:status": "node scripts/hosted-db-guard.js strip -- sh -c 'npm run build -w @patchversion/shared && npm run build -w @patchversion/engine' && npm run db:status -w @patchversion/engine",
+    "db:verify": "node scripts/hosted-db-guard.js strip -- sh -c 'npm run build -w @patchversion/shared && npm run build -w @patchversion/engine' && npm run db:verify -w @patchversion/engine",
+    "cli": "node scripts/hosted-db-guard.js strip -- node bin/trypatchbay.js"
   },
   "devDependencies": {
     "eslint": "^9.0.0",

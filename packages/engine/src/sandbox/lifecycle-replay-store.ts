@@ -173,8 +173,8 @@ export class PostgresLifecycleReplayStore implements ILifecycleReplayStore {
   }
 }
 
-export function createWorkerReplayStoreFromEnv(): ILifecycleReplayStore {
-  const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+export function createWorkerReplayStoreFromEnv(explicitConnectionString?: string): ILifecycleReplayStore {
+  const connectionString = explicitConnectionString || process.env.DATABASE_URL || process.env.POSTGRES_URL;
   if (!connectionString || connectionString.trim() === '') {
     throw new LifecycleReplayStoreUnavailableError(
       'WorkerExecutionService requires DATABASE_URL for durable mutating lifecycle replay protection.',

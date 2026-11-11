@@ -1,13 +1,21 @@
 import { Pool } from 'pg';
 import crypto from 'crypto';
+import { createRequire } from 'module';
 import { PostgresStore } from '../src/db/postgres-store';
+
+const { assertDisposableLocalDatabase } = createRequire(__filename)(
+  '../../../scripts/hosted-db-guard.js',
+) as { assertDisposableLocalDatabase: (value: string) => string };
 
 /**
  * Live PostgreSQL Integration Test Suite.
- * Connects to a REAL PostgreSQL database when DATABASE_URL is configured.
- * Safely skips when DATABASE_URL is not set (e.g. local environment without running Postgres).
+ * Connects only to the disposable local database, and only when that URL is set.
+ * Ordinary npm test removes hosted URLs, so this suite skips.
+ * npm run test:postgres sets the local URL explicitly.
  */
-const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+const connectionString = assertDisposableLocalDatabase(
+  process.env.DATABASE_URL || process.env.POSTGRES_URL || '',
+);
 const isStrictCi = process.env.STRICT_DB_CHECK === 'true' || process.env.CI_STRICT_DB === 'true';
 
 if (isStrictCi && !connectionString) {

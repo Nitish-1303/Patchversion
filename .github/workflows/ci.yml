@@ -95,10 +95,7 @@ jobs:
         run: npm run build -w @patchversion/shared && npm run build -w @patchversion/engine
       # Real PostgreSQL transactional tests against disposable container
       - name: Run PostgreSQL Live Integration Tests
-        run: npm test -w @patchversion/engine -- test/postgres-live.integration.test.ts
-        env:
-          DATABASE_URL: postgresql://patchbay_test:patchbay_test_password@localhost:5432/patchbay_test
-          STRICT_DB_CHECK: 'true'
+        run: npm run test:postgres
 
   build:
     runs-on: ubuntu-latest

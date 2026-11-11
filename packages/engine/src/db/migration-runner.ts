@@ -222,6 +222,8 @@ export async function runMigrations(
 
 /**
  * Returns the current migration status and lists pending migrations.
+ * This creates schema_migrations when the table is missing. The db:status CLI
+ * calls it only after PATCHVERSION_ACK_STATUS_DDL=1.
  */
 export async function getMigrationStatus(
   pool: Pool,

@@ -5,9 +5,9 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
-    "typecheck": "tsc --noEmit",
-    "test": "node --test test/design-tokens.test.cjs"
+    "build": "node ../../scripts/hosted-db-guard.js strip -- tsc",
+    "typecheck": "node ../../scripts/hosted-db-guard.js strip -- tsc --noEmit",
+    "test": "node ../../scripts/hosted-db-guard.js strip -- node --test test/design-tokens.test.cjs"
   },
   "devDependencies": {
     "typescript": "^5.4.0"

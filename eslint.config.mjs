@@ -8,6 +8,7 @@ export default defineConfig([
   ...nextTypeScript,
   {
     files: [
+      'scripts/**/*.{js,cjs,mjs}',
       'packages/engine/**/*.{js,cjs,mjs,ts,tsx}',
       'packages/shared/**/*.{js,cjs,mjs,ts,tsx}',
       'packages/site/test/**/*.{js,cjs,mjs,ts,tsx}',
@@ -20,6 +21,7 @@ export default defineConfig([
   },
   {
     files: [
+      'scripts/**/*.{js,cjs}',
       'fixtures/**/*.{js,cjs}',
       'packages/engine/test/**/*.{js,cjs,ts,tsx}',
       'packages/shared/test/**/*.{js,cjs,ts,tsx}',
