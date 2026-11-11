@@ -8,6 +8,7 @@ import { assertDirectWorkerStartup, authorizationMatchesWorkerBearer } from '../
 
 const load = createRequire(__filename);
 const guard = load('../../../scripts/hosted-db-guard.js') as {
+  LOCAL_TEST_URL: string;
   resolveOperatorDatabaseTarget: (env: NodeJS.ProcessEnv) => {
     ok: boolean;
     reason: string;
@@ -67,15 +68,41 @@ async function listen(): Promise<{ port: number; hits: () => number; close: () =
   };
 }
 
-function catalog(): string {
+const CATALOG_SQL =
+  "SELECT n.nspname || '.' || c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname NOT IN ('pg_catalog','information_schema') AND c.relkind = 'r' ORDER BY 1";
+
+// The default CI test job has no PostgreSQL. A catalog snapshot is only
+// meaningful when the disposable local server is actually accepting connections.
+function catalog(): string | null {
+  const ready = spawnSync('pg_isready', ['-q', '-h', '127.0.0.1', '-p', '5432'], { encoding: 'utf8' });
+  if (ready.error || ready.status !== 0) return null;
+  const url = new URL(guard.LOCAL_TEST_URL);
+  const password = decodeURIComponent(url.password);
+  const env: NodeJS.ProcessEnv = { ...process.env, PGPASSWORD: password };
+  delete env.DATABASE_URL;
+  delete env.POSTGRES_URL;
   const result = spawnSync(
-    'sudo',
-    ['-u', 'postgres', 'psql', '-d', 'patchbay_test', '-Atc',
-      "SELECT n.nspname || '.' || c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname NOT IN ('pg_catalog','information_schema') AND c.relkind = 'r' ORDER BY 1"],
-    { encoding: 'utf8' },
+    'psql',
+    [
+      '-h', url.hostname,
+      '-p', url.port || '5432',
+      '-U', decodeURIComponent(url.username),
+      '-d', decodeURIComponent(url.pathname.replace(/^\//, '')),
+      '-v', 'ON_ERROR_STOP=1',
+      '-Atc', CATALOG_SQL,
+    ],
+    { encoding: 'utf8', env },
   );
-  if (result.status !== 0) throw new Error('catalog read failed');
+  if (result.status !== 0) {
+    const detail = `${result.stderr || ''}${result.stdout || ''}`.split(password).join('***');
+    throw new Error(`catalog read failed status=${result.status ?? 'null'} ${detail}`);
+  }
   return result.stdout;
+}
+
+function expectCatalogUnchanged(before: string | null): void {
+  if (before === null) return;
+  expect(catalog()).toBe(before);
 }
 
 describe('direct database entry points', () => {
@@ -101,7 +128,7 @@ describe('direct database entry points', () => {
     expect(result.stderr).toContain('No connection was opened');
     expect(result.stdout + result.stderr).not.toContain('localhost:5432/patchversion');
     expect(exposesSecret(result.stdout + result.stderr)).toBe(false);
-    expect(catalog()).toBe(before);
+    expectCatalogUnchanged(before);
   });
 
   test('malformed, override, and disagreeing targets do not connect elsewhere', async () => {
@@ -134,7 +161,7 @@ describe('direct database entry points', () => {
       }
       expect(explicit.hits()).toBe(0);
       expect(elsewhere.hits()).toBe(0);
-      expect(catalog()).toBe(before);
+      expectCatalogUnchanged(before);
     } finally {
       await explicit.close();
       await elsewhere.close();
@@ -193,7 +220,7 @@ describe('direct database entry points', () => {
       expect(result.stderr).toContain('PATCHVERSION_ACK_STATUS_DDL=1');
       expect(explicit.hits()).toBe(0);
       expect(exposesSecret(result.stdout + result.stderr)).toBe(false);
-      expect(catalog()).toBe(before);
+      expectCatalogUnchanged(before);
     } finally {
       await explicit.close();
     }
