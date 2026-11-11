@@ -3,6 +3,7 @@ module.exports = {
   roots: ['<rootDir>/test'],
   testEnvironment: 'jsdom',
   testMatch: ['**/*.test.ts'],
+  setupFiles: ['<rootDir>/../../scripts/jest-db-isolation.cjs'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },

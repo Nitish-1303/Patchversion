@@ -6,7 +6,12 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import crypto from 'crypto';
+import { createRequire } from 'module';
 import { Pool } from 'pg';
+
+const { assertDisposableLocalDatabase } = createRequire(__filename)(
+  '../../../scripts/hosted-db-guard.js',
+) as { assertDisposableLocalDatabase: (value: string) => string };
 import { PatchversionDatabase } from '../src/db/database';
 import { PostgresStore } from '../src/db/postgres-store';
 import type { JobRecord } from '@patchversion/shared';
@@ -121,7 +126,9 @@ describe('durable job queue tenant ownership (file store)', () => {
   });
 });
 
-const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+const connectionString = assertDisposableLocalDatabase(
+  process.env.DATABASE_URL || process.env.POSTGRES_URL || '',
+);
 const describePg = connectionString ? describe : describe.skip;
 
 describePg('durable job queue tenant ownership (postgres)', () => {

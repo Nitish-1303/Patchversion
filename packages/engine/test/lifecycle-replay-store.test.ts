@@ -1,7 +1,12 @@
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import { createRequire } from 'module';
 import { Pool } from 'pg';
+
+const { assertDisposableLocalDatabase } = createRequire(__filename)(
+  '../../../scripts/hosted-db-guard.js',
+) as { assertDisposableLocalDatabase: (value: string) => string };
 import { runMigrations } from '../src/db/migration-runner';
 import { WorkerExecutionService } from '../src/sandbox/worker-service';
 import {
@@ -325,7 +330,9 @@ describe('Durable lifecycle replay store', () => {
   });
 });
 
-const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+const connectionString = assertDisposableLocalDatabase(
+  process.env.DATABASE_URL || process.env.POSTGRES_URL || '',
+);
 const describeLive = connectionString ? describe : describe.skip;
 
 function poolForSchema(schemaName: string): Pool {

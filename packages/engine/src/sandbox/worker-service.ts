@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { createRequire } from 'module';
 import http, { IncomingMessage, ServerResponse } from 'http';
 import {
   ExecutionJob,
@@ -17,6 +18,21 @@ import {
   createWorkerReplayStoreFromEnv,
   type ILifecycleReplayStore,
 } from './lifecycle-replay-store';
+
+const guardRequire = createRequire(__filename);
+const { resolveOperatorDatabaseTarget, redact, secretsInDatabaseUrl } = guardRequire(
+  '../../../../scripts/hosted-db-guard.js',
+) as {
+  resolveOperatorDatabaseTarget: (env: NodeJS.ProcessEnv) => {
+    ok: boolean;
+    reason: string;
+    connectionString?: string;
+  };
+  redact: (value: string, secrets?: string[]) => string;
+  secretsInDatabaseUrl: (value: string) => string[];
+};
+
+export const WORKER_DATABASE_AUTHORIZATION = 'PATCHVERSION_ALLOW_WORKER_DATABASE';
 
 /**
  * Timing-safe comparison of the request Authorization header against the
@@ -353,29 +369,64 @@ export class WorkerExecutionService {
   }
 }
 
-if (typeof require !== 'undefined' && typeof module !== 'undefined' && require.main === module) {
-  const port = parseInt(process.env.PORT || '8080', 10);
-  const authToken = process.env.WORKER_AUTH_TOKEN;
-  const signingSecret = process.env.WORKER_SIGNING_SECRET;
+export function assertDirectWorkerStartup(env: NodeJS.ProcessEnv): {
+  connectionString: string;
+  authToken: string;
+  signingSecret: string;
+  port: number;
+} {
+  const authToken = env.WORKER_AUTH_TOKEN;
+  if (!authToken || authToken.trim().length < 16) {
+    throw new Error('WORKER_AUTH_TOKEN is required');
+  }
+  if (env[WORKER_DATABASE_AUTHORIZATION] !== '1') {
+    throw new Error(
+      'Refusing worker startup. Set PATCHVERSION_ALLOW_WORKER_DATABASE=1 to authorize the configured database.',
+    );
+  }
+  const target = resolveOperatorDatabaseTarget(env);
+  if (!target.ok || !target.connectionString) {
+    throw new Error(`Refusing worker startup. Database target is ${target.reason}.`);
+  }
+  const port = Number.parseInt(env.PORT || '8080', 10);
+  return {
+    connectionString: target.connectionString,
+    authToken,
+    signingSecret: env.WORKER_SIGNING_SECRET ?? '',
+    port: Number.isFinite(port) ? port : 8080,
+  };
+}
 
+function databaseSecrets(env: NodeJS.ProcessEnv): string[] {
+  return [
+    ...secretsInDatabaseUrl(env.DATABASE_URL || ''),
+    ...secretsInDatabaseUrl(env.POSTGRES_URL || ''),
+  ];
+}
+
+function redactedFailure(err: unknown, secrets: string[]): string {
+  const message = err instanceof Error ? err.message : String(err);
+  return redact(message, secrets);
+}
+
+if (typeof require !== 'undefined' && typeof module !== 'undefined' && require.main === module) {
+  const secrets = databaseSecrets(process.env);
   try {
-    if (!authToken || authToken.trim().length < 16) {
-      throw new Error('WORKER_AUTH_TOKEN is required');
-    }
+    const startup = assertDirectWorkerStartup(process.env);
     const worker = new WorkerExecutionService({
-      port,
-      authToken,
-      signingSecret: signingSecret ?? '',
-      replayStore: createWorkerReplayStoreFromEnv(),
+      port: startup.port,
+      authToken: startup.authToken,
+      signingSecret: startup.signingSecret,
+      replayStore: createWorkerReplayStoreFromEnv(startup.connectionString),
     });
-    worker.start(port).then((p) => {
-      console.log(`[trypatchbay-worker] Local fixture worker listening on port ${p} (isolationQualified=false)`);
+    worker.start(startup.port).then((startedPort) => {
+      console.log(`[trypatchbay-worker] Local fixture worker listening on port ${startedPort} (isolationQualified=false)`);
     }).catch((err) => {
-      console.error('[trypatchbay-worker] Failed to start worker:', err);
+      console.error(`[trypatchbay-worker] Failed to start worker: ${redactedFailure(err, secrets)}`);
       process.exit(1);
     });
   } catch (err) {
-    console.error('[trypatchbay-worker] Refusing to start:', err instanceof Error ? err.message : err);
+    console.error(`[trypatchbay-worker] Refusing to start: ${redactedFailure(err, secrets)}`);
     process.exit(1);
   }
 }
