@@ -49,6 +49,8 @@ export async function POST(request: NextRequest) {
   const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
   const password = typeof body.password === 'string' ? body.password : '';
   const tenantName = typeof body.tenantName === 'string' ? body.tenantName.trim() : '';
+  const allowDemoAuth =
+    process.env.ALLOW_DEMO_AUTH === 'true' && process.env.NODE_ENV !== 'production';
 
   // 1. User Registration Flow
   if (action === 'register') {
@@ -110,8 +112,8 @@ export async function POST(request: NextRequest) {
 
     let user = await db.getUserByEmail(email);
     if (!user) {
-      // In dev or demo mode, allow fallback for developer@trypatchbay.dev
-      if (email === 'developer@trypatchbay.dev') {
+      // Explicit non-production demo only — never auto-create users in production.
+      if (allowDemoAuth && email === 'developer@trypatchbay.dev') {
         const demo = await ensureDemoTenantAndUser();
         user = demo.user;
       } else {
@@ -120,12 +122,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // If user has a password hash, strictly verify credentials
+    // Passwordless sessions are demo-only; production accounts must have verified passwords.
     if (user.passwordHash) {
       if (!password || !verifyPassword(password, user.passwordHash)) {
         await recordAuthFailure(rateLimitIdentifier);
         return NextResponse.json({ error: 'Invalid email or password.' }, { status: 401 });
       }
+    } else if (!allowDemoAuth) {
+      await recordAuthFailure(rateLimitIdentifier);
+      return NextResponse.json({ error: 'Invalid email or password.' }, { status: 401 });
     }
 
     await resetAuthFailures(rateLimitIdentifier);
@@ -151,7 +156,17 @@ export async function POST(request: NextRequest) {
     return response;
   }
 
-  // 3. Demo / Development Fallback Flow (Strictly isolated demo tenant)
+  // 3. Demo / Development Fallback Flow — explicit gate only (never production).
+  if (!allowDemoAuth) {
+    return NextResponse.json(
+      {
+        error: 'Demo authentication is disabled. Use register/login or GitHub OAuth.',
+        code: 'DEMO_AUTH_DISABLED',
+      },
+      { status: 403 },
+    );
+  }
+
   if (email) {
     const existing = await db.getUserByEmail(email);
     if (existing && existing.passwordHash) {

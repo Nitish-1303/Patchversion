@@ -14,15 +14,19 @@
 | B1 | **P0** | No independently qualified isolation for customer repos | `isQualifiedIsolationActive()` → false; `generateAndValidateFix` throws for non-fixtures | Founder-approved qualified provider + host evidence; fail-closed preserved until then |
 | B2 | **P0** | Live GitHub App/OAuth/install→PR path NOT TESTED | Task2 LIVE-* skipped; no external E2E evidence | Live credentials E2E: install → private repo → scan → (fixture or approved exec) → draft PR |
 | B3 | **P0** | Customer validation evidence cannot be produced | Blocked by B1 | Passing ValidationRecord from isolated run on authorized private repo |
+| B13 | **P0** | Draft PR opens **without committing the patch** | `deliverPullRequest` → `createBranch` + `createPullRequest` only; no blob/tree/commit API | Commit patch files to branch before opening PR; prove with live or recorded GitHub API test |
+| B14 | **P0** | Findings driven by fixture known-changes (mockpay/lodash), not live registry | `getKnownChangesForRepo()` hardcodes fixtures; `NpmWatcher` not wired to site orchestrator | Wire real break detection / known-change source for customer deps |
 | B4 | **P1** | Scan remote revalidation off on `/api/scan` | `revalidateRemote: false` | Decide product policy: remote revalidate on scan vs delivery-only; implement + test |
-| B5 | **P1** | Demo/billing silent fallbacks can confuse pilots | checkout `demo: true`; packages mockpay; dashboard fixtures | Honest UX: label demo; refuse silent “success” for unpaid/unconfigured billing in prod |
+| B5 | **P1** | Demo/billing silent fallbacks can confuse pilots | checkout demo gated; packages mockpay seed; dashboard fixtures; client PR simulation UI | Honest UX; refuse silent success paths |
+| B15 | **P1** | Ungated `/api/auth` demo session (was) | Fallthrough + passwordless users | **Remediated:** requires `ALLOW_DEMO_AUTH` + non-production |
 | B6 | **P1** | Production env completeness unverified | Prior audit: OAuth/billing env gaps on Vercel | Founder-confirmed env matrix (names only in docs) |
 | B7 | **P1** | Migrations 003–005 not applied to production | PR only; remap vs dirty | Founder-approved non-prod then prod migrate plan |
-| B8 | **P2** | Quota/subscription enforcement unverified end-to-end | plan columns + webhook updates exist | Tests + pilot: over-quota PR blocked; paid plan unlocks |
+| B8 | **P1** | Quota not enforced on PR delivery | `getMonthlyPullRequestCount` unused; UI free-PR counter client-only | Enforce server-side before `deliverPullRequest` |
 | B9 | **P2** | Observability / backups / incident recovery incomplete | readiness partial | Minimal runbook + alert + backup restore drill evidence |
 | B10 | **P2** | Marketing honesty vs capabilities | homepage/docs vs fixture reality | Copy audit; remove overclaims before pilot |
 | B11 | **Process** | Dirty tree migration collision | remap doc | Never dual-apply; founder remap if merging dirty history |
 | B12 | **Process** | F2 Firecracker stage-gated | host evidence blocked | Separate track; T2-INV ≠ customer enablement |
+| B16 | **P2** | LLM fix path is null stub | `FixGenerator.generateWithLLM` → `null` | Deterministic rules only until real LLM path or remove claims |
 
 ---
 

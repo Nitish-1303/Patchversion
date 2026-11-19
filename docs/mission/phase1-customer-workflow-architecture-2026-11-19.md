@@ -41,12 +41,15 @@
            orchestrator.deliverPullRequest
              requires: approval + passed validation + active installation
              github.createBranch + createPullRequest (draft)
+             ⚠ does NOT commit patch blobs/trees — PR can be empty of code changes
 ```
 
 ## Hard stop for external customers (today)
 
 ```text
-Private/customer repo scan may succeed (file read via App token)
+Scan findings often from fixture known-changes (mockpay/lodash), not live registry
+        ↓
+Private/customer repo scan may read files via App token
         ↓
 generateAndValidateFix
         ↓
@@ -55,9 +58,14 @@ isTrustedFixture? ──no──► throw (execution disabled until qualified is
 No passing ValidationRecord
         ↓
 deliverPullRequest refused (“patch does not have a verified passing validation”)
+
+Even if validation existed:
+createBranch(baseSha) → createPullRequest(draft) without committing patch → empty diff PR
 ```
 
 Therefore the advertised loop **auth → authorize → migrate → isolated evidence → real draft PR** is **not complete** for arbitrary external private repositories, even when GitHub App APIs are coded.
+
+Explorer corroboration: [Map customer journey](3fba6fdf-fafb-4bd3-b856-5ac275d3224a), [Audit mocks/stubs](2b069f8d-66fe-4dcc-92c6-650c62ee4ceb).
 
 ## Fixture / demo bypass (not customer production)
 

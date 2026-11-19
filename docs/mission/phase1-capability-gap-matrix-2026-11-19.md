@@ -47,16 +47,16 @@ Classification key (do not upgrade without evidence of the **wired production cu
 | 7 | List authorized private repos | **PARTIAL** / **UNVERIFIED** live | `api/repos` GET refreshes via `listInstallationRepositories` when App configured | Needs live App token; demo tenant filters to CipherBill |
 | 8 | Dependency scan (remote GitHub files) | **PARTIAL** / **UNVERIFIED** live | `orchestrator.scanRepositoryWithDependencyMap` → `scanner.scanRemoteRepository` via GitHub Contents API | Scan auth uses `revalidateRemote: false` on `/api/scan` |
 | 9 | Dependency scan (fixtures) | **MOCKED** / fixture | Demo repo + `localPath` permitted fixtures | Valid for prove/demo only |
-| 10 | Supported migration discovery | **PARTIAL** | `break-detector`, `scanner`, known changes / prove rules | Continuous registry watch incomplete for customers |
-| 11 | Deterministic AST transform | **PARTIAL** | `fix-generator` + CI `prove` / `prove:real` on fixtures | Not proven on arbitrary customer private repos |
+| 10 | Supported migration discovery | **MOCKED** / **PARTIAL** | Site orchestrator `getKnownChangesForRepo()` injects **mockpay + lodash** fixtures; `NpmWatcher` not wired into site path | Live registry-driven discovery missing for customers |
+| 11 | Deterministic AST transform | **PARTIAL** | `fix-generator` rules exist; LLM stub returns `null` | Rules unreachable for live repos (isolation); LLM not implemented |
 | 12 | Isolated customer test execution | **MISSING** (correctly fail-closed) | `isQualifiedIsolationActive()` → **false**; `resolveExecutionProvider` → `UnavailableExecutionProvider` unless trusted fixture / qualified test-double | **Hard customer blocker:** live repos throw before suite execution |
 | 13 | Baseline / post-migration tests | **MOCKED** for customers | Trusted fixtures may run local process; demo can synthesize proof when FS disabled | Customer repos cannot get real red→green evidence |
 | 14 | Reproducible verification evidence | **PARTIAL** (fixtures) | evidence bundle / proof artifacts | Customer path blocked by isolation |
 | 15 | Human approval gate | **PARTIAL** / **UNVERIFIED** live | `api/approvals` + DB approvals; PR delivery requires active approval + diff hash | UX completeness for external pilot unverified |
-| 16 | Real draft GitHub PR | **PARTIAL** / **UNVERIFIED** live | `orchestrator.deliverPullRequest` → `github.createPullRequest` | Code path real; blocked upstream by validation/isolation for non-fixtures; live E2E skipped |
+| 16 | Real draft GitHub PR | **PARTIAL** / **MISSING** patch body | `createBranch` + `createPullRequest` (draft) | **No commit of patch files** before PR open (empty/identical branch); also blocked by validation/isolation for live repos |
 | 17 | Failure recovery / retries / cancel | **PARTIAL** | durable jobs, delivery claims, in-flight PR guards | Production incident recovery unverified |
 | 18 | Tenant isolation (app + RLS SQL) | **PARTIAL** / **UNVERIFIED** in prod | Migrations 003–004 FORCE RLS; app tenant checks | SQL on PR branch not production-applied |
-| 19 | Quotas / plans | **PARTIAL** | plan columns, PR quota query excludes `is_simulation` | Enforcement vs live paid customer unverified; checkout can return `demo: true` without Stripe |
+| 19 | Quotas / plans | **PARTIAL** | plan columns; `getMonthlyPullRequestCount` exists | **Not called** from deliver path; UI free-PR counter is client-side only |
 | 20 | Billing webhooks (Stripe/PayPal) | **PARTIAL** / **UNVERIFIED** live | signature checks + idempotency in routes/tests | Prod processor env / live webhooks unverified |
 | 21 | Auditability / observability / backups | **MISSING** / **PARTIAL** | basic logs; readiness evaluator | No verified backup/alert/incident runbook evidence |
 | 22 | Firecracker / qualified microVM | **MISSING** (stage-gated) | F2 docs on dirty tree; host evidence blocked | Must not enable via env |
@@ -95,8 +95,11 @@ Classification key (do not upgrade without evidence of the **wired production cu
 3. **CipherBill / demo tenant** special-casing in repos listing.
 4. **`generateAndValidateFix`** synthesized demo proof when fixture FS path unavailable (serverless).
 5. **Billing checkout** returns `demo: true` when Stripe/PayPal not provisioned.
-6. **`ALLOW_DEMO_GITHUB_LOGIN` / `ALLOW_DEMO_BILLING`** non-production shortcuts.
+6. **`ALLOW_DEMO_GITHUB_LOGIN` / `ALLOW_DEMO_BILLING` / `ALLOW_DEMO_AUTH`** non-production shortcuts (auth demo now gated).
 7. **`isQualifiedIsolationActive()` hard false** — not a mock; it **blocks** customer execution (correct) but means product cannot complete customer validate→PR without a qualified host.
+8. **Hardcoded known-changes** (mockpay/lodash) in orchestrator — looks like “findings” for many repos without live break intel.
+9. **PR without patch commit** — branch at base SHA, draft PR with title/body only.
+10. **Client-side dashboard** simulated PR / proof steps when no real patch.
 
 ---
 
