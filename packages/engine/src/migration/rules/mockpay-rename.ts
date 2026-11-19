@@ -12,6 +12,7 @@ export class MockpayPaymentMethodRule implements IMigrationRule {
   readonly fromVersionRange = '>=1.0.0 <2.0.0';
   readonly toVersionRange = '>=2.0.0';
   readonly description = 'Migrates mockpay v1 charges.create({ source: ... }) to v2 charges.create({ payment_method: ... })';
+  readonly affectedExports = ['source', 'payment_method', 'charges.create'];
 
   readonly preconditions: MigrationPrecondition[] = [
     {

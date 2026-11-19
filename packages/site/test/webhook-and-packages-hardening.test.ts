@@ -299,42 +299,30 @@ describe('Webhook Installation Deletion and Watch Target Hardening', () => {
         isDemo: false,
       });
 
-      // Seed a finding on this live repo
-      const finding = await db.saveFinding(tenantId, liveRepo.id, {
-        packageName: 'mockpay',
-        fromVersion: '1.0.0',
-        toVersion: '2.0.0',
-        isBreaking: true,
-        changeRecord: {
-          id: 'change_mock_scan_test',
-          packageName: 'mockpay',
-          ecosystem: 'npm',
-          fromVersion: '1.0.0',
-          toVersion: '2.0.0',
-          detectedAt: new Date().toISOString(),
-          source: 'registry',
-          sourceUrl: 'https://registry.npmjs.org/mockpay',
-          rawNotes: 'v2 notes',
-          classification: { isBreaking: true, confidence: 1.0, affectedExports: [], reason: 'breaking change' },
-          severity: 'breaking',
-        },
-        impactAnalysis: {
-          changeId: 'change_mock_scan_test',
-          repoId: liveRepo.id,
-          affectedCallSites: [],
-          unaffectedCallSites: [],
-          coveragePercent: 0,
-          analyzedAt: new Date().toISOString(),
-        },
-        status: 'open',
-      });
-
-      // Mock GitHub file fetch so scanRepository doesn't fail on network
+      // Mock GitHub evidence so discovery finds a real mockpay migration with call-site impact.
       const gh = getGitHubClient();
       jest.spyOn(gh, 'getInstallationToken').mockResolvedValue('ghs_mocktoken');
-      jest.spyOn(gh, 'getRepositoryFileContent').mockResolvedValue(JSON.stringify({
-        dependencies: { mockpay: '1.0.0' },
-      }));
+      jest.spyOn(gh, 'listRepositoryFiles').mockResolvedValue(['package.json', 'src/charge.js']);
+      jest.spyOn(gh, 'getBranchHeadSha').mockResolvedValue('live_sha_abc');
+      jest.spyOn(gh, 'getRepositoryFileContent').mockImplementation(async (_o, _r, filePath) => {
+        if (filePath === 'package.json') {
+          return JSON.stringify({
+            name: 'billing-service',
+            dependencies: { mockpay: '1.0.0' },
+          });
+        }
+        if (filePath === 'src/charge.js') {
+          return [
+            "const mockpay = require('mockpay');",
+            'async function charge(token) {',
+            '  return mockpay.charges.create({ amount: 100, currency: "usd", source: token });',
+            '}',
+            'module.exports = { charge };',
+            '',
+          ].join('\n');
+        }
+        return null;
+      });
 
       const req = new NextRequest('http://localhost:3000/api/scan', {
         method: 'POST',
@@ -350,10 +338,14 @@ describe('Webhook Installation Deletion and Watch Target Hardening', () => {
       const data = await res.json();
       expect(data.success).toBe(true);
       expect(data.repositoryId).toBe(liveRepo.id);
+      expect(data.findingsCount).toBeGreaterThan(0);
 
-      // Verify that the finding was processed but execution was explicitly refused
-      const fixResult = data.results.find((r: { finding: { id: string } }) => r.finding.id === finding.id);
+      // Discovery must surface mockpay with proven call-site impact, then refuse host execution.
+      const fixResult = data.results.find(
+        (r: { finding: { packageName: string } }) => r.finding.packageName === 'mockpay',
+      );
       expect(fixResult).toBeDefined();
+      expect(fixResult.finding.impactAnalysis.affectedCallSites.length).toBeGreaterThan(0);
       expect(fixResult.error).toMatch(/execution for live repository "live-customer-org\/billing-service" is disabled/i);
       expect(fixResult.validation).toBeUndefined();
     }, 20_000);

@@ -1,5 +1,6 @@
 export * from './types';
 export * from './registry';
+export * from './discover';
 export * from './rules/lodash-rename';
 export * from './rules/mockpay-rename';
 export * from './rules/openai-v3-to-v4';

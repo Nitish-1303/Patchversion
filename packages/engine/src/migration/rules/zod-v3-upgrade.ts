@@ -17,6 +17,7 @@ export class ZodV3ModernizeRule implements IMigrationRule {
   readonly fromVersionRange = '>=1.0.0 <3.0.0';
   readonly toVersionRange = '>=3.0.0';
   readonly description = 'Migrates deprecated z.transformer() and schema.transformer() to schema.transform() in Zod v3';
+  readonly affectedExports = ['transformer', 'transform'];
 
   readonly preconditions: MigrationPrecondition[] = [
     {

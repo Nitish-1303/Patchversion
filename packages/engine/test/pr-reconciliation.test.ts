@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import { createTwoFilesPatch } from 'diff';
 import { PatchversionDatabase } from '../src/db/database';
 import { GitHubClient, CreatedPullRequest } from '../src/github/client';
 import { OfflineMockTransport } from '../src';
@@ -43,6 +44,50 @@ describe('GitHub PR Reconciliation & Crash Recovery', () => {
         JSON.stringify({ ref: 'refs/heads/patchversion/mockpay-2.0.0' }),
         { status: 201, headers: { 'Content-Type': 'application/json' } },
       );
+    });
+
+    // B13: patch commit Git Data API sequence
+    mockTransport.get('/repos/acme-org/payment-service/contents/index.js', async () => {
+      return new Response(
+        JSON.stringify({
+          content: Buffer.from('old\n', 'utf8').toString('base64'),
+          encoding: 'base64',
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    });
+    mockTransport.get('/repos/acme-org/payment-service/git/commits/base_sha_acme_main_456', async () => {
+      return new Response(
+        JSON.stringify({
+          sha: 'base_sha_acme_main_456',
+          tree: { sha: 'base_tree_sha_acme_789' },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    });
+    mockTransport.post('/repos/acme-org/payment-service/git/blobs', async () => {
+      return new Response(JSON.stringify({ sha: 'blob_sha_patched_001' }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+    mockTransport.post('/repos/acme-org/payment-service/git/trees', async () => {
+      return new Response(JSON.stringify({ sha: 'tree_sha_patched_001' }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+    mockTransport.post('/repos/acme-org/payment-service/git/commits', async () => {
+      return new Response(JSON.stringify({ sha: 'commit_sha_501' }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+    mockTransport.patch('/repos/acme-org/payment-service/git/refs/heads/patchversion/mockpay-2.0.0', async () => {
+      return new Response(JSON.stringify({ ref: 'refs/heads/patchversion/mockpay-2.0.0' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
     });
 
     mockTransport.post('/repos/acme-org/payment-service/pulls', async () => {
@@ -115,7 +160,7 @@ describe('GitHub PR Reconciliation & Crash Recovery', () => {
       status: 'validated',
     });
 
-    const sampleDiff = '--- a/index.js\n+++ b/index.js\n@@ -1,1 +1,1 @@\n-old\n+new\n';
+    const sampleDiff = createTwoFilesPatch('a/index.js', 'b/index.js', 'old\n', 'new\n');
     const patch = db.savePatch(tenantId, findingId, sampleDiff, undefined, patchId);
 
     db.saveValidation(tenantId, patch.id, {

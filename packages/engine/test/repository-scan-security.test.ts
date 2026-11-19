@@ -2,6 +2,7 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import crypto from 'crypto';
+import { createTwoFilesPatch } from 'diff';
 import { ChangeRecord, ImpactAnalysis, PatchRecord } from '@patchversion/shared';
 import { resolvePermittedFixturePath } from '../src/sandbox/isolated-runner';
 import { PatchversionDatabase } from '../src/db/database';
@@ -155,10 +156,55 @@ describe('Repository Scan, Tenancy, and Security Regression Tests', () => {
       });
     });
 
+    mockTransport.get('/repos/acme/lock-service/contents/src/app.js', async () => {
+      return new Response(
+        JSON.stringify({
+          content: Buffer.from('module.exports = { source: token };\n', 'utf8').toString('base64'),
+          encoding: 'base64',
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    });
+
+    mockTransport.get('/repos/acme/lock-service/git/commits/mock_sha_123', async () => {
+      return new Response(
+        JSON.stringify({ sha: 'mock_sha_123', tree: { sha: 'mock_tree_base' } }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    });
+
     mockTransport.post('/repos/acme/lock-service/git/refs', async () => {
       return new Response(
         JSON.stringify({ ref: 'refs/heads/patchversion/mockpay-2.0.0' }),
         { status: 201, headers: { 'Content-Type': 'application/json' } },
+      );
+    });
+
+    mockTransport.post('/repos/acme/lock-service/git/blobs', async () => {
+      return new Response(JSON.stringify({ sha: 'mock_blob_lock' }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+
+    mockTransport.post('/repos/acme/lock-service/git/trees', async () => {
+      return new Response(JSON.stringify({ sha: 'mock_tree_lock' }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+
+    mockTransport.post('/repos/acme/lock-service/git/commits', async () => {
+      return new Response(JSON.stringify({ sha: 'mock_commit_lock_456' }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+
+    mockTransport.patch('/repos/acme/lock-service/git/refs/heads/patchversion/mockpay-2.0.0', async () => {
+      return new Response(
+        JSON.stringify({ ref: 'refs/heads/patchversion/mockpay-2.0.0', object: { sha: 'mock_commit_lock_456' } }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
       );
     });
 
@@ -168,7 +214,7 @@ describe('Repository Scan, Tenancy, and Security Regression Tests', () => {
           number: 42,
           url: 'https://api.github.com/repos/acme/lock-service/pulls/42',
           html_url: 'https://github.com/acme/lock-service/pull/42',
-          head: { sha: 'mock_sha_123', ref: 'patchversion/mockpay-2.0.0' },
+          head: { sha: 'mock_commit_lock_456', ref: 'patchversion/mockpay-2.0.0' },
           state: 'open',
         }),
         { status: 201, headers: { 'Content-Type': 'application/json' } },
@@ -201,7 +247,7 @@ describe('Repository Scan, Tenancy, and Security Regression Tests', () => {
 
     const findings = await orchestrator.scanRepository(tenant.id, repo.id);
     expect(Array.isArray(findings)).toBe(true);
-    // CipherBill has real dependencies with 0 breaking regression candidates in current known changes
+    // CipherBill mock has react but no forwardRef usage — registry match alone is not actionable
     expect(findings.length).toBe(0);
   });
 
@@ -905,7 +951,13 @@ describe('Repository Scan, Tenancy, and Security Regression Tests', () => {
       impactAnalysis: mockImpact,
       status: 'open',
     });
-    const patch = db.savePatch(tenant.id, finding.id, 'diff content');
+    const lockDiff = createTwoFilesPatch(
+      'a/src/app.js',
+      'b/src/app.js',
+      'module.exports = { source: token };\n',
+      'module.exports = { payment_method: token };\n',
+    );
+    const patch = db.savePatch(tenant.id, finding.id, lockDiff);
     db.saveValidation(tenant.id, patch.id, {
       status: 'passed',
       executionLogs: 'ok',
@@ -917,7 +969,7 @@ describe('Repository Scan, Tenancy, and Security Regression Tests', () => {
         baselineResult: { exitCode: 0, passed: 1, failed: 0, total: 1, output: 'ok' },
         redResult: { exitCode: 1, passed: 0, failed: 1, total: 1, output: 'fail' },
         greenResult: { exitCode: 0, passed: 1, failed: 0, total: 1, output: 'ok' },
-        fixDiff: 'diff content',
+        fixDiff: lockDiff,
         fixedFiles: ['src/app.js'],
         coverageVerified: 1,
         coverageTotal: 1,
@@ -945,6 +997,8 @@ describe('Repository Scan, Tenancy, and Security Regression Tests', () => {
       if (rejected?.status === 'rejected') {
         expect(rejected.reason.message).toMatch(/delivery is already in progress/i);
       }
+      const fulfilled = results.find(r => r.status === 'fulfilled');
+      expect(fulfilled).toBeDefined();
     } finally {
       gh.getBranchHeadSha = originalGetSha;
     }

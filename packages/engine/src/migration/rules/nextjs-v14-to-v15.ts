@@ -12,6 +12,7 @@ export class NextJs14To15AsyncRule implements IMigrationRule {
   readonly fromVersionRange = '>=13.0.0 <15.0.0';
   readonly toVersionRange = '>=15.0.0';
   readonly description = 'Migrates Next.js 14 synchronous cookies() and headers() to Next.js 15 async (await cookies(), await headers())';
+  readonly affectedExports = ['cookies', 'headers'];
 
   readonly preconditions: MigrationPrecondition[] = [
     {

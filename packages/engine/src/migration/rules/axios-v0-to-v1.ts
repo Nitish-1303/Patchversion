@@ -17,6 +17,7 @@ export class AxiosV0ToV1Rule implements IMigrationRule {
   readonly fromVersionRange = '>=0.19.0 <1.0.0';
   readonly toVersionRange = '>=1.0.0';
   readonly description = 'Migrates deprecated axios.all(promises) to Promise.all(promises) and modernizes axios.spread callbacks';
+  readonly affectedExports = ['axios.all', 'axios.spread', 'all', 'spread'];
 
   readonly preconditions: MigrationPrecondition[] = [
     {

@@ -17,6 +17,7 @@ export class React18To19RefRule implements IMigrationRule {
   readonly fromVersionRange = '>=16.8.0 <19.0.0';
   readonly toVersionRange = '>=19.0.0';
   readonly description = 'Migrates deprecated React.forwardRef wrappers to direct ref-prop components in React 19';
+  readonly affectedExports = ['forwardRef'];
 
   readonly preconditions: MigrationPrecondition[] = [
     {
