@@ -72,8 +72,11 @@ describeLive('PostgreSQL Real Database Live Integration', () => {
 
   test('1. Fresh schema creation, repeatable migrations, and pooled connection isolation', async () => {
     // 1. Verify schema integrity and migration status
+    const { loadMigrationFiles } = await import('../src/db/migration-runner');
+    const files = loadMigrationFiles();
+    const latest = files[files.length - 1].version;
     const status = await store.getMigrationStatus();
-    expect(status.currentVersion).toBe('002');
+    expect(status.currentVersion).toBe(latest);
     expect(status.pendingCount).toBe(0);
 
     const integrity = await store.verifySchemaHealth(testSchema);

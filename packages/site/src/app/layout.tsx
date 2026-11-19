@@ -59,11 +59,20 @@ export const metadata: Metadata = {
     url: 'https://trypatchbay.vercel.app',
     siteName: 'trypatchbay',
     type: 'website',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'trypatchbay',
+      },
+    ],
   },
   twitter: {
-    card: 'summary',
+    card: 'summary_large_image',
     title: 'trypatchbay: API changes, made reviewable',
     description: DESCRIPTION,
+    images: ['/og-image.png'],
   },
 };
 

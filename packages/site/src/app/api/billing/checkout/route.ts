@@ -49,9 +49,12 @@ export async function POST(req: Request) {
     }
 
     const stripeKey = process.env.STRIPE_SECRET_KEY;
-    const siteUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : 'https://trypatchbay.vercel.app';
+    // Prefer explicit app URL; otherwise derive from Vercel host; else product default.
+    const siteUrl =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      (process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : 'https://trypatchbay.vercel.app');
 
     // If Stripe is configured with live or test credentials
     if (stripeKey && stripeKey.startsWith('sk_')) {
@@ -90,7 +93,22 @@ export async function POST(req: Request) {
       }
     }
 
-    // Graceful fallback when Stripe/PayPal is not provisioned or configured in preview
+    // Preview/dev only: never silently present demo checkout as success in production.
+    const allowDemoBilling =
+      process.env.ALLOW_DEMO_BILLING === 'true' && process.env.NODE_ENV !== 'production';
+    if (!allowDemoBilling) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: 'Payment processor is not configured',
+          code: 'BILLING_PROCESSOR_NOT_CONFIGURED',
+          plan,
+          amountCents: PLAN_PRICES[plan].amountCents,
+        },
+        { status: 503 },
+      );
+    }
+
     return NextResponse.json({
       ok: true,
       demo: true,

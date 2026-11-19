@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthContext, getGitHubClient } from '@/app/api/backend';
+import { getAuthContext, getDatabase, getGitHubClient } from '@/app/api/backend';
 
 export async function POST(request: NextRequest) {
   const auth = await getAuthContext(request);
@@ -26,16 +26,22 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const insts = await github.listAppInstallations();
-    const inst = insts.find(i => i.account.toLowerCase() === String(owner).toLowerCase());
-    if (!inst) {
+    const db = getDatabase();
+    const tenantInstallations = await db.listInstallations(auth.tenant.id);
+    const linked = tenantInstallations.find(
+      (i) => i.status === 'active' && i.accountLogin.toLowerCase() === String(owner).toLowerCase(),
+    );
+    if (!linked) {
       return NextResponse.json(
-        { error: `No active GitHub App installation found for account "${owner}".` },
-        { status: 404 },
+        {
+          error: `No active GitHub App installation linked to your workspace for account "${owner}".`,
+          code: 'INSTALLATION_NOT_LINKED',
+        },
+        { status: 403 },
       );
     }
 
-    const token = await github.getInstallationToken(inst.id);
+    const token = await github.getInstallationToken(linked.githubInstallationId);
     const result = await github.createComment(owner, repo, Number(issueNumber), String(comment), token);
 
     return NextResponse.json({

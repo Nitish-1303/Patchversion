@@ -212,7 +212,23 @@ describe('/api/auth API Endpoint', () => {
     expect(checkRes.status).toBe(401);
   });
 
+  test('demo sign-in is disabled without ALLOW_DEMO_AUTH', async () => {
+    delete process.env.ALLOW_DEMO_AUTH;
+    const demoReq = new NextRequest('http://localhost:3000/api/auth', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'demo', email: 'developer@trypatchbay.dev' }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const res = await POST(demoReq);
+    expect(res.status).toBe(403);
+    const data = await res.json();
+    expect(data.code).toBe('DEMO_AUTH_DISABLED');
+  });
+
   test('demo sign-in cannot impersonate an existing password-protected account', async () => {
+    process.env.ALLOW_DEMO_AUTH = 'true';
+    (process.env as Record<string, string | undefined>).NODE_ENV = 'test';
+
     // 1. Register legitimate customer account
     const regReq = new NextRequest('http://localhost:3000/api/auth', {
       method: 'POST',

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { BrandIcon } from '@/app/components/BrandIcons';
-import type { DemoArtifactResponse } from '../../api/dashboard/demo-evidence/route';
+import type { DemoArtifactResponse } from '../../api/dashboard/demo-evidence/demo-artifact-types';
 import { getBundledDemoArtifactResponse } from '../data/bundled-artifacts';
 import {
   ShieldCheckIcon,

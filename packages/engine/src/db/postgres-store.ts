@@ -30,6 +30,12 @@ import {
   type MigrationStatusReport,
   type SchemaIntegrityReport,
 } from './migration-runner';
+import {
+  generateOAuthStateToken,
+  hashOAuthStateToken,
+  isOAuthStateExpired,
+  oauthStateExpiresAt,
+} from '../github/oauth-security';
 
 export interface PostgresStoreConfig {
   connectionString?: string;
@@ -154,24 +160,155 @@ export class PostgresStore implements IPersistenceStore {
   async createTenant(name: string, id?: string): Promise<Tenant> {
     const tenantId = id || `tenant_${crypto.randomUUID()}`;
     const now = new Date().toISOString();
-    await this.pool.query(
-      'INSERT INTO tenants (id, name, created_at) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING',
-      [tenantId, name, now],
-    );
-    return { id: tenantId, name, createdAt: now };
+    try {
+      await this.pool.query(
+        'INSERT INTO tenants (id, name, plan, created_at) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO NOTHING',
+        [tenantId, name, 'developer', now],
+      );
+    } catch (err) {
+      // Pre-billing schema fallback
+      if (!(err instanceof Error) || !/column .*plan|does not exist/i.test(err.message)) {
+        throw err;
+      }
+      await this.pool.query(
+        'INSERT INTO tenants (id, name, created_at) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING',
+        [tenantId, name, now],
+      );
+    }
+    return { id: tenantId, name, plan: 'developer', createdAt: now };
+  }
+
+  async getTenantBySubscriptionId(subscriptionId: string): Promise<Tenant | null> {
+    const trimmed = (subscriptionId || '').trim();
+    if (!trimmed) return null;
+    try {
+      const rows = await this.query<{
+        id: string;
+        name: string;
+        plan?: string;
+        subscription_id?: string;
+        subscription_status?: string;
+        billing_updated_at?: string;
+        created_at: string;
+      }>(
+        'SELECT id, name, plan, subscription_id, subscription_status, billing_updated_at, created_at FROM tenants WHERE subscription_id = $1 LIMIT 1',
+        [trimmed],
+      );
+      if (!rows[0]) return null;
+      return {
+        id: rows[0].id,
+        name: rows[0].name,
+        plan: (rows[0].plan as Tenant['plan']) || 'developer',
+        subscriptionId: rows[0].subscription_id || undefined,
+        subscriptionStatus: rows[0].subscription_status || undefined,
+        billingUpdatedAt: rows[0].billing_updated_at || undefined,
+        createdAt: rows[0].created_at,
+      };
+    } catch (err) {
+      if (err instanceof Error && /column .*subscription_id|does not exist/i.test(err.message)) {
+        return null;
+      }
+      throw err;
+    }
   }
 
   async getTenant(id: string): Promise<Tenant | null> {
-    const rows = await this.query<{ id: string; name: string; created_at: string }>(
-      'SELECT id, name, created_at FROM tenants WHERE id = $1',
-      [id],
-    );
-    if (!rows[0]) return null;
-    return {
-      id: rows[0].id,
-      name: rows[0].name,
-      createdAt: rows[0].created_at,
-    };
+    try {
+      const rows = await this.query<{
+        id: string;
+        name: string;
+        plan?: string;
+        subscription_id?: string;
+        subscription_status?: string;
+        billing_updated_at?: string;
+        created_at: string;
+      }>(
+        'SELECT id, name, plan, subscription_id, subscription_status, billing_updated_at, created_at FROM tenants WHERE id = $1',
+        [id],
+      );
+      if (!rows[0]) return null;
+      return {
+        id: rows[0].id,
+        name: rows[0].name,
+        plan: (rows[0].plan as Tenant['plan']) || 'developer',
+        subscriptionId: rows[0].subscription_id || undefined,
+        subscriptionStatus: rows[0].subscription_status || undefined,
+        billingUpdatedAt: rows[0].billing_updated_at || undefined,
+        createdAt: rows[0].created_at,
+      };
+    } catch (err) {
+      if (!(err instanceof Error) || !/column .*plan|does not exist/i.test(err.message)) {
+        throw err;
+      }
+      const rows = await this.query<{ id: string; name: string; created_at: string }>(
+        'SELECT id, name, created_at FROM tenants WHERE id = $1',
+        [id],
+      );
+      if (!rows[0]) return null;
+      return { id: rows[0].id, name: rows[0].name, createdAt: rows[0].created_at };
+    }
+  }
+
+  async updateTenantPlan(
+    tenantId: string,
+    plan: 'developer' | 'repository' | 'organization' | 'enterprise',
+    subscriptionId?: string,
+    subscriptionStatus?: string,
+  ): Promise<Tenant | null> {
+    try {
+      const rows = await this.query<{
+        id: string;
+        name: string;
+        plan: string;
+        subscription_id?: string;
+        subscription_status?: string;
+        billing_updated_at?: string;
+        created_at: string;
+      }>(
+        `UPDATE tenants
+         SET plan = $2,
+             subscription_id = COALESCE($3, subscription_id),
+             subscription_status = COALESCE($4, subscription_status),
+             billing_updated_at = NOW()
+         WHERE id = $1
+         RETURNING id, name, plan, subscription_id, subscription_status, billing_updated_at, created_at`,
+        [tenantId, plan, subscriptionId || null, subscriptionStatus || null],
+      );
+      if (!rows[0]) return null;
+      return {
+        id: rows[0].id,
+        name: rows[0].name,
+        plan: rows[0].plan as Tenant['plan'],
+        subscriptionId: rows[0].subscription_id || undefined,
+        subscriptionStatus: rows[0].subscription_status || undefined,
+        billingUpdatedAt: rows[0].billing_updated_at || undefined,
+        createdAt: rows[0].created_at,
+      };
+    } catch (err) {
+      if (err instanceof Error && /column .*plan|does not exist/i.test(err.message)) {
+        return null;
+      }
+      throw err;
+    }
+  }
+
+  async getMonthlyPullRequestCount(tenantId: string, sinceDate: Date): Promise<number> {
+    try {
+      const rows = await this.query<{ count: string }>(
+        'SELECT COUNT(*)::text as count FROM pull_requests WHERE tenant_id = $1 AND created_at >= $2 AND is_simulation = FALSE',
+        [tenantId, sinceDate.toISOString()],
+      );
+      return parseInt(rows[0]?.count || '0', 10);
+    } catch (err) {
+      if (err instanceof Error && /column .*is_simulation|does not exist/i.test(err.message)) {
+        const rows = await this.query<{ count: string }>(
+          'SELECT COUNT(*)::text as count FROM pull_requests WHERE tenant_id = $1 AND created_at >= $2',
+          [tenantId, sinceDate.toISOString()],
+        );
+        return parseInt(rows[0]?.count || '0', 10);
+      }
+      throw err;
+    }
   }
 
   async createUser(
@@ -239,6 +376,62 @@ export class PostgresStore implements IPersistenceStore {
       created_at: string;
     }>('SELECT id, tenant_id, email, role, github_user_id, github_login, password_hash, created_at FROM users WHERE LOWER(email) = LOWER($1)', [email]);
     if (!rows[0]) return null;
+    return {
+      id: rows[0].id,
+      tenantId: rows[0].tenant_id,
+      email: rows[0].email,
+      role: rows[0].role,
+      githubUserId: rows[0].github_user_id,
+      githubLogin: rows[0].github_login,
+      passwordHash: rows[0].password_hash || undefined,
+      createdAt: rows[0].created_at,
+    };
+  }
+
+  async getUserByGithubUserId(githubUserId: string): Promise<User | null> {
+    if (!githubUserId) return null;
+    const rows = await this.query<{
+      id: string;
+      tenant_id: string;
+      email: string;
+      role: 'owner' | 'admin' | 'member' | 'reviewer';
+      github_user_id?: string;
+      github_login?: string;
+      password_hash?: string;
+      created_at: string;
+    }>(
+      'SELECT id, tenant_id, email, role, github_user_id, github_login, password_hash, created_at FROM users WHERE github_user_id = $1',
+      [githubUserId],
+    );
+    if (!rows[0]) return null;
+    return {
+      id: rows[0].id,
+      tenantId: rows[0].tenant_id,
+      email: rows[0].email,
+      role: rows[0].role,
+      githubUserId: rows[0].github_user_id,
+      githubLogin: rows[0].github_login,
+      passwordHash: rows[0].password_hash || undefined,
+      createdAt: rows[0].created_at,
+    };
+  }
+
+  async linkGithubAccount(userId: string, githubLogin: string, githubUserId: string): Promise<User> {
+    await this.pool.query(
+      'UPDATE users SET github_login = $1, github_user_id = $2 WHERE id = $3',
+      [githubLogin, githubUserId, userId],
+    );
+    const rows = await this.query<{
+      id: string;
+      tenant_id: string;
+      email: string;
+      role: 'owner' | 'admin' | 'member' | 'reviewer';
+      github_user_id?: string;
+      github_login?: string;
+      password_hash?: string;
+      created_at: string;
+    }>('SELECT id, tenant_id, email, role, github_user_id, github_login, password_hash, created_at FROM users WHERE id = $1', [userId]);
+    if (!rows[0]) throw new Error(`User ${userId} not found after linkGithubAccount`);
     return {
       id: rows[0].id,
       tenantId: rows[0].tenant_id,
@@ -455,6 +648,7 @@ export class PostgresStore implements IPersistenceStore {
       account_login: string;
       account_type: 'User' | 'Organization';
       status: 'active' | 'suspended' | 'deleted';
+      last_event_at?: string | null;
       created_at: string;
       updated_at: string;
     }>('SELECT * FROM installations WHERE id = $1 AND tenant_id = $2', [id, tenantId]);
@@ -466,6 +660,7 @@ export class PostgresStore implements IPersistenceStore {
       accountLogin: rows[0].account_login,
       accountType: rows[0].account_type,
       status: rows[0].status,
+      lastEventAt: rows[0].last_event_at ?? undefined,
       createdAt: rows[0].created_at,
       updatedAt: rows[0].updated_at,
     };
@@ -479,6 +674,7 @@ export class PostgresStore implements IPersistenceStore {
       account_login: string;
       account_type: 'User' | 'Organization';
       status: 'active' | 'suspended' | 'deleted';
+      last_event_at?: string | null;
       created_at: string;
       updated_at: string;
     }>('SELECT * FROM installations WHERE github_installation_id = $1', [githubInstallationId]);
@@ -490,6 +686,7 @@ export class PostgresStore implements IPersistenceStore {
       accountLogin: rows[0].account_login,
       accountType: rows[0].account_type,
       status: rows[0].status,
+      lastEventAt: rows[0].last_event_at ?? undefined,
       createdAt: rows[0].created_at,
       updatedAt: rows[0].updated_at,
     };
@@ -513,6 +710,7 @@ export class PostgresStore implements IPersistenceStore {
       accountLogin: r.account_login,
       accountType: r.account_type,
       status: r.status,
+      lastEventAt: (r as { last_event_at?: string }).last_event_at ?? undefined,
       createdAt: r.created_at,
       updatedAt: r.updated_at,
     }));
@@ -522,19 +720,59 @@ export class PostgresStore implements IPersistenceStore {
     tenantId: string,
     githubInstallationId: number,
     status: 'active' | 'suspended' | 'deleted',
+    eventTimeMs?: number,
   ): Promise<boolean> {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
       const now = new Date().toISOString();
-      const res = await client.query(
-        `UPDATE installations
-         SET status = $3, updated_at = $4
-         WHERE tenant_id = $1 AND github_installation_id = $2
-           AND (status != 'deleted' OR $3 = 'deleted')
-         RETURNING id`,
-        [tenantId, githubInstallationId, status, now],
+      const hasLastEventAt = await client.query<{ exists: boolean }>(
+        `SELECT EXISTS (
+           SELECT 1 FROM information_schema.columns
+           WHERE table_name = 'installations' AND column_name = 'last_event_at'
+         ) AS exists`,
       );
+      const supportsLastEventAt = Boolean(hasLastEventAt.rows[0]?.exists);
+
+      if (supportsLastEventAt && typeof eventTimeMs === 'number') {
+        const existing = await client.query<{ last_event_at: string | null }>(
+          `SELECT last_event_at FROM installations
+           WHERE tenant_id = $1 AND github_installation_id = $2`,
+          [tenantId, githubInstallationId],
+        );
+        if (existing.rows[0]?.last_event_at) {
+          const last = new Date(existing.rows[0].last_event_at).getTime();
+          if (!Number.isNaN(last) && eventTimeMs < last) {
+            await client.query('COMMIT');
+            return false;
+          }
+        }
+      }
+
+      const res = supportsLastEventAt
+        ? await client.query(
+            `UPDATE installations
+             SET status = $3, updated_at = $4,
+                 last_event_at = COALESCE($5::timestamptz, last_event_at)
+             WHERE tenant_id = $1 AND github_installation_id = $2
+               AND (status != 'deleted' OR $3 = 'deleted')
+             RETURNING id`,
+            [
+              tenantId,
+              githubInstallationId,
+              status,
+              now,
+              typeof eventTimeMs === 'number' ? new Date(eventTimeMs).toISOString() : null,
+            ],
+          )
+        : await client.query(
+            `UPDATE installations
+             SET status = $3, updated_at = $4
+             WHERE tenant_id = $1 AND github_installation_id = $2
+               AND (status != 'deleted' OR $3 = 'deleted')
+             RETURNING id`,
+            [tenantId, githubInstallationId, status, now],
+          );
       if (res.rows.length === 0) {
         await client.query('COMMIT');
         return false;
@@ -556,6 +794,28 @@ export class PostgresStore implements IPersistenceStore {
     } finally {
       client.release();
     }
+  }
+
+  async revokeRepository(tenantId: string, id: string): Promise<boolean> {
+    const res = await this.query(
+      `UPDATE repositories
+       SET status = 'revoked', updated_at = NOW()
+       WHERE tenant_id = $1 AND id = $2
+       RETURNING id`,
+      [tenantId, id],
+    );
+    return res.length > 0;
+  }
+
+  async revokeRepositoryByGithubId(tenantId: string, githubRepoId: number): Promise<boolean> {
+    const res = await this.query(
+      `UPDATE repositories
+       SET status = 'revoked', updated_at = NOW()
+       WHERE tenant_id = $1 AND github_repo_id = $2
+       RETURNING id`,
+      [tenantId, githubRepoId],
+    );
+    return res.length > 0;
   }
 
   async saveRepository(
@@ -857,6 +1117,65 @@ export class PostgresStore implements IPersistenceStore {
       throw err;
     } finally {
       client.release();
+    }
+  }
+
+
+  async createOAuthState(ttlSeconds = 600): Promise<{ token: string; expiresAt: string; persisted: boolean }> {
+    const token = generateOAuthStateToken();
+    const stateHash = hashOAuthStateToken(token);
+    const expiresAt = oauthStateExpiresAt(ttlSeconds);
+    const id = `oauth_${crypto.randomUUID()}`;
+    try {
+      await this.query(
+        `INSERT INTO oauth_states (id, state_hash, created_at, expires_at, status)
+         VALUES ($1, $2, NOW(), $3, 'pending')`,
+        [id, stateHash, expiresAt],
+      );
+      return { token, expiresAt, persisted: true };
+    } catch (err) {
+      // Table may not exist until github hardening migration is applied; cookie-only CSRF.
+      if (!(err instanceof Error) || !/oauth_states|does not exist/i.test(err.message)) {
+        throw err;
+      }
+      return { token, expiresAt, persisted: false };
+    }
+  }
+
+  async consumeOAuthState(token: string): Promise<boolean> {
+    if (!token) return false;
+    const stateHash = hashOAuthStateToken(token);
+    try {
+      const rows = await this.query<{
+        id: string;
+        status: string;
+        expires_at: string;
+      }>('SELECT id, status, expires_at FROM oauth_states WHERE state_hash = $1', [stateHash]);
+      if (rows.length === 0) {
+        // Table exists but token was never issued — reject forged/replayed state.
+        return false;
+      }
+      const record = rows[0];
+      if (record.status !== 'pending') return false;
+      if (isOAuthStateExpired(record.expires_at)) {
+        await this.query(`UPDATE oauth_states SET status = 'expired' WHERE id = $1`, [record.id]);
+        return false;
+      }
+      const updated = await this.query(
+        `UPDATE oauth_states
+         SET status = 'consumed', consumed_at = NOW()
+         WHERE id = $1 AND status = 'pending'
+         RETURNING id`,
+        [record.id],
+      );
+      return updated.length > 0;
+    } catch (err) {
+      // Fail closed: without oauth_states (pre-migration), do not treat consume as success.
+      // Cookie-only CSRF still applies at the route layer when durable store is unavailable.
+      if (err instanceof Error && /oauth_states|does not exist/i.test(err.message)) {
+        return false;
+      }
+      throw err;
     }
   }
 

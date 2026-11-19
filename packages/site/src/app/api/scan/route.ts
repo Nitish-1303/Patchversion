@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   getAuthContext,
   getOrchestrator,
+  getGitHubClient,
   DEMO_REPO_ID,
   CIPHERBILL_REPO_ID,
   ensureDemoTenantAndUser,
   ensureCheckoutServiceFixtureRepo,
 } from '@/app/api/backend';
 import { checkScanRateLimit } from '@/app/api/security/rate-limiter';
+import { authorizeTenantRepository, RepositoryAuthorizationError } from '@patchversion/engine';
 
 export async function GET(request: NextRequest) {
   const auth = await getAuthContext(request);
@@ -85,6 +87,26 @@ export async function POST(request: NextRequest) {
 
   if (!repo) {
     return NextResponse.json({ error: 'Repository not found for tenant' }, { status: 404 });
+  }
+
+  try {
+    // Tenant + installation status + revoked fencing. Remote GitHub revalidation is
+    // reserved for delivery paths; scan must remain testable without live App API.
+    await authorizeTenantRepository({
+      db,
+      tenantId: auth.tenant.id,
+      repositoryId: repo.id,
+      github: getGitHubClient(),
+      revalidateRemote: false,
+    });
+  } catch (err) {
+    if (err instanceof RepositoryAuthorizationError) {
+      return NextResponse.json(
+        { error: err.message, code: err.code },
+        { status: err.code === 'REPOSITORY_NOT_FOUND' ? 404 : 403 },
+      );
+    }
+    throw err;
   }
 
   try {

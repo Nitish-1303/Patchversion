@@ -24,6 +24,17 @@ export interface IPersistenceStore {
   // Tenants & Users
   createTenant(name: string, id?: string): Promise<Tenant> | Tenant;
   getTenant(id: string): Promise<Tenant | null> | Tenant | null;
+  getTenantBySubscriptionId?(subscriptionId: string): Promise<Tenant | null> | Tenant | null;
+  updateTenantPlan(
+    tenantId: string,
+    plan: 'developer' | 'repository' | 'organization' | 'enterprise',
+    subscriptionId?: string,
+    subscriptionStatus?: string,
+  ): Promise<Tenant | null> | Tenant | null;
+  getMonthlyPullRequestCount?(
+    tenantId: string,
+    sinceDate: Date,
+  ): Promise<number> | number;
   createUser(
     tenantId: string,
     email: string,
@@ -35,6 +46,8 @@ export interface IPersistenceStore {
   ): Promise<User> | User;
   getUser(id: string): Promise<User | null> | User | null;
   getUserByEmail(email: string): Promise<User | null> | User | null;
+  getUserByGithubUserId?(githubUserId: string): Promise<User | null> | User | null;
+  linkGithubAccount(userId: string, githubLogin: string, githubUserId: string): Promise<User> | User;
 
   // Sessions & Revocation
   createSession(userId: string, expiresInHours?: number): Promise<Session> | Session;
@@ -56,7 +69,10 @@ export interface IPersistenceStore {
     tenantId: string,
     githubInstallationId: number,
     status: 'active' | 'suspended' | 'deleted',
+    eventTimeMs?: number,
   ): Promise<boolean> | boolean;
+  revokeRepository?(tenantId: string, id: string): Promise<boolean> | boolean;
+  revokeRepositoryByGithubId?(tenantId: string, githubRepoId: number): Promise<boolean> | boolean;
   saveRepository(
     tenantId: string,
     installationId: string,
@@ -82,6 +98,8 @@ export interface IPersistenceStore {
     accountLogin: string,
     accountType?: 'User' | 'Organization',
   ): Promise<InstallationRecord> | InstallationRecord;
+  createOAuthState?(ttlSeconds?: number): Promise<{ token: string; expiresAt: string; persisted: boolean }> | { token: string; expiresAt: string; persisted: boolean };
+  consumeOAuthState?(token: string): Promise<boolean> | boolean;
 
   // Findings
   saveFinding(

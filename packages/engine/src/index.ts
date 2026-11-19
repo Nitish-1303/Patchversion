@@ -151,6 +151,41 @@ export {
   type ParsedLockfilePackage,
 } from './scanner';
 export {
+  generateOAuthStateToken,
+  hashOAuthStateToken,
+  timingSafeEqualString,
+  oauthStateCookieOptions,
+  resolvePublicBaseUrl,
+  buildGitHubOAuthCallbackUrl,
+  buildDashboardUrl,
+  isAllowedOAuthCallbackUrl,
+  oauthStateExpiresAt,
+  isOAuthStateExpired,
+  GITHUB_OAUTH_STATE_COOKIE,
+  GITHUB_OAUTH_STATE_TTL_SECONDS,
+  GITHUB_OAUTH_STATE_BYTES,
+} from './github/oauth-security';
+export {
+  RepositoryAuthorizationError,
+  authorizeTenantRepository,
+  installationCanCreatePullRequests,
+  installationCanReadContents,
+} from './github/repository-authorization';
+export {
+  ALLOWED_GITHUB_WEBHOOK_EVENTS,
+  WEBHOOK_REPLAY_WINDOW_MS,
+  WEBHOOK_PROCESSING_RETRY_AFTER_MS,
+  isAllowedGitHubWebhookEvent,
+  extractWebhookEventTime,
+  isWebhookReplayOutsideWindow,
+  isOutOfOrderWebhookEvent,
+  webhookInstallationId,
+} from './github/webhook-security';
+export {
+  processVerifiedGitHubWebhook,
+  type WebhookProcessResult,
+} from './github/webhook-processor';
+export {
   MigrationRuleRegistry,
   defaultMigrationRegistry,
   LodashMethodRenameRule,

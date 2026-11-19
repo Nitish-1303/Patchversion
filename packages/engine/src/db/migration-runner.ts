@@ -63,6 +63,7 @@ export const CANONICAL_TABLES = [
   'watch_targets',
   'rate_limits',
   'lifecycle_capability_replays',
+  'oauth_states',
   'schema_migrations',
 ];
 

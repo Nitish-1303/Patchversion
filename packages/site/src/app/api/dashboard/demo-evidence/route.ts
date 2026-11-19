@@ -13,7 +13,7 @@ import {
   BUNDLED_MOCKPAY_SOURCE,
 } from '../../../dashboard/data/bundled-artifacts';
 
-export interface DemoRunConfig {
+interface DemoRunConfig {
   key: string;
   title: string;
   packageName: string;
@@ -73,7 +73,7 @@ const ALLOWED_RUNS: Record<string, DemoRunConfig> = {
   },
 };
 
-export function findRepoRoot(): string {
+function findRepoRoot(): string {
   let curr = process.cwd();
   while (curr !== path.dirname(curr)) {
     if (fs.existsSync(path.join(curr, 'fixtures', 'lodash-repo'))) {
@@ -91,7 +91,7 @@ export function findRepoRoot(): string {
   return process.cwd();
 }
 
-export interface DemoArtifactResponse {
+interface DemoArtifactResponse {
   status: 'ready' | 'missing' | 'malformed' | 'failed';
   config: DemoRunConfig;
   availableRuns: { key: string; title: string; isRealPackage: boolean }[];
