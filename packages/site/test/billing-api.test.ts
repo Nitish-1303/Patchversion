@@ -35,7 +35,29 @@ describe('Stripe Billing API & Checkout Endpoints', () => {
     expect(body.configured).toBe(false);
   });
 
-  test('POST /api/billing/checkout falls back gracefully to preview mode when Stripe is unconfigured', async () => {
+  test('POST /api/billing/checkout refuses silent demo success when processors are unconfigured', async () => {
+    process.env.NODE_ENV = 'production';
+    delete process.env.ALLOW_DEMO_BILLING;
+
+    const req = new Request('https://trypatchbay.vercel.app/api/billing/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan: 'repository', tenantId: 'tenant-test-123' }),
+    });
+
+    const res = await postCheckout(req);
+    expect(res.status).toBe(503);
+
+    const body = await res.json();
+    expect(body.ok).toBe(false);
+    expect(body.code).toBe('BILLING_PROCESSOR_NOT_CONFIGURED');
+    expect(body.demo).toBeUndefined();
+  });
+
+  test('POST /api/billing/checkout allows explicit non-production demo billing fallback', async () => {
+    process.env.NODE_ENV = 'test';
+    process.env.ALLOW_DEMO_BILLING = 'true';
+
     const req = new Request('https://trypatchbay.vercel.app/api/billing/checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
