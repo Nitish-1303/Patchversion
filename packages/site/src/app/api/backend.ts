@@ -222,8 +222,8 @@ export function assertRole(
 export async function getAuthContext(request: NextRequest): Promise<AuthContext | null> {
   const db = getDatabase();
 
-  // Try cookie first
-  let token = request.cookies.get('trypatchbay_session')?.value;
+  // Try cookie first (optional-chain: plain Request fixtures may lack Next cookies)
+  let token = request.cookies?.get('trypatchbay_session')?.value;
 
   // Fallback to Bearer token header
   if (!token) {

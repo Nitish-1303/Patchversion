@@ -24,6 +24,17 @@ describe('PostgreSQL Versioned Schema Migrations & Advisory Locking', () => {
     expect(replay).toBeDefined();
     expect(replay?.name).toBe('lifecycle_capability_replay');
     expect(replay?.sql).toContain('CREATE TABLE IF NOT EXISTS lifecycle_capability_replays');
+    const billing = files.find((f) => f.version === '003');
+    expect(billing).toBeDefined();
+    expect(billing?.name).toBe('billing_and_rls');
+    const restricted = files.find((f) => f.version === '004');
+    expect(restricted).toBeDefined();
+    expect(restricted?.name).toBe('restricted_roles_and_rls');
+    const githubHardening = files.find((f) => f.version === '005');
+    expect(githubHardening).toBeDefined();
+    expect(githubHardening?.name).toBe('github_hardening');
+    expect(githubHardening?.sql).toContain('CREATE TABLE IF NOT EXISTS oauth_states');
+    expect(githubHardening?.sql).toContain('last_event_at');
   });
 
   test('runMigrations acquires advisory lock, applies pending migrations, and records migration history', async () => {
@@ -104,11 +115,12 @@ describe('PostgreSQL Versioned Schema Migrations & Advisory Locking', () => {
     } as unknown as Pool;
 
     const report = await runMigrations(mockPool);
+    const pendingAfter001 = files.filter((f) => f.version !== '001').map((f) => f.version);
 
     expect(report.success).toBe(true);
-    expect(report.applied).toEqual(['002']);
+    expect(report.applied).toEqual(pendingAfter001);
     expect(report.alreadyApplied).toContain('001');
-    expect(report.currentVersion).toBe('002');
+    expect(report.currentVersion).toBe(files[files.length - 1].version);
   });
 
   test('runMigrations fails fail-closed and throws error on checksum tampering', async () => {
@@ -163,10 +175,12 @@ describe('PostgreSQL Versioned Schema Migrations & Advisory Locking', () => {
     } as unknown as Pool;
 
     const status = await getMigrationStatus(mockPool);
+    const files = loadMigrationFiles();
     expect(status.currentVersion).toBe('001');
     expect(status.appliedCount).toBe(1);
-    expect(status.pendingCount).toBe(1);
+    expect(status.pendingCount).toBe(files.length - 1);
     expect(status.pending.some((p) => p.startsWith('002_'))).toBe(true);
+    expect(status.pending.some((p) => p.startsWith('005_'))).toBe(true);
   });
 
   test('verifySchemaIntegrity reports missing tables when schema is incomplete', async () => {

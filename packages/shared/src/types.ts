@@ -178,6 +178,10 @@ export interface ProveResult {
 export interface Tenant {
   id: string;
   name: string;
+  plan?: 'developer' | 'repository' | 'organization' | 'enterprise';
+  subscriptionId?: string;
+  subscriptionStatus?: string;
+  billingUpdatedAt?: string;
   createdAt: string;
 }
 
@@ -211,6 +215,7 @@ export interface InstallationRecord {
   accountLogin: string;
   accountType: 'User' | 'Organization';
   status: 'active' | 'suspended' | 'deleted';
+  lastEventAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -350,6 +355,14 @@ export interface WebhookDeliveryRecord {
   signature: string;
   processedAt: string;
   status: 'processed' | 'ignored' | 'failed';
+}
+export interface OAuthStateRecord {
+  id: string;
+  stateHash: string;
+  createdAt: string;
+  expiresAt: string;
+  consumedAt?: string;
+  status: 'pending' | 'consumed' | 'expired';
 }
 export interface InstallationOnboardingState {
   id: string;

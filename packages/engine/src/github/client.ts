@@ -716,6 +716,94 @@ export class GitHubClient {
     return { id: data.id, htmlUrl: data.html_url };
   }
 
+
+  /**
+   * Fetches a single GitHub App installation by ID.
+   * Path: GET https://api.github.com/app/installations/:id
+   * Returns null if the installation is not found (404).
+   */
+  async getAppInstallation(
+    installationId: number,
+  ): Promise<{ id: number; suspended: boolean } | null> {
+    if (!this.isConfigured()) {
+      throw new GitHubAppNotConfiguredError('getAppInstallation');
+    }
+
+    const jwt = this.generateAppJwt();
+    const response = await this.transport.fetch(
+      `https://api.github.com/app/installations/${installationId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${jwt}`,
+          Accept: 'application/vnd.github.v3+json',
+          'User-Agent': 'TryPatchBay-Engine',
+        },
+      },
+    );
+
+    if (response.status === 404) {
+      return null;
+    }
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(
+        `Failed to get installation ${installationId}: ${response.status} ${errText}`,
+      );
+    }
+
+    const data = (await response.json()) as {
+      id: number;
+      suspended_at?: string | null;
+    };
+
+    return {
+      id: data.id,
+      suspended: Boolean(data.suspended_at),
+    };
+  }
+
+  /**
+   * Fetches installation access details including scoped permissions.
+   * Path: GET https://api.github.com/app/installations/:id (includes permissions)
+   */
+  async getInstallationAccess(
+    installationId: number,
+  ): Promise<{ id: number; permissions: Record<string, string> }> {
+    if (!this.isConfigured()) {
+      throw new GitHubAppNotConfiguredError('getInstallationAccess');
+    }
+
+    const jwt = this.generateAppJwt();
+    const response = await this.transport.fetch(
+      `https://api.github.com/app/installations/${installationId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${jwt}`,
+          Accept: 'application/vnd.github.v3+json',
+          'User-Agent': 'TryPatchBay-Engine',
+        },
+      },
+    );
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(
+        `Failed to get installation access for ${installationId}: ${response.status} ${errText}`,
+      );
+    }
+
+    const data = (await response.json()) as {
+      id: number;
+      permissions?: Record<string, string>;
+    };
+
+    return {
+      id: data.id,
+      permissions: data.permissions ?? {},
+    };
+  }
+
   verifyWebhookSignature(rawBody: Buffer, signature: string | undefined): boolean {
     const secret = this.config?.webhookSecret;
     return verifyGitHubWebhookSignature(rawBody, signature, secret).valid;

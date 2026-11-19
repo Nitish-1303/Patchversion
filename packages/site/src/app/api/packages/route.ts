@@ -6,7 +6,7 @@ import { WatchTargetRecord } from '@patchversion/shared';
 // - Max 214 chars, no leading . or _, lowercase/URL-safe, optional scope @org/pkg
 const NPM_PACKAGE_NAME_REGEX = /^(?:@[a-z0-9-*~][a-z0-9-*._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/;
 
-export function isValidPackageName(name: string): boolean {
+function isValidPackageName(name: string): boolean {
   if (!name || typeof name !== 'string') return false;
   const trimmed = name.trim();
   if (trimmed.length === 0 || trimmed.length > 214) return false;

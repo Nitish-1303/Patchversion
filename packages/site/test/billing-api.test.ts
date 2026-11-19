@@ -4,6 +4,10 @@
 import { GET as getCheckout, POST as postCheckout } from '../src/app/api/billing/checkout/route';
 import { POST as postWebhook } from '../src/app/api/billing/webhook/route';
 import { GET as getPaypal, POST as postPaypal } from '../src/app/api/billing/paypal/route';
+import {
+  createStripeTestSignatureHeader,
+  verifyStripeWebhookSignature,
+} from '../src/app/api/billing/stripe-webhook-security';
 
 describe('Stripe Billing API & Checkout Endpoints', () => {
   const originalEnv = process.env;
@@ -92,8 +96,9 @@ describe('Stripe Billing API & Checkout Endpoints', () => {
     expect(body.error).toContain('Missing stripe-signature');
   });
 
-  test('POST /api/billing/webhook handles valid payload cleanly', async () => {
+  test('POST /api/billing/webhook refuses Stripe events when webhook secret is not configured', async () => {
     const payload = {
+      id: 'evt_test_unconfigured',
       type: 'checkout.session.completed',
       data: {
         object: {
@@ -108,6 +113,62 @@ describe('Stripe Billing API & Checkout Endpoints', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
+    });
+
+    const res = await postWebhook(req);
+    expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body.code).toBe('STRIPE_WEBHOOK_NOT_CONFIGURED');
+  });
+
+  test('POST /api/billing/webhook rejects invalid Stripe signatures', async () => {
+    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_dGVzdF9zdHJpcGVfc2VjcmV0X2Zvcl91bml0X3Rlc3Rz';
+    const payload = JSON.stringify({
+      id: 'evt_test_bad_sig',
+      type: 'checkout.session.completed',
+      data: { object: { id: 'cs_x', client_reference_id: 'tenant-test-123' } },
+    });
+
+    const req = new Request('https://trypatchbay.vercel.app/api/billing/webhook', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'stripe-signature': 't=1700000000,v1=00'.padEnd(70, '0'),
+      },
+      body: payload,
+    });
+
+    const res = await postWebhook(req);
+    expect(res.status).toBe(401);
+    const body = await res.json();
+    expect(body.ok).toBe(false);
+  });
+
+  test('POST /api/billing/webhook accepts HMAC-verified Stripe payloads', async () => {
+    const secret = 'whsec_dGVzdF9zdHJpcGVfc2VjcmV0X2Zvcl91bml0X3Rlc3Rz';
+    process.env.STRIPE_WEBHOOK_SECRET = secret;
+    const payload = JSON.stringify({
+      id: `evt_test_ok_${Date.now()}`,
+      type: 'checkout.session.completed',
+      data: {
+        object: {
+          id: 'cs_test_mock_session',
+          client_reference_id: 'tenant-test-123',
+          subscription: 'sub_test_mock_subscription',
+          metadata: { plan: 'repository' },
+        },
+      },
+    });
+    const signature = createStripeTestSignatureHeader(payload, secret);
+    expect(verifyStripeWebhookSignature(payload, signature, secret).valid).toBe(true);
+
+    const req = new Request('https://trypatchbay.vercel.app/api/billing/webhook', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'stripe-signature': signature,
+      },
+      body: payload,
     });
 
     const res = await postWebhook(req);
@@ -172,5 +233,228 @@ describe('Stripe Billing API & Checkout Endpoints', () => {
       expect(body.provider).toBe('paypal');
       expect(body.url).toBe('https://www.paypal.com/ncp/payment/ORG123');
     });
+
+    test('POST /api/billing/paypal rejects request when subscriptionId is missing', async () => {
+      const req = new Request('https://trypatchbay.vercel.app/api/billing/paypal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: 'repository' }),
+      });
+
+      const res = await postPaypal(req);
+      expect(res.status).toBe(400);
+
+      const body = await res.json();
+      expect(body.ok).toBe(false);
+      expect(body.error).toContain('Subscription ID is required');
+    });
+
+    test('POST /api/billing/paypal rejects unverified subscription in non-test mode', async () => {
+      const prevNodeEnv = process.env.NODE_ENV;
+      delete process.env.ALLOW_DEMO_BILLING;
+      delete process.env.ALLOW_TEST_PAYPAL;
+      Object.defineProperty(process.env, 'NODE_ENV', { value: 'production', configurable: true });
+
+      const req = new Request('https://trypatchbay.vercel.app/api/billing/paypal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: 'repository', subscriptionId: 'fake_subscription_id_123' }),
+      });
+
+      const res = await postPaypal(req);
+      expect(res.status).toBe(400);
+
+      const body = await res.json();
+      expect(body.ok).toBe(false);
+      expect(body.error).toContain('PAYPAL_CLIENT_SECRET');
+      Object.defineProperty(process.env, 'NODE_ENV', { value: prevNodeEnv, configurable: true });
+    });
+
+    test('POST /api/billing/webhook enforces idempotent delivery handling', async () => {
+      const eventPayload = {
+        id: 'evt_paypal_idempotent_test_999',
+        event_type: 'BILLING.SUBSCRIPTION.ACTIVATED',
+        resource: {
+          id: 'I-TEST-999',
+          plan_id: 'P-3J256502HE020922SNLVRT7A',
+          status: 'ACTIVE',
+          custom_id: 'tenant_idempotent_test',
+        },
+      };
+
+      const req1 = new Request('https://trypatchbay.vercel.app/api/billing/webhook', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-test-webhook-bypass': 'true',
+        },
+        body: JSON.stringify(eventPayload),
+      });
+
+      const res1 = await postWebhook(req1);
+      expect(res1.status).toBe(200);
+      const body1 = await res1.json();
+      expect(body1.received).toBe(true);
+
+      // Replay identical event
+      const req2 = new Request('https://trypatchbay.vercel.app/api/billing/webhook', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-test-webhook-bypass': 'true',
+        },
+        body: JSON.stringify(eventPayload),
+      });
+
+      const res2 = await postWebhook(req2);
+      expect(res2.status).toBe(200);
+      const body2 = await res2.json();
+      expect(body2.status).toBe('already_processed');
+    });
+
+    test('POST /api/billing/webhook resolves tenant by subscription_id fallback when custom_id is missing', async () => {
+      const { getDatabase } = await import('../src/app/api/backend');
+      const db = getDatabase();
+      const uniqueSubId = `I-SUB-FALLBACK-${Date.now()}`;
+      const uniqueTenantId = `tenant_fallback_${Date.now()}`;
+      const testTenant = await db.createTenant('Tenant Missing CustomId', uniqueTenantId);
+      await db.updateTenantPlan(testTenant.id, 'repository', uniqueSubId, 'ACTIVE');
+
+      const eventPayload = {
+        id: `evt_paypal_fallback_${Date.now()}_${Math.random()}`,
+        event_type: 'BILLING.SUBSCRIPTION.CANCELLED',
+        resource: {
+          id: uniqueSubId,
+          plan_id: 'P-3J256502HE020922SNLVRT7A',
+          status: 'CANCELLED',
+        },
+      };
+
+      const req = new Request('https://trypatchbay.vercel.app/api/billing/webhook', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-test-webhook-bypass': 'true',
+        },
+        body: JSON.stringify(eventPayload),
+      });
+
+      const res = await postWebhook(req);
+      expect(res.status).toBe(200);
+
+      const updated = await db.getTenant(testTenant.id);
+      expect(updated?.plan).toBe('developer');
+      expect(updated?.subscriptionStatus).toBe('CANCELLED');
+    });
+
+    test('POST /api/billing/webhook handles unknown subscription_id gracefully without throwing', async () => {
+      const eventPayload = {
+        id: `evt_paypal_unknown_${Date.now()}_${Math.random()}`,
+        event_type: 'BILLING.SUBSCRIPTION.CANCELLED',
+        resource: {
+          id: 'I-NONEXISTENT-SUB-99999',
+          plan_id: 'P-3J256502HE020922SNLVRT7A',
+          status: 'CANCELLED',
+        },
+      };
+
+      const req = new Request('https://trypatchbay.vercel.app/api/billing/webhook', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-test-webhook-bypass': 'true',
+        },
+        body: JSON.stringify(eventPayload),
+      });
+
+      const res = await postWebhook(req);
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.status).toBe('tenant_not_found');
+    });
+
+    test('POST /api/billing/webhook rejects invalid signature with 401', async () => {
+      process.env.PAYPAL_WEBHOOK_ID = 'webhook_id_live_123';
+
+      const eventPayload = {
+        id: `evt_paypal_bad_sig_${Date.now()}_${Math.random()}`,
+        event_type: 'BILLING.SUBSCRIPTION.CANCELLED',
+        resource: { id: 'I-SUB-123' },
+      };
+
+      const req = new Request('https://trypatchbay.vercel.app/api/billing/webhook', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'paypal-transmission-sig': 'invalid_forged_signature',
+        },
+        body: JSON.stringify(eventPayload),
+      });
+
+      const res = await postWebhook(req);
+      expect(res.status).toBe(401);
+      const body = await res.json();
+      expect(body.error).toContain('Invalid PayPal webhook signature');
+    });
+
+    test('POST /api/billing/webhook rejects unsigned PayPal lifecycle events when verification is not configured', async () => {
+      delete process.env.PAYPAL_WEBHOOK_ID;
+      delete process.env.PAYPAL_CLIENT_ID;
+      delete process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
+      delete process.env.PAYPAL_CLIENT_SECRET;
+
+      const req = new Request('https://trypatchbay.vercel.app/api/billing/webhook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: 'evt_unsigned_paypal_test',
+          event_type: 'BILLING.SUBSCRIPTION.CANCELLED',
+          resource: {
+            id: 'I-UNSIGNED-TEST',
+            custom_id: 'tenant_unsigned_test',
+          },
+        }),
+      });
+
+      const res = await postWebhook(req);
+      expect(res.status).toBe(401);
+      const body = await res.json();
+      expect(body.error).toContain('Invalid PayPal webhook signature');
+    });
+
+    test('POST /api/billing/webhook handles SUSPENDED and PAYMENT.FAILED lifecycle events', async () => {
+      const { getDatabase } = await import('../src/app/api/backend');
+      const db = getDatabase();
+      const uniqueTenantId = `tenant_failed_${Date.now()}`;
+      const uniqueSubId = `I-SUB-FAIL-${Date.now()}`;
+      const testTenant = await db.createTenant('Tenant Failure Test', uniqueTenantId);
+      await db.updateTenantPlan(testTenant.id, 'repository', uniqueSubId, 'ACTIVE');
+
+      const failedEvent = {
+        id: `evt_paypal_failed_${Date.now()}_${Math.random()}`,
+        event_type: 'BILLING.SUBSCRIPTION.PAYMENT.FAILED',
+        resource: {
+          id: uniqueSubId,
+          custom_id: testTenant.id,
+        },
+      };
+
+      const req = new Request('https://trypatchbay.vercel.app/api/billing/webhook', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-test-webhook-bypass': 'true',
+        },
+        body: JSON.stringify(failedEvent),
+      });
+
+      const res = await postWebhook(req);
+      expect(res.status).toBe(200);
+
+      const updated = await db.getTenant(testTenant.id);
+      expect(updated?.plan).toBe('developer');
+      expect(updated?.subscriptionStatus).toBe('PAYMENT.FAILED');
+    });
+
   });
 });

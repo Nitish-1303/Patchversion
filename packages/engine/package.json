@@ -21,6 +21,7 @@
     "@patchversion/shared": "*",
     "@types/pg": "8.23.1",
     "diff": "^9.0.0",
+    "fast-check": "^4.10.3",
     "pg": "8.23.1",
     "semver": "^7.6.0",
     "ts-morph": "^22.0.0"

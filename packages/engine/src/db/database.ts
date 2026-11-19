@@ -19,7 +19,14 @@ import {
   InstallationOnboardingState,
   DeliveryClaimRecord,
   RepositoryScanResult,
+  OAuthStateRecord,
 } from '@patchversion/shared';
+import {
+  generateOAuthStateToken,
+  hashOAuthStateToken,
+  isOAuthStateExpired,
+  oauthStateExpiresAt,
+} from '../github/oauth-security';
 import { IPersistenceStore } from './store-interface';
 import { parseRequiredTenantId } from '../sandbox/execution-provider';
 
@@ -40,6 +47,7 @@ export interface DatabaseSchema {
   watchTargets?: Record<string, WatchTargetRecord>;
   revokedSessionIds?: Record<string, string>;
   onboardingStates?: Record<string, InstallationOnboardingState>;
+  oauthStates?: Record<string, OAuthStateRecord>;
   deliveryClaims?: Record<string, DeliveryClaimRecord>;
   scanResults?: Record<string, RepositoryScanResult>;
 }
@@ -105,6 +113,7 @@ export class PatchversionDatabase implements IPersistenceStore {
       watchTargets: {},
       revokedSessionIds: {},
       onboardingStates: {},
+      oauthStates: {},
       deliveryClaims: {},
       scanResults: {},
     };
@@ -124,6 +133,10 @@ export class PatchversionDatabase implements IPersistenceStore {
     }
     if (!schema.onboardingStates) {
       schema.onboardingStates = {};
+      dirty = true;
+    }
+    if (!schema.oauthStates) {
+      schema.oauthStates = {};
       dirty = true;
     }
     if (!schema.deliveryClaims) {
@@ -206,6 +219,7 @@ export class PatchversionDatabase implements IPersistenceStore {
     const tenant: Tenant = {
       id: tenantId,
       name,
+      plan: 'developer',
       createdAt: new Date().toISOString(),
     };
     this.data.tenants[tenantId] = tenant;
@@ -215,6 +229,40 @@ export class PatchversionDatabase implements IPersistenceStore {
 
   getTenant(id: string): Tenant | null {
     return this.data.tenants[id] ?? null;
+  }
+
+  getTenantBySubscriptionId(subscriptionId: string): Tenant | null {
+    this.maybeReload();
+    const trimmed = (subscriptionId || '').trim();
+    if (!trimmed) return null;
+    return (
+      Object.values(this.data.tenants).find(
+        t => t.subscriptionId && t.subscriptionId.trim() === trimmed,
+      ) ?? null
+    );
+  }
+
+  updateTenantPlan(
+    tenantId: string,
+    plan: 'developer' | 'repository' | 'organization' | 'enterprise',
+    subscriptionId?: string,
+    subscriptionStatus?: string,
+  ): Tenant | null {
+    const tenant = this.data.tenants[tenantId];
+    if (!tenant) return null;
+    tenant.plan = plan;
+    if (subscriptionId !== undefined) tenant.subscriptionId = subscriptionId;
+    if (subscriptionStatus !== undefined) tenant.subscriptionStatus = subscriptionStatus;
+    tenant.billingUpdatedAt = new Date().toISOString();
+    this.save();
+    return tenant;
+  }
+
+  getMonthlyPullRequestCount(tenantId: string, sinceDate: Date): number {
+    const sinceMs = sinceDate.getTime();
+    return Object.values(this.data.pullRequests).filter(
+      pr => pr.tenantId === tenantId && !pr.isSimulation && new Date(pr.createdAt).getTime() >= sinceMs,
+    ).length;
   }
 
   createUser(
@@ -230,6 +278,12 @@ export class PatchversionDatabase implements IPersistenceStore {
       throw new Error(`Tenant ${tenantId} does not exist`);
     }
     const userId = id || `user_${crypto.randomUUID()}`;
+    if (githubUserId) {
+      const existingGithub = Object.values(this.data.users).find(u => u.githubUserId === githubUserId);
+      if (existingGithub) {
+        throw new Error(`GitHub identity ${githubUserId} is already linked to another account`);
+      }
+    }
     const user: User = {
       id: userId,
       tenantId,
@@ -251,6 +305,20 @@ export class PatchversionDatabase implements IPersistenceStore {
 
   getUserByEmail(email: string): User | null {
     return Object.values(this.data.users).find(u => u.email.toLowerCase() === email.toLowerCase()) ?? null;
+  }
+
+  getUserByGithubUserId(githubUserId: string): User | null {
+    if (!githubUserId) return null;
+    return Object.values(this.data.users).find(u => u.githubUserId === githubUserId) ?? null;
+  }
+
+  linkGithubAccount(userId: string, githubLogin: string, githubUserId: string): User {
+    const user = this.data.users[userId];
+    if (!user) throw new Error(`User ${userId} does not exist`);
+    user.githubLogin = githubLogin;
+    user.githubUserId = githubUserId;
+    this.save();
+    return user;
   }
 
   // --- Sessions & Auth ---
@@ -454,6 +522,7 @@ export class PatchversionDatabase implements IPersistenceStore {
     tenantId: string,
     githubInstallationId: number,
     status: 'active' | 'suspended' | 'deleted',
+    eventTimeMs?: number,
   ): boolean {
     const inst = Object.values(this.data.installations).find(
       i => i.githubInstallationId === githubInstallationId && i.tenantId === tenantId,
@@ -463,9 +532,18 @@ export class PatchversionDatabase implements IPersistenceStore {
     if (inst.status === 'deleted' && status !== 'deleted') {
       return false;
     }
+    if (typeof eventTimeMs === 'number' && inst.lastEventAt) {
+      const last = new Date(inst.lastEventAt).getTime();
+      if (!Number.isNaN(last) && eventTimeMs < last) {
+        return false;
+      }
+    }
     const now = new Date().toISOString();
     inst.status = status;
     inst.updatedAt = now;
+    if (typeof eventTimeMs === 'number') {
+      inst.lastEventAt = new Date(eventTimeMs).toISOString();
+    }
 
     if (status === 'deleted') {
       for (const repo of Object.values(this.data.repositories)) {
@@ -599,7 +677,18 @@ export class PatchversionDatabase implements IPersistenceStore {
   }
 
   revokeRepository(tenantId: string, id: string): boolean {
-    const repo = this.getRepository(tenantId, id);
+    const repo = this.data.repositories[id];
+    if (!repo || repo.tenantId !== tenantId) return false;
+    repo.status = 'revoked';
+    repo.updatedAt = new Date().toISOString();
+    this.save();
+    return true;
+  }
+
+  revokeRepositoryByGithubId(tenantId: string, githubRepoId: number): boolean {
+    const repo = Object.values(this.data.repositories).find(
+      r => r.tenantId === tenantId && r.githubRepoId === githubRepoId,
+    );
     if (!repo) return false;
     repo.status = 'revoked';
     repo.updatedAt = new Date().toISOString();
@@ -1265,6 +1354,45 @@ export class PatchversionDatabase implements IPersistenceStore {
     this.save();
 
     return inst;
+  }
+
+
+  createOAuthState(ttlSeconds = 600): { token: string; expiresAt: string; persisted: boolean } {
+    this.maybeReload();
+    if (!this.data.oauthStates) {
+      this.data.oauthStates = {};
+    }
+    const token = generateOAuthStateToken();
+    const stateHash = hashOAuthStateToken(token);
+    const expiresAt = oauthStateExpiresAt(ttlSeconds);
+    const record: OAuthStateRecord = {
+      id: `oauth_${crypto.randomUUID()}`,
+      stateHash,
+      createdAt: new Date().toISOString(),
+      expiresAt,
+      status: 'pending',
+    };
+    this.data.oauthStates[stateHash] = record;
+    this.save();
+    return { token, expiresAt, persisted: true };
+  }
+
+  consumeOAuthState(token: string): boolean {
+    this.maybeReload();
+    if (!this.data.oauthStates || !token) return false;
+    const stateHash = hashOAuthStateToken(token);
+    const record = this.data.oauthStates[stateHash];
+    if (!record) return false;
+    if (record.status !== 'pending') return false;
+    if (isOAuthStateExpired(record.expiresAt)) {
+      record.status = 'expired';
+      this.save();
+      return false;
+    }
+    record.status = 'consumed';
+    record.consumedAt = new Date().toISOString();
+    this.save();
+    return true;
   }
 
   // --- Distributed Delivery Claims ---

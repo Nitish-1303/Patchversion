@@ -1,5 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/app/api/backend';
+import {
+  timingSafeEqualString,
+  buildDashboardUrl,
+  GITHUB_OAUTH_STATE_COOKIE,
+  oauthStateCookieOptions,
+} from '@patchversion/engine';
+
+function clearOAuthStateCookie(response: NextResponse): void {
+  const opts = oauthStateCookieOptions();
+  response.cookies.set(GITHUB_OAUTH_STATE_COOKIE, '', {
+    ...opts,
+    maxAge: 0,
+  });
+  response.cookies.set('github_oauth_durable', '', {
+    ...opts,
+    maxAge: 0,
+  });
+}
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -9,9 +27,11 @@ export async function GET(request: NextRequest) {
   const errorDescription = searchParams.get('error_description');
 
   if (error) {
-    const errorUrl = new URL('/dashboard', request.nextUrl.origin);
+    const errorUrl = new URL(buildDashboardUrl(request.nextUrl.origin));
     errorUrl.searchParams.set('auth_error', errorDescription || error);
-    return NextResponse.redirect(errorUrl);
+    const response = NextResponse.redirect(errorUrl);
+    clearOAuthStateCookie(response);
+    return response;
   }
 
   if (!code || !state) {
@@ -21,12 +41,32 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const storedState = request.cookies.get('github_oauth_state')?.value;
-  if (!storedState || storedState !== state) {
-    return NextResponse.json(
+  const storedState = request.cookies.get(GITHUB_OAUTH_STATE_COOKIE)?.value;
+  if (!storedState || !timingSafeEqualString(storedState, state)) {
+    const errResponse = NextResponse.json(
       { error: 'Invalid or expired OAuth state parameter (CSRF protection).', code: 'CSRF_STATE_MISMATCH' },
       { status: 403 },
     );
+    clearOAuthStateCookie(errResponse);
+    return errResponse;
+  }
+
+  const db = getDatabase();
+  // When login marked durable oauth_states persistence, require one-time consume.
+  const durableCookie = request.cookies.get('github_oauth_durable')?.value === '1';
+  if (durableCookie && typeof db.consumeOAuthState === 'function') {
+    const consumed = await db.consumeOAuthState(state);
+    if (!consumed) {
+      const errResponse = NextResponse.json(
+        {
+          error: 'Invalid, expired, or already-used OAuth state parameter.',
+          code: 'OAUTH_STATE_REPLAY',
+        },
+        { status: 403 },
+      );
+      clearOAuthStateCookie(errResponse);
+      return errResponse;
+    }
   }
 
   const clientId = process.env.GITHUB_CLIENT_ID;
@@ -97,8 +137,9 @@ export async function GET(request: NextRequest) {
 
       if (emailsRes.ok) {
         const emails = await emailsRes.json();
+        // SECURITY: Only accept emails that are BOTH primary AND verified.
         const primary = Array.isArray(emails)
-          ? emails.find((e: { primary: boolean; verified: boolean; email: string }) => e.primary && e.verified) || emails[0]
+          ? emails.find((e: { primary: boolean; verified: boolean; email: string }) => e.primary && e.verified)
           : null;
         if (primary?.email) {
           email = primary.email;
@@ -106,14 +147,27 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const userEmail = email || `${githubLogin}@users.noreply.github.com`;
+    // SECURITY: Fall back to unique noreply address when verified email is unavailable.
+    const userEmail = email || `${githubUserId}+${githubLogin}@users.noreply.github.com`;
 
     // 4. Resolve or create Tenant & User in TryPatchBay database
-    const db = getDatabase();
+    // Check if another account already owns this GitHub User ID (identity conflict guard)
+    const existingByGithubId = db.getUserByGithubUserId
+      ? await db.getUserByGithubUserId(githubUserId)
+      : null;
+    if (existingByGithubId && existingByGithubId.email !== userEmail) {
+      return NextResponse.json(
+        {
+          error: 'This GitHub account is already linked to a different TryPatchBay account.',
+          code: 'GITHUB_IDENTITY_CONFLICT',
+        },
+        { status: 409 },
+      );
+    }
+
     let user = await db.getUserByEmail(userEmail);
 
     if (!user) {
-      // Create new tenant and user
       const tenantName = `${githubLogin}'s Workspace`;
       const tenant = await db.createTenant(tenantName);
       user = await db.createUser(
@@ -123,13 +177,23 @@ export async function GET(request: NextRequest) {
         githubLogin,
         githubUserId,
       );
+    } else if (user.githubUserId && user.githubUserId !== githubUserId) {
+      return NextResponse.json(
+        {
+          error: 'This TryPatchBay account is already linked to a different GitHub identity. Please sign in with your password or contact support.',
+          code: 'GITHUB_IDENTITY_CONFLICT',
+        },
+        { status: 409 },
+      );
+    } else if (!user.githubLogin || user.githubLogin !== githubLogin || !user.githubUserId) {
+      user = await db.linkGithubAccount(user.id, githubLogin, githubUserId);
     }
 
     // 5. Create session
     const session = await db.createSession(user.id);
 
     // 6. Redirect to dashboard with session cookie
-    const dashboardUrl = new URL('/dashboard', request.nextUrl.origin);
+    const dashboardUrl = new URL(buildDashboardUrl(request.nextUrl.origin));
     dashboardUrl.searchParams.set('auth', 'github_success');
     dashboardUrl.searchParams.set('account', githubLogin);
 
@@ -141,8 +205,7 @@ export async function GET(request: NextRequest) {
       path: '/',
       maxAge: 24 * 3600,
     });
-    // Clear OAuth state cookie
-    response.cookies.delete('github_oauth_state');
+    clearOAuthStateCookie(response);
 
     return response;
   } catch (err) {
