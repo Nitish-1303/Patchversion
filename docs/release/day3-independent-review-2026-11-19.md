@@ -1,41 +1,42 @@
-# Day 3 Independent Review — 2026-11-19
+# Day 3 Independent Review — 2026-11-19 (fresh re-acceptance)
 
 **Worktree:** `C:\Users\NITISH\Downloads\Patchversion-main-p0`  
-**Branch:** `agent/p0-product-completion` @ **`35e8174`**  
+**Branch:** `agent/p0-product-completion` @ **`20ef0dc`+** (F3 fix `35e8174`)  
 **PR:** https://github.com/Nitish-1303/Patchversion/pull/45  
-**CI:** run **`44431028314`** — **success** (typecheck, test, prove, prove-real, postgres-live-integration, **build**, readiness-audit)  
-**Prior Day-2 verdict:** NEEDS_REVISION  
-**Dirty tree:** `3c54282` preserved (not evaluated for merge)
 
 ## Verdict
 
 **PASS**
 
-## F1–F10 re-evaluation
+## Context corrections (founder)
 
-| ID | Criterion | Assessment | Status |
-|---|---|---|---|
-| F1 | Postgres `consumeOAuthState` fail-closed; durable cookie gates consume | Missing `oauth_states` → `false`; callback enforces consume when durable | **Met** |
-| F2 | Production demo login blocked | Requires `ALLOW_DEMO_GITHUB_LOGIN`, non-production, test-mode; else 503 | **Met** |
-| F3 | Migration tests use dynamic latest (`005`) | `loadMigrationFiles()` + last version; CI postgres-live green | **Met** |
-| F4 | Migration remap documented | Remap + plan consistent with five main-line SQL files | **Met** |
-| F5 | Lint pins project ESLint 9 | `node ./node_modules/eslint/bin/eslint.js`; CI lint green | **Met** |
-| F6 | Site production build on CI Ubuntu Node 24 | CI `build` job `npm run build` success @ `35e8174` | **Met** |
-| F7 | Live GitHub E2E skipped + documented | LIVE-* `test.skip`; NOT_CUSTOMER_READY until live | **Met** (gap) |
-| F8 | Windows hosted-db spawn fixed | `npm_execpath` / node entrypoints; 22 passed locally | **Met** |
-| F9 | `p0-integration-plan.md` matches HEAD | Day 2–3 status current | **Met** |
-| F10 | Webhook / billing / isolation preserved | `isQualifiedIsolationActive()` still hard `false` | **Met** |
+| Item | Treatment |
+|---|---|
+| CI job [135234109617](https://github.com/Nitish-1303/Patchversion/actions/runs/44426944354/job/135234109617) @ `438abef` | **Historical** postgres-live `Expected "002"` / `Received "005"` — fixed `35e8174`; see `ci-44426944354-postgres-live-pre-fix-2026-11-19.md` |
+| ESLint global 8 | **Closed** — project pin landed; **not** an active source-code blocker; no further ESLint config changes |
+| CI post-fix | `44431028314` @ `35e8174`, `44431727701` @ `20ef0dc` — all jobs success incl. postgres-live + Ubuntu Node 24 build |
 
-## Security regression check
+## F1–F10
 
-No security regression in Day-3 scope: OAuth fail-closed, demo login gated, isolation still fail-closed. OG/`fnOrEmpty` remediation is presentation/tooling only.
+| ID | Status |
+|---|---|
+| F1 OAuth consume fail-closed | **Met** |
+| F2 Demo login gated | **Met** |
+| F3 Dynamic migration latest | **Met** |
+| F4 Remap documented | **Met** |
+| F5 ESLint pin | **Met** (closed) |
+| F6 Site build CI Ubuntu Node 24 | **Met** (Windows Node 24 `fnOrEmpty` host residual) |
+| F7 Live GitHub E2E | **Met** (documented gap) |
+| F8 Windows hosted-db suites | **Met** (22 passed, not ignored) |
+| F9 Plan current | **Met** |
+| F10 Isolation / webhooks | **Met** |
 
-## Residual gaps (non-blocking for salvage acceptance)
+## Residuals (non-blocking)
 
-1. Windows Node 24 local `next build` still hits `fnOrEmpty` (CI Ubuntu Node 24 green).
-2. Live GitHub App E2E intentionally NOT TESTED.
-3. Customer readiness remains **NOT_CUSTOMER_READY**.
-4. Dirty tree `3c54282` preserved; remap required before any dirty-history DB merge.
+1. Windows Node 24 local `next build` → `fnOrEmpty` on `/api/billing/checkout` page-data (CI Ubuntu green).
+2. Live GitHub App E2E NOT TESTED.
+3. Customer readiness **NOT_CUSTOMER_READY**.
+4. Dirty tree `3c54282` preserved.
 
 ## Restrictions
 

@@ -49,9 +49,12 @@ export async function POST(req: Request) {
     }
 
     const stripeKey = process.env.STRIPE_SECRET_KEY;
-    const siteUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : 'https://trypatchbay.vercel.app';
+    // Prefer explicit app URL; otherwise derive from Vercel host; else product default.
+    const siteUrl =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      (process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : 'https://trypatchbay.vercel.app');
 
     // If Stripe is configured with live or test credentials
     if (stripeKey && stripeKey.startsWith('sk_')) {
