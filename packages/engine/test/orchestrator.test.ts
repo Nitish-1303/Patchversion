@@ -63,9 +63,39 @@ describe('WorkflowOrchestrator - Complete End-to-End Vertical Slice', () => {
       });
     });
 
+    const baseSha = 'base_checkout_sha_main_123';
+    const patchCommitSha = 'patch_sha_checkout_101';
+    const fixtureRepoPath = path.resolve(__dirname, '../../../fixtures/sample-repo');
+    const fixtureFiles = [
+      'src/createCharge.js',
+      'src/index.js',
+      'package.json',
+    ];
+    for (const rel of fixtureFiles) {
+      const abs = path.join(fixtureRepoPath, rel);
+      if (!fs.existsSync(abs)) continue;
+      const content = fs.readFileSync(abs, 'utf8');
+      mockTransport.get(`/repos/acme-payments/checkout-service/contents/${rel}`, async () => {
+        return new Response(
+          JSON.stringify({
+            content: Buffer.from(content, 'utf8').toString('base64'),
+            encoding: 'base64',
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      });
+    }
+
     mockTransport.get('/repos/acme-payments/checkout-service/commits/main', async () => {
       return new Response(
-        JSON.stringify({ sha: 'base_checkout_sha_main_123' }),
+        JSON.stringify({ sha: baseSha }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    });
+
+    mockTransport.get(`/repos/acme-payments/checkout-service/git/commits/${baseSha}`, async () => {
+      return new Response(
+        JSON.stringify({ sha: baseSha, tree: { sha: 'base_tree_checkout_456' } }),
         { status: 200, headers: { 'Content-Type': 'application/json' } },
       );
     });
@@ -77,13 +107,44 @@ describe('WorkflowOrchestrator - Complete End-to-End Vertical Slice', () => {
       );
     });
 
+    mockTransport.post('/repos/acme-payments/checkout-service/git/blobs', async () => {
+      return new Response(JSON.stringify({ sha: 'blob_sha_checkout_patched' }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+
+    mockTransport.post('/repos/acme-payments/checkout-service/git/trees', async () => {
+      return new Response(JSON.stringify({ sha: 'tree_sha_checkout_patched' }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+
+    mockTransport.post('/repos/acme-payments/checkout-service/git/commits', async () => {
+      return new Response(JSON.stringify({ sha: patchCommitSha }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+
+    mockTransport.patch(
+      '/repos/acme-payments/checkout-service/git/refs/heads/patchversion/mockpay-2.0.0',
+      async () => {
+        return new Response(
+          JSON.stringify({ ref: 'refs/heads/patchversion/mockpay-2.0.0', object: { sha: patchCommitSha } }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      },
+    );
+
     mockTransport.post('/repos/acme-payments/checkout-service/pulls', async () => {
       return new Response(
         JSON.stringify({
           number: 101,
           url: 'https://api.github.com/repos/acme-payments/checkout-service/pulls/101',
           html_url: 'https://github.com/acme-payments/checkout-service/pull/101',
-          head: { sha: 'patch_sha_checkout_101', ref: 'patchversion/mockpay-2.0.0' },
+          head: { sha: patchCommitSha, ref: 'patchversion/mockpay-2.0.0' },
           state: 'open',
         }),
         { status: 201, headers: { 'Content-Type': 'application/json' } },
@@ -101,7 +162,6 @@ describe('WorkflowOrchestrator - Complete End-to-End Vertical Slice', () => {
 
     const inst = db.saveInstallation(tenantId, 9999, 'acme-payments');
 
-    const fixtureRepoPath = path.resolve(__dirname, '../../../fixtures/sample-repo');
     const repo = db.saveRepository(tenantId, inst.id, {
       githubRepoId: 8888,
       fullName: 'acme-payments/checkout-service',

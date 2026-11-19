@@ -39,6 +39,18 @@ describe('P0 B14 — discoverSupportedMigrations from repo evidence only', () =>
     expect(changes.every((c) => c.packageName !== 'mockpay')).toBe(true);
     expect(changes.some((c) => c.packageName === 'axios')).toBe(true);
   });
+
+  test('preserves file:vendor offlineVersions from manifest evidence only', () => {
+    const changes = discoverSupportedMigrations([
+      { name: 'mockpay', version: 'file:vendor/mockpay-1.0.0' },
+    ]);
+    expect(changes).toHaveLength(1);
+    expect(changes[0].packageName).toBe('mockpay');
+    expect(changes[0].offlineVersions).toEqual({
+      '1.0.0': 'vendor/mockpay-1.0.0',
+      '2.0.0': 'vendor/mockpay-2.0.0',
+    });
+  });
 });
 
 describe('P0 B13 — applyUnifiedDiffToContents + commitPatchToBranch', () => {

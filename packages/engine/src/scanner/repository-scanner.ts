@@ -260,7 +260,11 @@ export class RepositoryScanner {
         : discoverSupportedMigrations(
             mapResult.dependencies.map((d) => ({
               name: d.name,
-              version: d.resolvedVersion || d.declaredVersion,
+              // Prefer file: declared specs so offline vendor proof paths stay attached.
+              version:
+                d.declaredVersion && d.declaredVersion.startsWith('file:')
+                  ? d.declaredVersion
+                  : d.resolvedVersion || d.declaredVersion,
             })),
           );
 
@@ -566,7 +570,11 @@ export class RepositoryScanner {
         : discoverSupportedMigrations(
             mapResult.dependencies.map((d) => ({
               name: d.name,
-              version: d.resolvedVersion || d.declaredVersion,
+              // Prefer file: declared specs so offline vendor proof paths stay attached.
+              version:
+                d.declaredVersion && d.declaredVersion.startsWith('file:')
+                  ? d.declaredVersion
+                  : d.resolvedVersion || d.declaredVersion,
             })),
           );
 
