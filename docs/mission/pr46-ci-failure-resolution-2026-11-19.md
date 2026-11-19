@@ -2,8 +2,10 @@
 
 **Branch:** `agent/p0-b13-b14-b8-completion`  
 **Base head before fix:** `9cb6621`  
+**Fix commit:** `272c5a2`  
 **Dirty tree:** `3c54282` preserved  
-**Failing runs:** `44441043594`, `44440459475`
+**Failing runs:** `44441043594`, `44440459475`  
+**PR:** https://github.com/Nitish-1303/Patchversion/pull/46
 
 ## Root causes
 
@@ -56,7 +58,13 @@ B13/B14/B8 focused suites remain green.
 
 ## Independent review
 
-_(filled by auditor)_
+| Field | Result |
+|---|---|
+| Auditor | `3803f1f2-bbd3-442b-b781-d716aa7430c3` |
+| Focused repro | engine 129 passed; site 28 passed; exit 0 |
+| B13 / B14 / B8 | PASS / PASS / PASS |
+| Mission verdict | **`PASS`** |
+| CUSTOMER_READY | **NO** |
 
 ## Remaining blockers (unchanged)
 
