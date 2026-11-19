@@ -13,7 +13,7 @@
 | F3 Live migration expects `002` | Fixed dynamic latest (`005`) in lifecycle + postgres-live tests; `oauth_states` in CANONICAL_TABLES |
 | F4 Migration remap | Documented in `migration-remap-main-vs-dirty-2026-11-19.md` |
 | F5 ESLint global 8 | Lint script pins `node ./node_modules/eslint/bin/eslint.js` — Windows `npm run lint` exit 0 |
-| F6 Next `fnOrEmpty` | OG image moved to `public/og-image.png` + metadata; **WSL Node 22 `next build` exit 0**; Windows Node 24 still fails during page-data (host-specific); CI Ubuntu Node 24 is the acceptance gate |
+| F6 Next `fnOrEmpty` | OG → `public/og-image.png`; WSL Node 22 build exit 0; **CI Ubuntu Node 24 `build` success** (run `44431028314`); Windows Node 24 local still host-only fail |
 | F7 Live GitHub | Still NOT TESTED without credentials |
 | F8 Windows hosted-db suites | Fixed spawn to node entrypoints / npm_execpath; **both suites PASS** (22 passed) |
 | F9 Stale plan | Updated `p0-integration-plan.md` |
@@ -30,7 +30,12 @@
 | `npm run test -w @patchversion/site` | 0 | **129 passed** |
 | WSL Node 22 `npm run build -w @patchversion/site` | 0 | full production build |
 | Windows Node 24 `npm run build -w @patchversion/site` | 1 | `fnOrEmpty` during page-data (remaining host issue) |
+| CI run `44431028314` @ `35e8174` | 0 | typecheck, test, prove, prove-real, postgres-live-integration, **build**, readiness-audit — all success |
 | Production migrations | not run | |
+
+## Independent review
+
+**PASS** — `docs/release/day3-independent-review-2026-11-19.md`
 
 ## Restrictions honored
 

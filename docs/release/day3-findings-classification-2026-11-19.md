@@ -17,4 +17,4 @@
 | F9 | Stale `p0-integration-plan.md` companion-blocked note | **Low** | `docs/engineering/p0-integration-plan.md` | Docs lag | Update status to ported | Doc confusion | Read plan | Plan matches HEAD |
 | F10 | Webhook/Stripe/PayPal/isolation positives | n/a OK | various | — | Preserve | — | security suites | continue PASS |
 
-**Do not reinterpret:** overall Day-2 verdict remains **NEEDS_REVISION** until F3–F6 evidence updates and a fresh independent review returns PASS (or remaining items explicitly BLOCKED as env-only with CI green).
+**Day-3 close-out:** F1–F10 remediated or documented; CI `44431028314` green including Ubuntu Node 24 build. Fresh independent review: **PASS** (`day3-independent-review-2026-11-19.md`). Customer readiness remains **NOT_CUSTOMER_READY**.
