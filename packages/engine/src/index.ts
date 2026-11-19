@@ -188,6 +188,7 @@ export {
 export {
   MigrationRuleRegistry,
   defaultMigrationRegistry,
+  discoverSupportedMigrations,
   LodashMethodRenameRule,
   MockpayPaymentMethodRule,
   type IMigrationRule,
@@ -195,3 +196,14 @@ export {
   type MigrationResult,
   type MigrationContext,
 } from './migration';
+export {
+  applyUnifiedDiffToContents,
+  listPathsInUnifiedDiff,
+} from './github/patch-commit';
+export {
+  assertMonthlyPrQuotaAvailable,
+  monthlyPrQuotaForPlan,
+  startOfUtcMonth,
+  QuotaExceededError,
+  MONTHLY_PR_QUOTA_BY_PLAN,
+} from './billing/quota';

@@ -42,6 +42,11 @@ import {
   type IExecutionProvider,
 } from '../sandbox/execution-provider';
 import { isIndependentlyQualifiedIsolation } from '../sandbox/provider-adapter';
+import {
+  assertMonthlyPrQuotaAvailable,
+  QuotaExceededError,
+  startOfUtcMonth,
+} from '../billing/quota';
 
 export interface IRunner {
   proveLoop(repoPath: string, change: ChangeRecord, impact: ImpactAnalysis, fixDiff: string): Promise<ProveResult>;
@@ -123,23 +128,23 @@ export class WorkflowOrchestrator {
       repoPath = resolvePermittedFixturePath(findRepoRoot(), repo.localPath);
     }
 
-    const changesToConsider = knownChanges ?? this.getKnownChangesForRepo();
+    // Omit knownChanges unless explicitly provided — scanner discovers from repo deps + registry.
+    // Never inject hardcoded mockpay/lodash fixtures into production customer scans.
+    const scanOptionsBase = {
+      ...(knownChanges && knownChanges.length > 0 ? { knownChanges } : {}),
+      repositoryFullName: repo.fullName,
+      branch: repo.defaultBranch || 'main',
+    };
     let scanResult: RepositoryScanResult;
 
     if (repoPath) {
-      scanResult = await this.scanner.scanLocalRepository(tenantId, repo.id, repoPath, {
-        knownChanges: changesToConsider,
-        repositoryFullName: repo.fullName,
-        branch: repo.defaultBranch || 'main',
-      });
+      scanResult = await this.scanner.scanLocalRepository(tenantId, repo.id, repoPath, scanOptionsBase);
     } else if (isDemoFixture) {
       // In serverless environments where local fixture files are omitted from the bundle,
       // scan the bundled deterministic demo file provider with zero network dependency.
       const fileProvider = createBundledDemoFileProvider();
       scanResult = await this.scanner.scanRemoteRepository(tenantId, repo.id, fileProvider, {
-        knownChanges: changesToConsider,
-        repositoryFullName: repo.fullName,
-        branch: repo.defaultBranch || 'main',
+        ...scanOptionsBase,
         commitSha: 'demo-head-c69375d',
       });
     } else {
@@ -200,11 +205,7 @@ export class WorkflowOrchestrator {
           );
         },
       };
-      scanResult = await this.scanner.scanRemoteRepository(tenantId, repo.id, fileProvider, {
-        knownChanges: changesToConsider,
-        repositoryFullName: repo.fullName,
-        branch: repo.defaultBranch || 'main',
-      });
+      scanResult = await this.scanner.scanRemoteRepository(tenantId, repo.id, fileProvider, scanOptionsBase);
     }
 
     // Persist findings to database
@@ -467,6 +468,24 @@ export class WorkflowOrchestrator {
       return existingPr;
     }
 
+    if (!patch.diffContent || !patch.diffContent.trim()) {
+      throw new Error('Cannot deliver pull request: patch diff is empty');
+    }
+
+    // B8: enforce monthly PR quota before accepting delivery work
+    const tenant = await this.db.getTenant(tenantId);
+    if (!tenant) throw new Error(`Tenant ${tenantId} not found`);
+    const usedThisMonth =
+      typeof this.db.getMonthlyPullRequestCount === 'function'
+        ? await this.db.getMonthlyPullRequestCount(tenantId, startOfUtcMonth())
+        : 0;
+    try {
+      assertMonthlyPrQuotaAvailable({ plan: tenant.plan, usedThisMonth });
+    } catch (err) {
+      if (err instanceof QuotaExceededError) throw err;
+      throw err;
+    }
+
     const claimed = await this.db.claimDelivery(tenantId, patchId, this.workerId);
     if (!claimed) {
       const racePr = await this.db.getPullRequestByFinding(tenantId, patch.findingId);
@@ -477,6 +496,13 @@ export class WorkflowOrchestrator {
     let success = false;
 
     try {
+      // Re-check quota inside the claim window to reduce concurrent oversubscribe races.
+      const usedAfterClaim =
+        typeof this.db.getMonthlyPullRequestCount === 'function'
+          ? await this.db.getMonthlyPullRequestCount(tenantId, startOfUtcMonth())
+          : usedThisMonth;
+      assertMonthlyPrQuotaAvailable({ plan: tenant.plan, usedThisMonth: usedAfterClaim });
+
       const finding = await this.db.getFinding(tenantId, patch.findingId);
       if (!finding) throw new Error(`Finding ${patch.findingId} not found`);
 
@@ -534,11 +560,34 @@ export class WorkflowOrchestrator {
         if (existingGitHubPr.state === 'closed') {
           existingGitHubPr.deliveryBlockedReason = 'Closed on GitHub';
         }
+        // Existing PR must already contain a distinct patch commit (not just base).
+        const baseSha = await this.github.getBranchHeadSha(repo.owner, repo.name, baseBranch, token);
+        if (!existingGitHubPr.commitSha || existingGitHubPr.commitSha === baseSha) {
+          throw new Error(
+            'Existing draft PR head matches base revision and does not contain a migration patch commit',
+          );
+        }
         createdPr = existingGitHubPr;
       } else {
-        // Create branch from HEAD
+        // Create branch from HEAD, commit the actual patch, then open draft PR.
         const baseSha = await this.github.getBranchHeadSha(repo.owner, repo.name, baseBranch, token);
         await this.github.createBranch(repo.owner, repo.name, branchName, baseSha, token);
+
+        const committed = await this.github.commitPatchToBranch({
+          owner: repo.owner,
+          repo: repo.name,
+          branch: branchName,
+          baseSha,
+          unifiedDiff: patch.diffContent,
+          message: preparedPr.title,
+          token,
+        });
+        if (!committed.commitSha || committed.commitSha === baseSha) {
+          throw new Error('Patch commit did not advance the branch head beyond the base revision');
+        }
+        if (!committed.files.length) {
+          throw new Error('Patch commit produced no changed files');
+        }
 
         // Create real GitHub Pull Request (handles 422 internally if PR already exists)
         createdPr = await this.github.createPullRequest(
@@ -550,6 +599,11 @@ export class WorkflowOrchestrator {
           baseBranch,
           token,
         );
+
+        if (createdPr.commitSha !== committed.commitSha) {
+          // Prefer the verified patch commit SHA we just created.
+          createdPr = { ...createdPr, commitSha: committed.commitSha };
+        }
       }
 
       // Save persistent Pull Request record idempotently without duplicate approval consumption
@@ -616,80 +670,4 @@ export class WorkflowOrchestrator {
     }
   }
 
-  private getKnownChangesForRepo(dependencies?: Record<string, string>): ChangeRecord[] {
-    const changes: ChangeRecord[] = [];
-    if (!dependencies || dependencies['mockpay']) {
-      const changePath = path.resolve(findRepoRoot(), 'fixtures/breaking-change/change-record.json');
-      if (fs.existsSync(changePath)) {
-        try {
-          changes.push(JSON.parse(fs.readFileSync(changePath, 'utf8')));
-        } catch {
-          changes.push(this.getDefaultMockpayChange());
-        }
-      } else {
-        changes.push(this.getDefaultMockpayChange());
-      }
-    }
-    if (!dependencies || dependencies['lodash']) {
-      const changePath = path.resolve(findRepoRoot(), 'fixtures/real-migration/lodash-change-record.json');
-      if (fs.existsSync(changePath)) {
-        try {
-          changes.push(JSON.parse(fs.readFileSync(changePath, 'utf8')));
-        } catch {
-          changes.push(this.getDefaultLodashChange());
-        }
-      } else {
-        changes.push(this.getDefaultLodashChange());
-      }
-    }
-    return changes;
-  }
-
-  private getDefaultMockpayChange(): ChangeRecord {
-    return {
-      id: 'npm-mockpay-2.0.0-fixture',
-      packageName: 'mockpay',
-      ecosystem: 'npm',
-      fromVersion: '1.0.0',
-      toVersion: '2.0.0',
-      detectedAt: '2026-10-23T00:00:00.000Z',
-      source: 'registry',
-      sourceUrl: 'https://www.npmjs.com/package/mockpay/v/2.0.0',
-      rawNotes:
-        "BREAKING CHANGE: The 'source' parameter in charges.create has been renamed to 'payment_method'. Update your integration to use the new parameter name. The old parameter will be ignored.",
-      classification: {
-        isBreaking: true,
-        confidence: 0.95,
-        affectedExports: ['charges.create', 'source'],
-        reason: 'major version bump 1.0.0 -> 2.0.0; 1 breaking-change indicator(s) in release notes',
-      },
-      severity: 'breaking',
-      offlineVersions: {
-        '1.0.0': 'vendor/mockpay-1.0.0',
-        '2.0.0': 'vendor/mockpay-2.0.0',
-      },
-    };
-  }
-
-  private getDefaultLodashChange(): ChangeRecord {
-    return {
-      id: 'npm-lodash-3.10.1-4.17.21',
-      packageName: 'lodash',
-      ecosystem: 'npm',
-      fromVersion: '3.10.1',
-      toVersion: '4.17.21',
-      detectedAt: '2026-10-24T00:00:00.000Z',
-      source: 'changelog',
-      sourceUrl: 'https://github.com/lodash/lodash/releases/tag/4.0.0',
-      rawNotes:
-        'BREAKING CHANGE: Renamed `_.contains` to `_.includes`. (lodash v4.0.0 changelog; the rename and removal are also verified by executing both real package versions.)',
-      classification: {
-        isBreaking: true,
-        confidence: 0.9,
-        affectedExports: ['contains'],
-        reason: 'major version bump 3.10.1 -> 4.17.21; documented rename in the v4.0.0 changelog',
-      },
-      severity: 'breaking',
-    };
-  }
 }

@@ -47,9 +47,14 @@ export async function POST(request: NextRequest) {
       pullRequest: prRecord,
     });
   } catch (err) {
+    const code = (err as { code?: string }).code;
+    const statusCode = (err as { statusCode?: number }).statusCode;
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : String(err) },
-      { status: 400 },
+      {
+        error: err instanceof Error ? err.message : String(err),
+        ...(code ? { code } : {}),
+      },
+      { status: statusCode && Number.isInteger(statusCode) ? statusCode : 400 },
     );
   }
 }

@@ -1,6 +1,11 @@
 import crypto from 'crypto';
 import { verifyGitHubWebhookSignature } from './webhook-verifier';
 import {
+  applyUnifiedDiffToContents,
+  listPathsInUnifiedDiff,
+  type PatchedFileContent,
+} from './patch-commit';
+import {
   GitHubTransport,
   NetworkGitHubTransport,
   OfflineMockTransport,
@@ -497,6 +502,121 @@ export class GitHubClient {
         throw new Error(`Failed to create branch ${branch}: ${response.status} ${err}`);
       }
     }
+  }
+
+  /**
+   * Apply a unified diff onto baseSha and create a commit on the given branch.
+   * Returns the new commit SHA. Refuses empty/no-op patches.
+   */
+  async commitPatchToBranch(options: {
+    owner: string;
+    repo: string;
+    branch: string;
+    baseSha: string;
+    unifiedDiff: string;
+    message: string;
+    token: string;
+  }): Promise<{ commitSha: string; files: PatchedFileContent[] }> {
+    const { owner, repo, branch, baseSha, unifiedDiff, message, token } = options;
+    const paths = listPathsInUnifiedDiff(unifiedDiff);
+    if (paths.length === 0) {
+      throw new Error('Cannot commit patch: unified diff contains no file paths');
+    }
+
+    const baseFiles: Record<string, string> = {};
+    for (const filePath of paths) {
+      const content = await this.getRepositoryFileContent(owner, repo, filePath, token, baseSha);
+      if (content === null) {
+        throw new Error(`Cannot commit patch: base file missing at ${baseSha}: ${filePath}`);
+      }
+      baseFiles[filePath] = content;
+    }
+
+    const applied = applyUnifiedDiffToContents(baseFiles, unifiedDiff);
+    if (!applied.success) {
+      throw new Error(`Cannot commit patch: ${applied.error}`);
+    }
+
+    const headers = {
+      Authorization: `token ${token}`,
+      Accept: 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json',
+      'User-Agent': 'TryPatchBay-Engine',
+    };
+
+    const baseCommitRes = await this.transport.fetch(
+      `https://api.github.com/repos/${owner}/${repo}/git/commits/${baseSha}`,
+      { headers },
+    );
+    if (!baseCommitRes.ok) {
+      throw new Error(`Failed to load base commit ${baseSha}: ${baseCommitRes.status}`);
+    }
+    const baseCommit = (await baseCommitRes.json()) as { tree: { sha: string }; sha: string };
+    if (baseCommit.sha && baseCommit.sha !== baseSha) {
+      // Accept abbreviated SHAs from GitHub when full SHA is returned.
+    }
+
+    const treeInputs: Array<{ path: string; mode: string; type: string; sha: string }> = [];
+    for (const file of applied.files) {
+      const blobRes = await this.transport.fetch(
+        `https://api.github.com/repos/${owner}/${repo}/git/blobs`,
+        {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ content: file.content, encoding: 'utf-8' }),
+        },
+      );
+      if (!blobRes.ok) {
+        throw new Error(`Failed to create blob for ${file.path}: ${blobRes.status} ${await blobRes.text()}`);
+      }
+      const blob = (await blobRes.json()) as { sha: string };
+      treeInputs.push({ path: file.path, mode: '100644', type: 'blob', sha: blob.sha });
+    }
+
+    const treeRes = await this.transport.fetch(
+      `https://api.github.com/repos/${owner}/${repo}/git/trees`,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ base_tree: baseCommit.tree.sha, tree: treeInputs }),
+      },
+    );
+    if (!treeRes.ok) {
+      throw new Error(`Failed to create git tree: ${treeRes.status} ${await treeRes.text()}`);
+    }
+    const tree = (await treeRes.json()) as { sha: string };
+
+    const commitRes = await this.transport.fetch(
+      `https://api.github.com/repos/${owner}/${repo}/git/commits`,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          message,
+          tree: tree.sha,
+          parents: [baseSha],
+        }),
+      },
+    );
+    if (!commitRes.ok) {
+      throw new Error(`Failed to create git commit: ${commitRes.status} ${await commitRes.text()}`);
+    }
+    const commit = (await commitRes.json()) as { sha: string };
+
+    // GitHub ref paths keep `/` separators unencoded (e.g. heads/patchversion/pkg-1.0.0).
+    const refRes = await this.transport.fetch(
+      `https://api.github.com/repos/${owner}/${repo}/git/refs/heads/${branch}`,
+      {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ sha: commit.sha, force: false }),
+      },
+    );
+    if (!refRes.ok) {
+      throw new Error(`Failed to update branch ${branch} to patch commit: ${refRes.status} ${await refRes.text()}`);
+    }
+
+    return { commitSha: commit.sha, files: applied.files };
   }
 
   /**

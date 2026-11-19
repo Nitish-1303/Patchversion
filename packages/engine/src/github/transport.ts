@@ -104,6 +104,10 @@ export class OfflineMockTransport implements GitHubTransport {
     return this.register('PUT', pathname, handler);
   }
 
+  patch(pathname: string, handler: MockHandler): this {
+    return this.register('PATCH', pathname, handler);
+  }
+
   delete(pathname: string, handler: MockHandler): this {
     return this.register('DELETE', pathname, handler);
   }

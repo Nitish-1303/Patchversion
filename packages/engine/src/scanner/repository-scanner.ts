@@ -18,6 +18,7 @@ import { detectFrameworks } from './framework-detector';
 import { buildDependencyMap, RawManifestPackage } from './dependency-mapper';
 import { UsageMapper } from '../usage-map/mapper';
 import { analyzeImpact } from '../break-detector/impact-analyzer';
+import { discoverSupportedMigrations } from '../migration/discover';
 
 export interface IRepositoryFileProvider {
   getFileContent(filePath: string): Promise<string | null>;
@@ -250,8 +251,18 @@ export class RepositoryScanner {
     const detectedFrameworks = detectFrameworks(depMapForFrameworks);
 
     // 6. Generate Findings against Known Changes & Monitored Targets
+    // When callers omit knownChanges, discover only from deps actually present + supported rules.
+    // Never inject fixture packages that are absent from the repository evidence.
     const findings: FindingRecord[] = [];
-    const knownChanges = options?.knownChanges ?? [];
+    const knownChanges =
+      options?.knownChanges && options.knownChanges.length > 0
+        ? options.knownChanges
+        : discoverSupportedMigrations(
+            mapResult.dependencies.map((d) => ({
+              name: d.name,
+              version: d.resolvedVersion || d.declaredVersion,
+            })),
+          );
 
     for (const change of knownChanges) {
       const matchedDep = mapResult.dependencies.find((d) => d.name === change.packageName);
@@ -547,9 +558,17 @@ export class RepositoryScanner {
     }
     const detectedFrameworks = detectFrameworks(depMapForFrameworks);
 
-    // 5. Generate Findings
+    // 5. Generate Findings from provided knownChanges or repo-evidence discovery only
     const findings: FindingRecord[] = [];
-    const knownChanges = options?.knownChanges ?? [];
+    const knownChanges =
+      options?.knownChanges && options.knownChanges.length > 0
+        ? options.knownChanges
+        : discoverSupportedMigrations(
+            mapResult.dependencies.map((d) => ({
+              name: d.name,
+              version: d.resolvedVersion || d.declaredVersion,
+            })),
+          );
 
     for (const change of knownChanges) {
       const matchedDep = mapResult.dependencies.find((d) => d.name === change.packageName);
