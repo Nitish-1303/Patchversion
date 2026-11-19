@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
 
     let user = await db.getUserByEmail(email);
     if (!user) {
-      // Explicit non-production demo only — never auto-create users in production.
+      // Explicit non-production demo only - never auto-create users in production.
       if (allowDemoAuth && email === 'developer@trypatchbay.dev') {
         const demo = await ensureDemoTenantAndUser();
         user = demo.user;
@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
     return response;
   }
 
-  // 3. Demo / Development Fallback Flow — explicit gate only (never production).
+  // 3. Demo / Development Fallback Flow - explicit gate only (never production).
   if (!allowDemoAuth) {
     return NextResponse.json(
       {

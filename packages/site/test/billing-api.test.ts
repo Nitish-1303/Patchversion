@@ -36,43 +36,53 @@ describe('Stripe Billing API & Checkout Endpoints', () => {
   });
 
   test('POST /api/billing/checkout refuses silent demo success when processors are unconfigured', async () => {
-    process.env.NODE_ENV = 'production';
+    const prevNodeEnv = process.env.NODE_ENV;
+    Object.defineProperty(process.env, 'NODE_ENV', { value: 'production', configurable: true });
     delete process.env.ALLOW_DEMO_BILLING;
 
-    const req = new Request('https://trypatchbay.vercel.app/api/billing/checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plan: 'repository', tenantId: 'tenant-test-123' }),
-    });
+    try {
+      const req = new Request('https://trypatchbay.vercel.app/api/billing/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: 'repository', tenantId: 'tenant-test-123' }),
+      });
 
-    const res = await postCheckout(req);
-    expect(res.status).toBe(503);
+      const res = await postCheckout(req);
+      expect(res.status).toBe(503);
 
-    const body = await res.json();
-    expect(body.ok).toBe(false);
-    expect(body.code).toBe('BILLING_PROCESSOR_NOT_CONFIGURED');
-    expect(body.demo).toBeUndefined();
+      const body = await res.json();
+      expect(body.ok).toBe(false);
+      expect(body.code).toBe('BILLING_PROCESSOR_NOT_CONFIGURED');
+      expect(body.demo).toBeUndefined();
+    } finally {
+      Object.defineProperty(process.env, 'NODE_ENV', { value: prevNodeEnv, configurable: true });
+    }
   });
 
   test('POST /api/billing/checkout allows explicit non-production demo billing fallback', async () => {
-    process.env.NODE_ENV = 'test';
+    const prevNodeEnv = process.env.NODE_ENV;
+    Object.defineProperty(process.env, 'NODE_ENV', { value: 'test', configurable: true });
     process.env.ALLOW_DEMO_BILLING = 'true';
 
-    const req = new Request('https://trypatchbay.vercel.app/api/billing/checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plan: 'repository', tenantId: 'tenant-test-123' }),
-    });
+    try {
+      const req = new Request('https://trypatchbay.vercel.app/api/billing/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: 'repository', tenantId: 'tenant-test-123' }),
+      });
 
-    const res = await postCheckout(req);
-    expect(res.status).toBe(200);
+      const res = await postCheckout(req);
+      expect(res.status).toBe(200);
 
-    const body = await res.json();
-    expect(body.ok).toBe(true);
-    expect(body.demo).toBe(true);
-    expect(body.plan).toBe('repository');
-    expect(body.amountCents).toBe(4900);
-    expect(body.redirectUrl).toContain('/signup?plan=repository');
+      const body = await res.json();
+      expect(body.ok).toBe(true);
+      expect(body.demo).toBe(true);
+      expect(body.plan).toBe('repository');
+      expect(body.amountCents).toBe(4900);
+      expect(body.redirectUrl).toContain('/signup?plan=repository');
+    } finally {
+      Object.defineProperty(process.env, 'NODE_ENV', { value: prevNodeEnv, configurable: true });
+    }
   });
 
   test('POST /api/billing/checkout initiates Stripe session when STRIPE_SECRET_KEY is present', async () => {
