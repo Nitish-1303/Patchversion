@@ -12,6 +12,7 @@ export class LodashMethodRenameRule implements IMigrationRule {
   readonly fromVersionRange = '>=3.0.0 <4.0.0';
   readonly toVersionRange = '>=4.0.0';
   readonly description = 'Migrates lodash v3 methods to v4: _.contains() -> _.includes(), _.pluck() -> _.map()';
+  readonly affectedExports = ['contains', 'pluck', 'includes'];
 
   readonly preconditions: MigrationPrecondition[] = [
     {

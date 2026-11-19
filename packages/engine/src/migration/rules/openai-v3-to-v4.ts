@@ -12,6 +12,7 @@ export class OpenAIV3ToV4Rule implements IMigrationRule {
   readonly fromVersionRange = '>=3.0.0 <4.0.0';
   readonly toVersionRange = '>=4.0.0';
   readonly description = 'Migrates openai v3 (Configuration, OpenAIApi, createChatCompletion) to v4 (new OpenAI(), chat.completions.create)';
+  readonly affectedExports = ['Configuration', 'OpenAIApi', 'createChatCompletion'];
 
   readonly preconditions: MigrationPrecondition[] = [
     {

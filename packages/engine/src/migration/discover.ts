@@ -57,7 +57,7 @@ export function discoverSupportedMigrations(
         classification: {
           isBreaking: true,
           confidence: 0.85,
-          affectedExports: [],
+          affectedExports: rule.affectedExports ? [...rule.affectedExports] : [],
           reason: `Supported migration rule ${rule.id}: ${rule.description}`,
         },
         severity: 'breaking',

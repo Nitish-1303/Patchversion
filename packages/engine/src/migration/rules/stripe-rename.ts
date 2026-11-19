@@ -12,6 +12,7 @@ export class StripePaymentIntentsRule implements IMigrationRule {
   readonly fromVersionRange = '>=8.0.0 <12.0.0';
   readonly toVersionRange = '>=12.0.0';
   readonly description = 'Migrates deprecated stripe.charges.create({ source }) to stripe.paymentIntents.create({ payment_method })';
+  readonly affectedExports = ['source', 'charges.create', 'paymentIntents.create'];
 
   readonly preconditions: MigrationPrecondition[] = [
     {

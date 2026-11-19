@@ -32,6 +32,8 @@ export interface IMigrationRule {
   readonly toVersionRange: string;
   readonly description: string;
   readonly preconditions: MigrationPrecondition[];
+  /** Symbols/identifiers used to intersect repo call sites for actionable impact. */
+  readonly affectedExports?: string[];
 
   appliesTo(packageName: string, fromVersion: string, toVersion: string): boolean;
   execute(context: MigrationContext): Promise<MigrationResult>;
