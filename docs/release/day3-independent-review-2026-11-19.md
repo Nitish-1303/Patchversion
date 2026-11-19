@@ -1,45 +1,59 @@
-# Day 3 Independent Review — 2026-11-19 (fresh re-acceptance)
+# Day 3 Independent Review — 2026-11-19
 
 **Worktree:** `C:\Users\NITISH\Downloads\Patchversion-main-p0`  
-**Branch:** `agent/p0-product-completion` @ **`20ef0dc`+** (F3 fix `35e8174`)  
+**Branch:** `agent/p0-product-completion` @ **`01d61ad`**  
 **PR:** https://github.com/Nitish-1303/Patchversion/pull/45  
+**Evidence ledger:** `docs/release/day3-build-release-gate-evidence-2026-11-19.md`  
+**Dirty tree:** `3c54282` preserved  
+
+## Founder release-gate rule
+
+Overall verdict remained **NEEDS_REVISION** until:
+
+1. Day-2 findings closed with tests / reproducible evidence, **and**
+2. CI Ubuntu Node 24 acceptance gate passed.
+
+WSL Node 22 does **not** independently authorize merge/deploy.
 
 ## Verdict
 
-**PASS**
+**PASS** (salvage release-gate acceptance only)
 
-## Context corrections (founder)
+**Customer readiness:** **NOT_CUSTOMER_READY** (F7 live GitHub intentionally NOT TESTED)
 
-| Item | Treatment |
+**Not authorized:** merge PR #45, deploy, production migrations, production secrets
+
+## CI Ubuntu Node 24 gate
+
+| Field | Value |
 |---|---|
-| CI job [135234109617](https://github.com/Nitish-1303/Patchversion/actions/runs/44426944354/job/135234109617) @ `438abef` | **Historical** postgres-live `Expected "002"` / `Received "005"` — fixed `35e8174`; see `ci-44426944354-postgres-live-pre-fix-2026-11-19.md` |
-| ESLint global 8 | **Closed** — project pin landed; **not** an active source-code blocker; no further ESLint config changes |
-| CI post-fix | `44431028314` @ `35e8174`, `44431727701` @ `20ef0dc` — all jobs success incl. postgres-live + Ubuntu Node 24 build |
+| Run | [44433229669](https://github.com/Nitish-1303/Patchversion/actions/runs/44433229669) |
+| Job | `build` [135256028601](https://github.com/Nitish-1303/Patchversion/actions/runs/44433229669/job/135256028601) |
+| SHA | `01d61adc6ed23c04b1dadca6a932daf115d5b9d4` |
+| Node | **v24.22.2** |
+| Command | `npm run build` |
+| Conclusion | **success** (exit 0) |
+| Site | 41/41 routes; `ƒ /api/billing/checkout` |
 
 ## F1–F10
 
 | ID | Status |
 |---|---|
-| F1 OAuth consume fail-closed | **Met** |
-| F2 Demo login gated | **Met** |
-| F3 Dynamic migration latest | **Met** |
-| F4 Remap documented | **Met** |
-| F5 ESLint pin | **Met** (closed) |
-| F6 Site build CI Ubuntu Node 24 | **Met** (Windows Node 24 `fnOrEmpty` host residual) |
-| F7 Live GitHub E2E | **Met** (documented gap) |
-| F8 Windows hosted-db suites | **Met** (22 passed, not ignored) |
-| F9 Plan current | **Met** |
-| F10 Isolation / webhooks | **Met** |
+| F1 OAuth consume fail-closed | **Closed** (source + callback durable gate) |
+| F2 Demo login gated | **Closed** (code + site test) |
+| F3 Dynamic migration latest | **Closed** (code + CI postgres-live 21 passed) |
+| F4 Migration remap | **Closed** (process docs) |
+| F5 ESLint pin | **Closed** (not reopened) |
+| F6 Next build gate | **Closed** (CI Ubuntu Node 24); Windows Node 24 `fnOrEmpty` = env residual |
+| F7 Live GitHub E2E | **Documented-gap** |
+| F8 Windows hosted-DB suites | **Closed** — **actually executed** 22 passed, exit 0 |
+| F9 Plan current | **Closed** |
+| F10 Webhooks / isolation | **Closed** (preserve) |
 
-## Residuals (non-blocking)
+## Residuals (non-blocking for salvage PASS)
 
-1. Windows Node 24 local `next build` → `fnOrEmpty` on `/api/billing/checkout` page-data (CI Ubuntu green).
-2. Live GitHub App E2E NOT TESTED.
-3. Customer readiness **NOT_CUSTOMER_READY**.
-4. Dirty tree `3c54282` preserved.
-
-## Restrictions
-
-No merge, deploy, production migrations, or secret changes.
+1. Windows Node 24 local `fnOrEmpty`
+2. F7 live GitHub → keeps NOT_CUSTOMER_READY
+3. Contaminated earlier WSL build excluded from evidence
 
 **PASS**

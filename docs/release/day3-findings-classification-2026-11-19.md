@@ -17,4 +17,4 @@
 | F9 | Stale `p0-integration-plan.md` companion-blocked note | **Low** | `docs/engineering/p0-integration-plan.md` | Docs lag | Update status to ported | Doc confusion | Read plan | Plan matches HEAD |
 | F10 | Webhook/Stripe/PayPal/isolation positives | n/a OK | various | — | Preserve | — | security suites | continue PASS |
 
-**Day-3 close-out:** F1–F10 remediated or documented; CI `44431028314` green including Ubuntu Node 24 build. Fresh independent review: **PASS** (`day3-independent-review-2026-11-19.md`). Customer readiness remains **NOT_CUSTOMER_READY**.
+**Release-gate close-out:** Founder rule required **NEEDS_REVISION** until F1–F10 evidence + CI Ubuntu Node 24. Fresh auditor: **PASS** (`day3-independent-review-2026-11-19.md`) after ledger `day3-build-release-gate-evidence-2026-11-19.md` (CI `44433229669` @ `01d61ad`, Node v24.22.2). WSL Node 22 corroborating only. Windows hosted-DB suites **executed** (22 passed). Customer readiness remains **NOT_CUSTOMER_READY**.
