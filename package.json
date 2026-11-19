@@ -13,7 +13,7 @@
     "test": "node scripts/hosted-db-guard.js strip -- sh -c 'npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run test --workspaces'",
     "test:postgres": "node scripts/hosted-db-guard.js local-test -- npm run test:postgres -w @patchversion/engine",
     "typecheck": "node scripts/hosted-db-guard.js strip -- sh -c 'npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run typecheck --workspaces'",
-    "lint": "node scripts/hosted-db-guard.js strip -- eslint .",
+    "lint": "node scripts/hosted-db-guard.js strip -- node ./node_modules/eslint/bin/eslint.js .",
     "prove": "node scripts/hosted-db-guard.js strip -- sh -c 'npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run prove -w @patchversion/engine'",
     "prove:real": "node scripts/hosted-db-guard.js strip -- sh -c 'npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run prove:real -w @patchversion/engine'",
     "readiness": "node scripts/hosted-db-guard.js strip -- sh -c 'npm run build -w @patchversion/shared && npm run build -w @patchversion/engine && npm run readiness -w @patchversion/engine'",

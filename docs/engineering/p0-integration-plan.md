@@ -1,10 +1,10 @@
 # P0 Integration Plan — Dirty WIP → `agent/p0-product-completion`
 
-**Source tree:** `C:\Users\NITISH\Downloads\Patchversion` (dirty `fix/p0-…`)  
-**Target:** this worktree @ `3668ba3`  
+**Source tree:** `C:\Users\NITISH\Downloads\Patchversion` (dirty `fix/p0-…` @ `3c54282`)  
+**Target:** `Patchversion-main-p0` / `agent/p0-product-completion`  
 **Do not** force-push or discard source WIP.
 
-## Migration renumber map
+## Migration renumber map (canonical)
 
 | Source (dirty/P0) | Target on main lineage |
 |---|---|
@@ -14,33 +14,22 @@
 | `003_restricted_roles_and_rls.sql` | **`004_restricted_roles_and_rls.sql`** |
 | `004_github_hardening.sql` | **`005_github_hardening.sql`** |
 
-## Commits to replay (content)
+**Never** apply dirty-numbered migrations onto a DB that already tracked main `002_lifecycle`, and never copy dirty `schema_migrations` rows into a main-lineage database without an explicit remap plan.
 
-- `e94b775` Plan & Features tab  
-- `f1f6c1f` P0 billing/RLS/pricing honesty  
-- `e8491ae` PR quota + live RLS role tests  
-- Uncommitted: GitHub oauth/webhook/repo-auth modules + Stripe webhook security + site route wiring + P0-1 isolation (already on main)
+## Day 2–3 status (2026-11-19)
+
+Ported onto main lineage (committed on `agent/p0-product-completion`):
+
+- GitHub modules: oauth-security, repository-authorization, webhook-security, webhook-processor
+- Companion APIs: `getAppInstallation`, `getInstallationAccess`, `revokeRepository*`, OAuth state, billing tenant plan, GitHub user link helpers
+- Site routes: webhook, OAuth, scan authz, billing Stripe/PayPal verification
+- Migrations renumbered to `003`/`004`/`005`
+- Fail-closed OAuth consume + demo-login gating
+
+PR: https://github.com/Nitish-1303/Patchversion/pull/45 — **founder merges**; no agent deploy.
 
 ## Acceptance
 
-- CI green on branch  
-- Fail-closed `isQualifiedIsolationActive()` unchanged  
-- PR opened to `main` — **founder merges**  
-- No production deploy from agents  
-
-## 2026-11-19 progress
-
-Copied into this worktree (uncommitted):
-
-- GitHub modules: `oauth-security`, `repository-authorization`, `webhook-security`, `webhook-processor`
-- `stripe-webhook-security.ts`
-- Migrations renumbered to `003`/`004`/`005`
-- Engine `index.ts` exports for GitHub modules
-
-**Blocked on companion APIs still only in dirty tree** (must port carefully onto `3668ba3`, not blind overwrite):
-
-- `GitHubClient.getAppInstallation` / `getInstallationAccess`
-- `IPersistenceStore.revokeRepository` / `revokeRepositoryByGithubId`
-- Related `postgres-store` / `database` / site route wiring from dirty WIP
-
-Next implementation step: extract those methods from dirty tree and merge onto main’s store/client without regressing PRs #38–#44.
+- CI green on branch (including postgres-live after dynamic version asserts)
+- Fail-closed `isQualifiedIsolationActive()` unchanged
+- Customer readiness remains NOT_CUSTOMER_READY until live GitHub workflow verified

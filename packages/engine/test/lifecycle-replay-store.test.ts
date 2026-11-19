@@ -7,7 +7,7 @@ import { Pool } from 'pg';
 const { assertDisposableLocalDatabase } = createRequire(__filename)(
   '../../../scripts/hosted-db-guard.js',
 ) as { assertDisposableLocalDatabase: (value: string) => string };
-import { runMigrations } from '../src/db/migration-runner';
+import { loadMigrationFiles, runMigrations } from '../src/db/migration-runner';
 import { WorkerExecutionService } from '../src/sandbox/worker-service';
 import {
   createJobSignature,
@@ -587,7 +587,9 @@ describeLive('PostgreSQL lifecycle replay (live)', () => {
 });
 
 describeLive('PostgreSQL lifecycle replay migrations (live)', () => {
-  it('applies 001+002 on a clean schema and is idempotent', async () => {
+  it('applies all pending migrations on a clean schema and is idempotent', async () => {
+    const files = loadMigrationFiles();
+    const latest = files[files.length - 1].version;
     const schemaName = `lifecycle_mig_clean_${crypto.randomBytes(4).toString('hex')}`;
     const adminPool = new Pool({ connectionString });
     await adminPool.query(`CREATE SCHEMA ${schemaName}`);
@@ -596,17 +598,24 @@ describeLive('PostgreSQL lifecycle replay migrations (live)', () => {
       const first = await runMigrations(pool);
       expect(first.success).toBe(true);
       expect(first.applied).toEqual(expect.arrayContaining(['001', '002']));
-      expect(first.currentVersion).toBe('002');
+      expect(first.applied).toEqual(expect.arrayContaining(files.map((f) => f.version)));
+      expect(first.currentVersion).toBe(latest);
       const tables = await pool.query<{ table_name: string }>(
         `SELECT table_name FROM information_schema.tables
          WHERE table_schema = $1 AND table_name = 'lifecycle_capability_replays'`,
         [schemaName],
       );
       expect(tables.rowCount).toBe(1);
+      const oauth = await pool.query<{ table_name: string }>(
+        `SELECT table_name FROM information_schema.tables
+         WHERE table_schema = $1 AND table_name = 'oauth_states'`,
+        [schemaName],
+      );
+      expect(oauth.rowCount).toBe(1);
       const second = await runMigrations(pool);
       expect(second.applied).toHaveLength(0);
-      expect(second.alreadyApplied).toEqual(expect.arrayContaining(['001', '002']));
-      expect(second.currentVersion).toBe('002');
+      expect(second.alreadyApplied).toEqual(expect.arrayContaining(['001', '002', latest]));
+      expect(second.currentVersion).toBe(latest);
     } finally {
       await pool.end();
       await adminPool.query(`DROP SCHEMA IF EXISTS ${schemaName} CASCADE`);
@@ -614,7 +623,10 @@ describeLive('PostgreSQL lifecycle replay migrations (live)', () => {
     }
   });
 
-  it('applies 002 onto an existing 001 schema', async () => {
+  it('applies 002+ later migrations onto an existing 001 schema', async () => {
+    const files = loadMigrationFiles();
+    const latest = files[files.length - 1].version;
+    const pendingAfter001 = files.filter((f) => f.version !== '001').map((f) => f.version);
     const schemaName = `lifecycle_mig_exist_${crypto.randomBytes(4).toString('hex')}`;
     const adminPool = new Pool({ connectionString });
     await adminPool.query(`CREATE SCHEMA ${schemaName}`);
@@ -646,8 +658,8 @@ describeLive('PostgreSQL lifecycle replay migrations (live)', () => {
       expect(before.rowCount).toBe(0);
       const report = await runMigrations(pool);
       expect(report.alreadyApplied).toContain('001');
-      expect(report.applied).toEqual(['002']);
-      expect(report.currentVersion).toBe('002');
+      expect(report.applied).toEqual(pendingAfter001);
+      expect(report.currentVersion).toBe(latest);
       const after = await pool.query<{ table_name: string }>(
         `SELECT table_name FROM information_schema.tables
          WHERE table_schema = $1 AND table_name = 'lifecycle_capability_replays'`,

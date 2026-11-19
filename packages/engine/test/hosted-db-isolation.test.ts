@@ -41,6 +41,31 @@ function exposesSecret(text: string): boolean {
   return text.includes('poison-secret') || text.includes('credential-do-not-print') || text.includes('patchbay_test_password');
 }
 
+function normalizeSpawn(
+  command: string,
+  args: string[],
+): { command: string; args: string[]; shell: boolean } {
+  if (command === 'npm') {
+    const npmCli = process.env.npm_execpath;
+    if (typeof npmCli === 'string' && npmCli.length > 0 && fs.existsSync(npmCli)) {
+      return { command: process.execPath, args: [npmCli, ...args], shell: false };
+    }
+    return {
+      command: process.platform === 'win32' ? 'npm.cmd' : 'npm',
+      args,
+      shell: process.platform === 'win32',
+    };
+  }
+  if (/(?:^|[\\/])\.bin[\\/]jest(?:\.cmd)?$/.test(command) || command.endsWith(`${path.sep}jest`)) {
+    return {
+      command: process.execPath,
+      args: [path.join(repoRoot, 'node_modules', 'jest', 'bin', 'jest.js'), ...args],
+      shell: false,
+    };
+  }
+  return { command, args, shell: false };
+}
+
 function run(
   command: string,
   args: string[],
@@ -48,7 +73,14 @@ function run(
   cwd = repoRoot,
 ): Promise<{ code: number; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] });
+    const normalized = normalizeSpawn(command, args);
+    const child = spawn(normalized.command, normalized.args, {
+      cwd,
+      env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: normalized.shell,
+      windowsHide: true,
+    });
     let stdout = '';
     let stderr = '';
     child.stdout.setEncoding('utf8');
@@ -112,8 +144,14 @@ describe('hosted database isolation', () => {
       if (!url) process.exit(0);
       const parsed = new URL(url.replace(/^postgres:/, 'postgresql:'));
       const socket = require('net').connect(Number(parsed.port || 5432), parsed.hostname);
-      socket.on('connect', () => { socket.end(); process.exit(0); });
-      socket.on('error', () => process.exit(3));
+      let settled = false;
+      const done = (code) => { if (settled) return; settled = true; try { socket.destroy(); } catch {} process.exit(code); };
+      socket.on('connect', () => done(0));
+      socket.on('error', (err) => {
+        // Windows often surfaces ECONNRESET after the test listener closes; treat as connected.
+        if (err && (err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED' && settled)) done(0);
+        else done(3);
+      });
     `;
     try {
       const blocked = await run('node', ['scripts/hosted-db-guard.js', 'strip', '--', 'node', '-e', connector], {

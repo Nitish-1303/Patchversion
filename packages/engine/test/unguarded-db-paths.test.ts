@@ -30,13 +30,25 @@ function exposesSecret(text: string): boolean {
   );
 }
 
+function resolveSpawnCommand(command: string): string {
+  if (process.platform !== 'win32') return command;
+  if (command === 'npm' || command === 'npx') return `${command}.cmd`;
+  return command;
+}
+
 function run(
   command: string,
   args: string[],
   env: NodeJS.ProcessEnv,
 ): Promise<{ code: number; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { cwd: repoRoot, env, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(resolveSpawnCommand(command), args, {
+      cwd: repoRoot,
+      env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: false,
+      windowsHide: true,
+    });
     let stdout = '';
     let stderr = '';
     child.stdout.setEncoding('utf8');
@@ -107,12 +119,14 @@ function expectCatalogUnchanged(before: string | null): void {
 
 describe('direct database entry points', () => {
   beforeAll(() => {
-    const compiled = spawnSync('npx', ['tsc', '-p', 'packages/engine/tsconfig.json', '--pretty', 'false'], {
+    const tscJs = path.join(repoRoot, 'node_modules', 'typescript', 'bin', 'tsc');
+    const compiled = spawnSync(process.execPath, [tscJs, '-p', 'packages/engine/tsconfig.json', '--pretty', 'false'], {
       cwd: repoRoot,
       encoding: 'utf8',
+      windowsHide: true,
     });
     if (compiled.status !== 0) {
-      throw new Error(compiled.stdout + compiled.stderr);
+      throw new Error(`${compiled.stdout || ''}${compiled.stderr || ''}` || `tsc exited with status ${compiled.status}`);
     }
   }, 120000);
 
