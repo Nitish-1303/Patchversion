@@ -191,6 +191,15 @@ export interface IPersistenceStore {
   // Webhooks
   recordWebhookDelivery(deliveryId: string, event: string, signature: string): Promise<boolean> | boolean;
   isWebhookProcessed(deliveryId: string): Promise<boolean> | boolean;
+  /** Optional: inspect prior delivery for payload-hash / replay conflict checks. */
+  getWebhookDelivery?(
+    deliveryId: string,
+  ): Promise<{ deliveryId: string; event: string; signature: string; status: string } | null> | {
+    deliveryId: string;
+    event: string;
+    signature: string;
+    status: string;
+  } | null;
 
   // Jobs — tenant ownership required (no job-id-only auth)
   claimNextJob(tenantId: string, workerId: string): Promise<JobRecord | null> | JobRecord | null;

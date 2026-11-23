@@ -109,6 +109,7 @@ describe('GitHub CI Verification & PR Lifecycle Webhooks', () => {
     // Send check_run webhook
     const payload = {
       action: 'completed',
+      installation: { id: 99001 },
       check_run: {
         id: 998877,
         name: 'test-suite',
@@ -201,6 +202,7 @@ describe('GitHub CI Verification & PR Lifecycle Webhooks', () => {
     // Send pull_request closed with merged = true
     const payload = {
       action: 'closed',
+      installation: { id: 99002 },
       pull_request: {
         number: 101,
         merged: true,

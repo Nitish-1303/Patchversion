@@ -1200,6 +1200,19 @@ export class PatchversionDatabase implements IPersistenceStore {
     return Boolean(this.data.webhookDeliveries[deliveryId]);
   }
 
+  getWebhookDelivery(
+    deliveryId: string,
+  ): { deliveryId: string; event: string; signature: string; status: string } | null {
+    const row = this.data.webhookDeliveries[deliveryId];
+    if (!row) return null;
+    return {
+      deliveryId: row.deliveryId,
+      event: row.event,
+      signature: row.signature,
+      status: row.status,
+    };
+  }
+
   // --- Package Watch Targets ---
 
   listWatchTargets(tenantId: string): WatchTargetRecord[] {

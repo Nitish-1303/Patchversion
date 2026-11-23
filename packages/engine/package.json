@@ -7,7 +7,7 @@
   "scripts": {
     "build": "node ../../scripts/hosted-db-guard.js strip -- sh -c \"tsc && node -e \\\"require('fs').cpSync('src/db/migrations', 'dist/db/migrations', { recursive: true, force: true }); require('fs').copyFileSync('src/db/schema.sql', 'dist/db/schema.sql')\\\"\"",
     "test": "node ../../scripts/hosted-db-guard.js strip -- jest --runInBand --passWithNoTests",
-    "test:postgres": "node ../../scripts/hosted-db-guard.js local-test -- jest --runInBand --passWithNoTests test/postgres-live.integration.test.ts test/lifecycle-replay-store.test.ts",
+    "test:postgres": "node ../../scripts/hosted-db-guard.js local-test -- jest --runInBand --passWithNoTests test/postgres-live.integration.test.ts test/lifecycle-replay-store.test.ts test/webhook-postgres.integration.test.ts",
     "typecheck": "node ../../scripts/hosted-db-guard.js strip -- tsc --noEmit",
     "start": "node ../../scripts/hosted-db-guard.js strip -- node dist/index.js",
     "prove": "node ../../scripts/hosted-db-guard.js strip -- node dist/prove.js",

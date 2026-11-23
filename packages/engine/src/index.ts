@@ -175,16 +175,27 @@ export {
   ALLOWED_GITHUB_WEBHOOK_EVENTS,
   WEBHOOK_REPLAY_WINDOW_MS,
   WEBHOOK_PROCESSING_RETRY_AFTER_MS,
+  WEBHOOK_PAYLOAD_HASH_PREFIX,
   isAllowedGitHubWebhookEvent,
   extractWebhookEventTime,
   isWebhookReplayOutsideWindow,
   isOutOfOrderWebhookEvent,
   webhookInstallationId,
+  hashGitHubWebhookPayload,
+  encodeGitHubWebhookDeliverySignature,
+  extractGitHubWebhookPayloadHash,
 } from './github/webhook-security';
 export {
   processVerifiedGitHubWebhook,
   type WebhookProcessResult,
 } from './github/webhook-processor';
+export {
+  GITHUB_WEBHOOK_PATH,
+  GITHUB_WEBHOOK_MAX_BODY_BYTES,
+  handleGitHubWebhookHttp,
+  type GitHubWebhookHttpHeaders,
+  type GitHubWebhookHttpResult,
+} from './github/webhook-http-handler';
 export {
   MigrationRuleRegistry,
   defaultMigrationRegistry,

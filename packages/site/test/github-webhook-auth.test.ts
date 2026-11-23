@@ -263,6 +263,34 @@ describe('GitHub Webhook Authentication and Processing (Production-Safe)', () =>
     expect(data2.message).toBe('Delivery already processed');
   });
 
+  test('10b. Same delivery id with altered body is rejected with HTTP 409', async () => {
+    const deliveryId = 'del_altered_body_conflict_001';
+    const body1 = JSON.stringify({ zen: 'original payload' });
+    const body2 = JSON.stringify({ zen: 'tampered payload!!' });
+
+    const res1 = await webhookPost(
+      makeRequest({
+        deliveryId,
+        event: 'ping',
+        payload: body1,
+        signature: createSignature(body1),
+      }),
+    );
+    expect(res1.status).toBe(200);
+
+    const res2 = await webhookPost(
+      makeRequest({
+        deliveryId,
+        event: 'ping',
+        payload: body2,
+        signature: createSignature(body2),
+      }),
+    );
+    expect(res2.status).toBe(409);
+    const data2 = await res2.json();
+    expect(data2.code).toBe('WEBHOOK_PAYLOAD_CONFLICT');
+  });
+
   test('11. Missing delivery ID returns HTTP 400', async () => {
     const req = makeRequest({
       deliveryId: null,
