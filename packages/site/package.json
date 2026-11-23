@@ -9,7 +9,7 @@
     "dev": "node ../../scripts/hosted-db-guard.js strip -- next dev",
     "build": "node ../../scripts/hosted-db-guard.js strip -- next build",
     "start": "node ../../scripts/hosted-db-guard.js strip -- next start",
-    "typecheck": "node ../../scripts/hosted-db-guard.js strip -- tsc --noEmit",
+    "typecheck": "node ../../scripts/hosted-db-guard.js strip -- node ../../node_modules/typescript/bin/tsc --noEmit",
     "test": "node ../../scripts/hosted-db-guard.js strip -- jest --config jest.config.cjs --runInBand --forceExit --passWithNoTests"
   },
   "dependencies": {

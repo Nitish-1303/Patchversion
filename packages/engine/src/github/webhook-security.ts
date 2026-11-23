@@ -1,3 +1,5 @@
+import { createHash } from 'crypto';
+
 export const ALLOWED_GITHUB_WEBHOOK_EVENTS = new Set([
   'ping',
   'installation',
@@ -12,6 +14,28 @@ export const ALLOWED_GITHUB_WEBHOOK_EVENTS = new Set([
 
 export const WEBHOOK_REPLAY_WINDOW_MS = 15 * 60 * 1000;
 export const WEBHOOK_PROCESSING_RETRY_AFTER_MS = 30 * 1000;
+
+/** Stored with delivery records so same delivery_id + altered body is rejected. */
+export const WEBHOOK_PAYLOAD_HASH_PREFIX = 'ph=';
+
+export function hashGitHubWebhookPayload(rawBody: Buffer | string): string {
+  const buf = typeof rawBody === 'string' ? Buffer.from(rawBody, 'utf8') : rawBody;
+  return createHash('sha256').update(buf).digest('hex');
+}
+
+export function encodeGitHubWebhookDeliverySignature(
+  signatureHeader: string,
+  payloadHash: string,
+): string {
+  return `${WEBHOOK_PAYLOAD_HASH_PREFIX}${payloadHash}|${signatureHeader}`;
+}
+
+export function extractGitHubWebhookPayloadHash(storedSignature: string): string | null {
+  if (!storedSignature.startsWith(WEBHOOK_PAYLOAD_HASH_PREFIX)) return null;
+  const rest = storedSignature.slice(WEBHOOK_PAYLOAD_HASH_PREFIX.length);
+  const sep = rest.indexOf('|');
+  return sep === -1 ? rest : rest.slice(0, sep);
+}
 
 export function isAllowedGitHubWebhookEvent(event: string | undefined | null): boolean {
   return typeof event === 'string' && ALLOWED_GITHUB_WEBHOOK_EVENTS.has(event);

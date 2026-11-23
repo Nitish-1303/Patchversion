@@ -87,15 +87,16 @@ export async function processVerifiedGitHubWebhook(options: {
     if (!db.getPullRequestByCommitSha) {
       return { handled: false, ignoredReason: 'unsupported_store' };
     }
+    if (githubInstallationId === null) {
+      return { handled: false, ignoredReason: 'missing_installation' };
+    }
     const pr = await db.getPullRequestByCommitSha(node.head_sha);
     if (!pr) {
       return { handled: false, ignoredReason: 'unknown_pull_request' };
     }
-    if (githubInstallationId !== null) {
-      const inst = await db.getInstallationByGithubId(githubInstallationId);
-      if (!inst || inst.tenantId !== pr.tenantId) {
-        return { handled: false, ignoredReason: 'installation_tenant_mismatch' };
-      }
+    const inst = await db.getInstallationByGithubId(githubInstallationId);
+    if (!inst || inst.tenantId !== pr.tenantId) {
+      return { handled: false, ignoredReason: 'installation_tenant_mismatch' };
     }
     const conclusion = typeof node.conclusion === 'string' ? node.conclusion : '';
     const status = conclusion === 'success' ? 'passed' : 'failed';
@@ -135,15 +136,16 @@ export async function processVerifiedGitHubWebhook(options: {
     if (!db.getPullRequestByCommitSha || !db.updatePullRequestStatus) {
       return { handled: false, ignoredReason: 'unsupported_store' };
     }
+    if (githubInstallationId === null) {
+      return { handled: false, ignoredReason: 'missing_installation' };
+    }
     const pr = await db.getPullRequestByCommitSha(headSha);
     if (!pr) {
       return { handled: false, ignoredReason: 'unknown_pull_request' };
     }
-    if (githubInstallationId !== null) {
-      const inst = await db.getInstallationByGithubId(githubInstallationId);
-      if (!inst || inst.tenantId !== pr.tenantId) {
-        return { handled: false, ignoredReason: 'installation_tenant_mismatch' };
-      }
+    const prInst = await db.getInstallationByGithubId(githubInstallationId);
+    if (!prInst || prInst.tenantId !== pr.tenantId) {
+      return { handled: false, ignoredReason: 'installation_tenant_mismatch' };
     }
     const status = prPayload?.merged ? 'merged' : 'closed';
     await db.updatePullRequestStatus(pr.tenantId, pr.id, status);

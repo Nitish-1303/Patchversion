@@ -2186,6 +2186,26 @@ export class PostgresStore implements IPersistenceStore {
     return res.rows.length > 0;
   }
 
+  async getWebhookDelivery(
+    deliveryId: string,
+  ): Promise<{ deliveryId: string; event: string; signature: string; status: string } | null> {
+    const rows = await this.query<{
+      delivery_id: string;
+      event: string;
+      signature: string;
+      status: string;
+    }>('SELECT delivery_id, event, signature, status FROM webhook_deliveries WHERE delivery_id = $1', [
+      deliveryId,
+    ]);
+    if (!rows[0]) return null;
+    return {
+      deliveryId: rows[0].delivery_id,
+      event: rows[0].event,
+      signature: rows[0].signature,
+      status: rows[0].status,
+    };
+  }
+
   async isWebhookProcessed(deliveryId: string): Promise<boolean> {
     const rows = await this.query('SELECT 1 FROM webhook_deliveries WHERE delivery_id = $1', [deliveryId]);
     return rows.length > 0;
